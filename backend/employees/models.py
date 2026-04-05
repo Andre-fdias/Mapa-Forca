@@ -1,0 +1,32 @@
+from django.db import models
+from django.core.validators import RegexValidator
+from dictionaries.models import Dictionary
+
+class Funcionario(models.Model):
+    re_validator = RegexValidator(
+        regex=r'^\d{6}-\d{1}$',
+        message='O RE deve estar no formato 000000-0'
+    )
+
+    re = models.CharField(
+        max_length=8, 
+        primary_key=True, 
+        validators=[re_validator],
+        help_text='Formato: 000000-0'
+    )
+    nome_completo = models.CharField(max_length=255)
+    nome_guerra = models.CharField(max_length=100)
+    posto_graduacao = models.ForeignKey(Dictionary, on_delete=models.SET_NULL, null=True, limit_choices_to={'tipo': 'POSTO_GRADUACAO'})
+
+    @property
+    def identidade_militar(self):
+        pg = self.posto_graduacao.nome if self.posto_graduacao else 'S/P'
+        return f"{pg} {self.re} {self.nome_guerra}"
+
+    def __str__(self):
+        return self.identidade_militar
+
+    class Meta:
+        verbose_name = 'Funcionário'
+        verbose_name_plural = 'Funcionários'
+        ordering = ['posto_graduacao__ordem', 'nome_completo']
