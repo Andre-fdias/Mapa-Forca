@@ -6,54 +6,149 @@
     </div>
 
     <!-- Subunidades / Postos -->
-    <div class="space-y-4 overflow-y-auto pr-2 custom-scrollbar">
+    <div class="space-y-6 overflow-y-auto pr-2 custom-scrollbar">
         {% for item in sgb.postos %}
-        <div class="bg-white dark:bg-slate-900 rounded-[1.5rem] border border-slate-100 dark:border-slate-800 shadow-sm overflow-hidden transition-all hover:shadow-md">
-            <!-- Título do Posto -->
-            <div class="bg-slate-50 dark:bg-slate-800/50 px-4 py-2 border-b border-slate-100 dark:border-slate-800 flex justify-between items-center">
-                <span class="text-[10px] font-black text-slate-900 dark:text-white uppercase tracking-tighter">{{ item.unidade.nome }}</span>
-                <span class="text-[9px] font-bold text-slate-400 tabular-nums">{{ item.unidade.telefone|default:"(15) 3232-0000" }}</span>
+        <div x-data="{ showDetails: null }" class="tactical-card flex flex-col bg-white dark:bg-slate-900 border-4 shadow-2xl overflow-hidden transition-all duration-300
+            {% if item.esta_pronto %}border-emerald-500{% else %}border-red-600 animate-pulse-subtle{% endif %}">
+            
+            <!-- 1. HEADER SUPERIOR -->
+            <div class="bg-[#001f3f] dark:bg-[#001529] px-3 py-2 flex justify-between items-center border-b border-slate-200 dark:border-slate-800 text-white">
+                <div class="flex items-center space-x-2">
+                    <div class="w-2 h-2 rounded-full {% if item.esta_pronto %}bg-emerald-500{% else %}bg-red-500{% endif %}"></div>
+                    <span class="text-[10px] font-black uppercase tracking-tight">PELOTÃO - {{ item.unidade.nome|default:"NÃO DEFINIDO" }}</span>
+                </div>
+                <span class="text-[10px] font-bold tabular-nums opacity-80">{{ item.unidade.telefone|default:"" }}</span>
             </div>
 
-            <!-- Tabela Compacta de Viaturas -->
-            <table class="w-full text-[10px]">
-                <thead class="bg-slate-100/50 dark:bg-slate-950/50 text-[8px] font-black text-slate-400 uppercase tracking-widest">
-                    <tr>
-                        <th class="px-3 py-1.5 text-left">VTR</th>
-                        <th class="px-3 py-1.5 text-center">ST</th>
-                        <th class="px-3 py-1.5 text-center">PM/BM</th>
-                        <th class="px-3 py-1.5 text-right">ENC.</th>
-                    </tr>
-                </thead>
-                <tbody class="divide-y divide-slate-50 dark:divide-slate-800/50">
-                    {% for vtr in item.viaturas %}
-                    <tr class="vtr-row transition-colors">
-                        <td class="px-3 py-2">
-                            <span class="font-black text-slate-900 dark:text-slate-200">{{ vtr.prefixo }}</span>
-                        </td>
-                        <td class="px-3 py-2 text-center">
-                            <span class="vtr-badge 
-                                {% if vtr.status_codigo == 'OPERANDO' %}bg-emerald-500 text-white
-                                {% elif vtr.status_codigo == 'RESERVA' %}bg-amber-500 text-white
-                                {% else %}bg-red-600 text-white{% endif %} uppercase">
-                                {{ vtr.status_codigo|slice:":3" }}
-                            </span>
-                        </td>
-                        <td class="px-3 py-2 text-center font-bold text-slate-400 tabular-nums">0/2</td>
-                        <td class="px-3 py-2 text-right">
-                            <span class="font-black text-slate-500 uppercase tracking-tighter italic">{{ vtr.encarregado|default:"---" }}</span>
-                        </td>
-                    </tr>
-                    {% empty %}
-                    <tr>
-                        <td colspan="4" class="px-3 py-6 text-center text-[9px] text-slate-400 font-bold uppercase italic opacity-50">
-                            Aguardando Transmissão
-                        </td>
-                    </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
+            <!-- 2. TABELA DE VIATURAS -->
+            <div class="flex-1 relative">
+                <table class="w-full border-collapse border-b border-slate-200 dark:border-slate-800 text-[10px]">
+                    <thead class="bg-slate-100 dark:bg-slate-800/50 text-[8px] font-black text-slate-600 dark:text-slate-400 uppercase">
+                        <tr>
+                            <th class="border border-slate-200 dark:border-slate-800 px-1 py-1.5 w-12 text-center text-slate-400">VTR</th>
+                            <th class="border border-slate-200 dark:border-slate-800 px-1 py-1.5 w-16 text-center text-slate-400">STATUS</th>
+                            <th class="border border-slate-200 dark:border-slate-800 px-1 py-1.5 w-8 text-center text-slate-400">PM</th>
+                            <th class="border border-slate-200 dark:border-slate-800 px-1 py-1.5 text-left pl-3 text-slate-400">ENCARREGADO</th>
+                        </tr>
+                    </thead>
+                    <tbody class="font-bold">
+                        {% for vtr in item.viaturas %}
+                        <tr class="{% if vtr.status_codigo == 'OPERANDO' %}bg-emerald-50/30 dark:bg-emerald-950/10{% elif vtr.status_codigo == 'RESERVA' %}bg-slate-50/50 dark:bg-slate-800/10{% endif %} transition-colors hover:bg-slate-100 dark:hover:bg-slate-800/30 group">
+                            <td class="border border-slate-200 dark:border-slate-800 text-center py-2 text-slate-900 dark:text-white font-black">{{ vtr.prefixo }}</td>
+                            <td class="border border-slate-200 dark:border-slate-800 text-center py-2">
+                                <span class="text-[8px] px-1.5 py-0.5 rounded
+                                    {% if vtr.status_codigo == 'OPERANDO' %}bg-emerald-500/10 text-emerald-600{% else %}bg-slate-500/10 text-slate-500{% endif %}">
+                                    {{ vtr.status_codigo|slice:":3" }}
+                                </span>
+                            </td>
+                            <td class="border border-slate-200 dark:border-slate-800 text-center py-2 text-slate-500">{{ vtr.num_pm }}</td>
+                            <td class="border border-slate-200 dark:border-slate-800 text-left pl-3 py-2 relative">
+                                <div class="flex items-center justify-between">
+                                    <span class="text-slate-800 dark:text-slate-200 uppercase italic text-[9px] truncate max-w-[120px]">{{ vtr.encarregado }}</span>
+                                    <!-- Lupa para Detalhes -->
+                                    <button @click="showDetails = '{{ vtr.prefixo }}'" class="p-1 text-slate-400 hover:text-red-600 dark:hover:text-red-500 transition-all opacity-0 group-hover:opacity-100 focus:opacity-100">
+                                        <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
+                                    </button>
+                                </div>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                        
+                        <!-- Linhas vazias -->
+                        {% if item.viaturas|length == 0 %}
+                            <tr><td class="border border-slate-200 dark:border-slate-800 py-2.5">&nbsp;</td><td class="border border-slate-200 dark:border-slate-800">&nbsp;</td><td class="border border-slate-200 dark:border-slate-800">&nbsp;</td><td class="border border-slate-200 dark:border-slate-800">&nbsp;</td></tr>
+                            <tr><td class="border border-slate-200 dark:border-slate-800 py-2.5">&nbsp;</td><td class="border border-slate-200 dark:border-slate-800">&nbsp;</td><td class="border border-slate-200 dark:border-slate-800">&nbsp;</td><td class="border border-slate-200 dark:border-slate-800">&nbsp;</td></tr>
+                            <tr><td class="border border-slate-200 dark:border-slate-800 py-2.5">&nbsp;</td><td class="border border-slate-200 dark:border-slate-800">&nbsp;</td><td class="border border-slate-200 dark:border-slate-800">&nbsp;</td><td class="border border-slate-200 dark:border-slate-800">&nbsp;</td></tr>
+                        {% elif item.viaturas|length == 1 %}
+                            <tr><td class="border border-slate-200 dark:border-slate-800 py-2.5">&nbsp;</td><td class="border border-slate-200 dark:border-slate-800">&nbsp;</td><td class="border border-slate-200 dark:border-slate-800">&nbsp;</td><td class="border border-slate-200 dark:border-slate-800">&nbsp;</td></tr>
+                            <tr><td class="border border-slate-200 dark:border-slate-800 py-2.5">&nbsp;</td><td class="border border-slate-200 dark:border-slate-800">&nbsp;</td><td class="border border-slate-200 dark:border-slate-800">&nbsp;</td><td class="border border-slate-200 dark:border-slate-800">&nbsp;</td></tr>
+                        {% elif item.viaturas|length == 2 %}
+                            <tr><td class="border border-slate-200 dark:border-slate-800 py-2.5">&nbsp;</td><td class="border border-slate-200 dark:border-slate-800">&nbsp;</td><td class="border border-slate-200 dark:border-slate-800">&nbsp;</td><td class="border border-slate-200 dark:border-slate-800">&nbsp;</td></tr>
+                        {% endif %}
+                    </tbody>
+                </table>
+
+                <!-- Overlay de Detalhes do Efetivo -->
+                {% for vtr in item.viaturas %}
+                <template x-if="showDetails === '{{ vtr.prefixo }}'">
+                    <div class="absolute inset-0 bg-white dark:bg-slate-900 z-50 p-2 animate-fade-in flex flex-col border-b border-slate-200 dark:border-slate-800">
+                        <div class="flex justify-between items-center mb-2 border-b border-slate-200 dark:border-slate-700 pb-1">
+                            <span class="text-[9px] font-black text-red-600 uppercase">Equipe: {{ vtr.prefixo }}</span>
+                            <button @click="showDetails = null" class="text-slate-400 hover:text-black dark:hover:text-white">
+                                <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path d="M6 18L18 6M6 6l12 12"/></svg>
+                            </button>
+                        </div>
+                        <div class="space-y-1 overflow-y-auto">
+                            {% for m in vtr.equipe_completa %}
+                            <div class="flex items-center justify-between text-[9px] bg-slate-50 dark:bg-slate-800/50 p-1.5 rounded-lg border border-slate-100 dark:border-slate-800">
+                                <div class="flex flex-col">
+                                    <span class="font-black text-slate-900 dark:text-white uppercase">{{ m.nome }}</span>
+                                    <span class="text-[7px] text-slate-400 font-bold uppercase">{{ m.funcao }}</span>
+                                </div>
+                                <div class="flex items-center space-x-1.5">
+                                    {% if m.mergulhador %}<span class="px-1 bg-blue-500 text-white rounded-[2px] text-[7px] font-black" title="Mergulhador">MERG</span>{% endif %}
+                                    <span class="px-1 bg-slate-200 dark:bg-slate-700 text-slate-600 dark:text-slate-300 rounded-[2px] text-[7px] font-black">{{ m.ovb|default:"S/ OVB" }}</span>
+                                    {% if m.dejem %}<span class="px-1 bg-amber-500 text-white rounded-[2px] text-[7px] font-black" title="Serviço Extra">DEJEM</span>{% endif %}
+                                </div>
+                            </div>
+                            {% endfor %}
+                        </div>
+                    </div>
+                </template>
+                {% endfor %}
+            </div>
+
+            <!-- 3. DADOS ESTATÍSTICOS -->
+            <div class="px-3 py-2 bg-slate-50/50 dark:bg-slate-800/30 text-[9px] font-black uppercase tracking-tight grid grid-cols-2 gap-x-4 gap-y-1.5 border-b border-slate-200 dark:border-slate-800">
+                <div class="flex justify-between items-center border-b border-slate-200 dark:border-slate-700/50 pb-1">
+                    <span class="text-slate-400">MERGULHADOR:</span>
+                    <span class="{% if item.stats.mergulhadores > 0 %}text-blue-600{% else %}text-red-600{% endif %}">{{ item.stats.mergulhadores|stringformat:"02d" }}</span>
+                </div>
+                <div class="flex justify-between items-center border-b border-slate-200 dark:border-slate-700/50 pb-1">
+                    <span class="text-slate-400">DEJEM:</span>
+                    <span class="text-amber-600">{{ item.stats.dejem|stringformat:"02d" }}</span>
+                </div>
+                <div class="flex justify-between items-center">
+                    <span class="text-slate-400">OVB LEVE:</span>
+                    <span class="text-slate-900 dark:text-white">{{ item.stats.ovb_leve|stringformat:"02d" }}</span>
+                </div>
+                <div class="flex justify-between items-center">
+                    <span class="text-slate-400">OVB PESADO:</span>
+                    <span class="text-slate-900 dark:text-white">{{ item.stats.ovb_pesado|stringformat:"02d" }}</span>
+                </div>
+            </div>
+
+            <!-- 4. RODAPÉ (PRETO) -->
+            <div class="bg-black text-white">
+                <div class="px-3 py-1.5 flex justify-between items-center border-b border-white/5">
+                    <div class="flex items-center space-x-2">
+                        <span class="text-[8px] text-slate-500 font-bold tracking-widest">TELEGRAFISTA:</span>
+                        <a href="{% if item.unidade.id %}{% url 'compor_mapa' %}?unidade={{ item.unidade.id }}{% else %}#{% endif %}" 
+                           class="text-[9px] font-black hover:text-red-500 transition-colors uppercase italic tracking-tighter">
+                            AGUARDANDO...
+                        </a>
+                    </div>
+                    <svg class="h-3 w-3 text-white/20" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M13 7l5 5m0 0l-5 5m5-5H6" /></svg>
+                </div>
+                <div class="px-3 py-1 bg-[#111] flex items-center space-x-2">
+                    <span class="text-[8px] text-slate-600 font-black uppercase">Efetivo Total:</span>
+                    <span class="text-[10px] font-black text-emerald-500 tabular-nums">{{ item.stats.efetivo_total|stringformat:"02d" }}</span>
+                </div>
+            </div>
         </div>
         {% endfor %}
     </div>
 </div>
+
+<style>
+    @keyframes pulse-subtle {
+        0%, 100% { opacity: 1; }
+        50% { opacity: 0.85; }
+    }
+    .animate-pulse-subtle {
+        animation: pulse-subtle 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+    }
+    .tactical-card {
+        border-radius: 4px;
+    }
+</style>

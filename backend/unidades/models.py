@@ -84,11 +84,13 @@ class Unidade(models.Model):
 
 class Viatura(models.Model):
     prefixo = models.CharField(max_length=20, primary_key=True)
-    placa = models.CharField(max_length=8, unique=True, null=True, blank=True)
+    placa = models.CharField(max_length=20, null=True, blank=True)
     municipio = models.CharField(max_length=100, blank=True, null=True)
     opmcb = models.CharField(max_length=100, blank=True, null=True)
     sgb = models.CharField(max_length=50, blank=True, null=True)
     garagem = models.CharField(max_length=100, blank=True, null=True)
+    vol_agua = models.CharField(max_length=50, blank=True, null=True, verbose_name="Volume de Água")
+    combustivel = models.CharField(max_length=100, blank=True, null=True)
     
     tipo = models.ForeignKey(
         Dictionary, 
@@ -143,3 +145,46 @@ class Viatura(models.Model):
         verbose_name = 'Viatura'
         verbose_name_plural = 'Viaturas'
         ordering = ['prefixo']
+
+class Municipio(models.Model):
+    id_cidade = models.CharField(max_length=50, null=True, blank=True)
+    nome = models.CharField(max_length=255, unique=True)
+    tipo_cidade = models.CharField(max_length=100, null=True, blank=True)
+    area_km2 = models.DecimalField(max_digits=15, decimal_places=3, null=True, blank=True)
+    populacao = models.IntegerField(null=True, blank=True)
+    hab_km2 = models.DecimalField(max_digits=15, decimal_places=2, null=True, blank=True)
+    email = models.EmailField(max_length=255, null=True, blank=True)
+    bandeira = models.CharField(max_length=255, null=True, blank=True)
+    codigo = models.CharField(max_length=50, null=True, blank=True)
+    fonte = models.CharField(max_length=100, default='Google Sheets')
+
+    def __str__(self):
+        return self.nome
+
+    class Meta:
+        verbose_name = 'Município'
+        verbose_name_plural = 'Municípios'
+        ordering = ['nome']
+
+class Posto(models.Model):
+    nome = models.CharField(max_length=255, unique=True)
+    sgb = models.CharField(max_length=100, null=True, blank=True)
+    cod_secao = models.CharField(max_length=100, null=True, blank=True)
+    cidade_posto = models.CharField(max_length=255, null=True, blank=True)
+    operacional_adm = models.CharField(max_length=100, null=True, blank=True)
+    endereco_quarte = models.CharField(max_length=255, null=True, blank=True)
+    telefone = models.CharField(max_length=100, null=True, blank=True)
+    municipios = models.ManyToManyField(Municipio, related_name='postos')
+    fonte = models.CharField(max_length=100, default='Google Sheets')
+
+    @property
+    def num_municipios(self):
+        return self.municipios.count()
+
+    def __str__(self):
+        return self.nome
+
+    class Meta:
+        verbose_name = 'Posto'
+        verbose_name_plural = 'Postos'
+        ordering = ['nome']

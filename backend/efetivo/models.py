@@ -33,6 +33,13 @@ class Funcionario(models.Model):
 
 class Efetivo(models.Model):
     nome = models.CharField(max_length=255, unique=True)
+    re = models.CharField(max_length=50, null=True, blank=True)
+    nome_do_pm = models.CharField(max_length=255, null=True, blank=True)
+    sgb = models.CharField(max_length=100, null=True, blank=True)
+    posto_secao = models.CharField(max_length=100, null=True, blank=True)
+    mergulho = models.CharField(max_length=100, null=True, blank=True)
+    ovb = models.CharField(max_length=100, null=True, blank=True)
+    
     fonte = models.CharField(max_length=100, default='Google Sheets')
     data_importacao = models.DateTimeField(auto_now=True)
 

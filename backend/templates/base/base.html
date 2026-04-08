@@ -1,10 +1,13 @@
-{% load tailwind_tags %}
+{% load static tailwind_tags %}
 <!DOCTYPE html>
 <html lang="pt-br" x-data="{ darkMode: localStorage.getItem('darkMode') === 'true' }" :class="{ 'dark': darkMode }">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{% block title %}Mapa Força Bombeiros{% endblock %}</title>
+    
+    <!-- Favicon -->
+    <link rel="icon" type="image/svg+xml" href="{% static 'images/favicon.svg' %}">
     
     <!-- Tailwind via CDN with Dark Mode enabled -->
     <script src="https://cdn.tailwindcss.com"></script>
@@ -16,11 +19,11 @@
                     colors: {
                         brand: {
                             red: '#E11D48', // Red-600
-                            dark: '#0F172A', // Slate-900
+                            dark: '#020617', // Slate-950
                         },
                         glass: {
                             white: 'rgba(255, 255, 255, 0.1)',
-                            dark: 'rgba(0, 0, 0, 0.2)',
+                            dark: 'rgba(15, 23, 42, 0.8)',
                         }
                     },
                     backdropBlur: {
@@ -47,22 +50,25 @@
             border: 1px solid rgba(255, 255, 255, 0.2);
         }
         .dark .glass {
-            background: rgba(15, 23, 42, 0.7);
-            border: 1px solid rgba(255, 255, 255, 0.05);
+            background: rgba(15, 23, 42, 0.8);
+            border: 1px solid rgba(51, 65, 85, 0.3);
         }
         .morphism-card {
             box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.07);
         }
+        .dark .morphism-card {
+            box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.4);
+        }
         /* Custom scrollbar for dark mode */
         .dark ::-webkit-scrollbar { width: 8px; }
-        .dark ::-webkit-scrollbar-track { background: #1e293b; }
-        .dark ::-webkit-scrollbar-thumb { background: #475569; border-radius: 4px; }
+        .dark ::-webkit-scrollbar-track { background: #020617; }
+        .dark ::-webkit-scrollbar-thumb { background: #1e293b; border-radius: 4px; }
         
         .htmx-indicator { display: none; }
         .htmx-request .htmx-indicator { display: block; }
     </style>
 </head>
-<body class="bg-gray-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 font-sans min-h-screen transition-colors duration-300">
+<body class="bg-gray-100 dark:bg-[#020617] text-slate-900 dark:text-slate-100 font-sans min-h-screen transition-colors duration-300">
 
     <div class="flex h-screen overflow-hidden" x-data="{ sidebarOpen: false }">
         
