@@ -1,0 +1,143 @@
+{% extends "base/base.html" %}
+
+{% block title %}Compor Mapa Força - {{ unidade_selecionada.nome }}{% endblock %}
+
+{% block extra_js %}
+<script src="https://unpkg.com/htmx.org@1.9.10"></script>
+{% endblock %}
+
+{% block content %}
+<div class="flex flex-col space-y-10 animate-fade-in pb-20">
+    <!-- Header Context -->
+    <div class="flex flex-col md:flex-row items-center justify-between gap-6 px-4">
+        <div class="flex-1 w-full max-w-md">
+            <label class="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2 ml-2">Unidade Selecionada</label>
+            <select onchange="window.location.href='?unidade_id=' + this.value" 
+                    class="w-full bg-white dark:bg-slate-900 border-2 border-slate-100 dark:border-slate-800 text-slate-900 dark:text-white rounded-2xl p-4 text-sm font-black cursor-pointer focus:ring-4 focus:ring-red-600/10 focus:border-red-600 transition-all">
+                {% for unidade in todas_unidades %}
+                <option value="{{ unidade.id }}" {% if unidade.id == unidade_selecionada.id %}selected{% endif %}>
+                    {{ unidade.nome }}
+                </option>
+                {% endfor %}
+            </select>
+        </div>
+        
+        <div class="bg-slate-950 p-4 rounded-3xl border border-slate-900 shadow-xl flex items-center space-x-4">
+             <div class="flex flex-col items-end pr-5 border-r border-slate-800">
+                <span class="text-[9px] font-black text-slate-500 uppercase tracking-widest mb-1">Mapa Força</span>
+                <span class="text-xl font-black text-red-500 tabular-nums">{{ mapa.data|date:"d/m/Y" }}</span>
+            </div>
+            <div class="h-10 w-10 bg-emerald-500/10 rounded-xl flex items-center justify-center border border-emerald-500/20">
+                <div class="h-2 w-2 bg-emerald-500 rounded-full animate-ping"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Add Vehicle Form -->
+    <div class="bg-slate-950 rounded-[2.5rem] p-10 shadow-2xl border border-slate-900 group">
+        <div class="mb-8 border-b border-slate-900 pb-6">
+            <h2 class="text-2xl font-black text-white uppercase tracking-tighter">Compor Guarnição</h2>
+            <p class="text-slate-500 text-[10px] font-black uppercase tracking-widest mt-1 italic">Posto → Viatura → Adicionar</p>
+        </div>
+        
+        <form hx-post="{% url 'adicionar_viatura_mapa' mapa.id %}" 
+              hx-target="#lista-viaturas"
+              hx-swap="afterbegin"
+              class="flex flex-col lg:flex-row items-end gap-6">
+            {% csrf_token %}
+            
+            <div class="flex-1 w-full">
+                <label class="block text-[9px] font-black text-slate-500 uppercase tracking-[0.2em] mb-3 ml-2">1. Selecionar Posto</label>
+                <select name="unidade_id" 
+                        hx-get="{% url 'get_viaturas_por_unidade' %}"
+                        hx-target="#viatura-select"
+                        hx-trigger="change"
+                        class="w-full bg-slate-900 border-2 border-slate-800 text-white rounded-2xl p-5 text-sm font-black focus:border-red-600 transition-all cursor-pointer">
+                    <option value="">Selecione...</option>
+                    {% for unidade in todas_unidades %}
+                    <option value="{{ unidade.id }}">{{ unidade.nome }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <div class="flex-1 w-full">
+                <label class="block text-[9px] font-black text-slate-500 uppercase tracking-[0.2em] mb-3 ml-2">2. Selecionar Viatura</label>
+                <select id="viatura-select" name="prefixo" required
+                        class="w-full bg-slate-900 border-2 border-slate-800 text-white rounded-2xl p-5 text-sm font-black focus:border-red-600 transition-all cursor-pointer">
+                    <option value="">Escolha o posto acima...</option>
+                </select>
+            </div>
+
+            <button type="submit"
+                    class="w-full lg:w-auto bg-red-600 hover:bg-red-500 text-white font-black py-5 px-12 rounded-2xl transition-all shadow-[0_15px_40px_rgba(225,29,72,0.3)] flex items-center justify-center space-x-3 active:scale-95">
+                <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-width="3" d="M12 4v16m8-8H4"/></svg>
+                <span class="uppercase">Adicionar</span>
+            </button>
+        </form>
+    </div>
+
+    <!-- Cards Grid -->
+    <div id="lista-viaturas" class="grid grid-cols-1 xl:grid-cols-2 gap-10">
+        {% for alocacao in mapa.alocacoes_viaturas.all %}
+            {% include "mapa_forca/partials/card_viatura_alocada.html" with alocacao=alocacao %}
+        {% endfor %}
+    </div>
+
+    <!-- Final Save Button -->
+    <div class="flex justify-center pt-10">
+        <button hx-post="{% url 'validar_mapa_final' mapa.id %}"
+                hx-swap="none"
+                class="bg-white text-slate-950 font-black py-6 px-24 rounded-[2rem] transition-all transform hover:scale-105 active:scale-95 shadow-2xl flex items-center space-x-4 border-4 border-slate-100">
+            {% csrf_token %}
+            <span class="text-xl uppercase tracking-tighter">Finalizar e Salvar Mapa</span>
+            <div class="h-8 w-8 bg-red-600 rounded-xl flex items-center justify-center shadow-lg">
+                <svg class="h-4 w-4 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="4"><path d="M5 13l4 4L19 7"/></svg>
+            </div>
+        </button>
+    </div>
+</div>
+
+<!-- Toast System -->
+<div id="toast" class="fixed bottom-10 right-10 z-[100] transform translate-y-20 opacity-0 transition-all duration-500 pointer-events-none">
+    <div id="toast-container" class="bg-slate-900 text-white px-8 py-5 rounded-2xl shadow-2xl border border-white/10 flex items-center space-x-4 min-w-[300px]">
+        <div id="toast-icon-bg" class="h-10 w-10 bg-emerald-500 rounded-xl flex items-center justify-center">
+            <svg class="h-6 w-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="3"><path d="M5 13l4 4L19 7"/></svg>
+        </div>
+        <div class="flex flex-col">
+            <span class="text-[10px] font-black text-slate-400 uppercase tracking-widest">Notificação</span>
+            <span class="text-sm font-black uppercase" id="toast-message">Sucesso!</span>
+        </div>
+    </div>
+</div>
+
+<script>
+    function showToast(message, type = "success") {
+        const toast = document.getElementById('toast');
+        const container = document.getElementById('toast-container');
+        const msgSpan = document.getElementById('toast-message');
+        
+        msgSpan.innerText = message;
+        
+        if (type === "error") {
+            container.classList.replace('bg-slate-900', 'bg-red-600');
+        } else {
+            container.classList.replace('bg-red-600', 'bg-slate-900');
+        }
+        
+        toast.classList.remove('translate-y-20', 'opacity-0');
+        setTimeout(() => toast.classList.add('translate-y-20', 'opacity-0'), 5000);
+    }
+
+    document.body.addEventListener('htmx:afterRequest', function(evt) {
+        if (evt.detail.target.id === 'lista-viaturas' && evt.detail.successful) {
+            const empty = document.getElementById('empty-state');
+            if (empty) empty.remove();
+        }
+    });
+</script>
+
+<style>
+    @keyframes fade-in { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
+    .animate-fade-in { animation: fade-in 0.8s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
+</style>
+{% endblock %}

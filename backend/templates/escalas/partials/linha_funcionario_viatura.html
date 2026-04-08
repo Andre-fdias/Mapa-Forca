@@ -1,0 +1,17 @@
+<div id="aloc-func-{{ aloc_func.id }}" class="flex items-center justify-between bg-gray-50 border border-gray-100 p-2 rounded hover:shadow-sm transition-shadow">
+    <div class="flex flex-col">
+        <span class="text-sm font-bold text-gray-800">{{ aloc_func.funcionario.nome_guerra }}</span>
+        <div class="flex items-center space-x-2">
+            <span class="text-[10px] text-gray-500 font-mono">{{ aloc_func.funcionario.re }}</span>
+            <span class="text-[10px] bg-red-100 text-red-800 px-1 rounded font-semibold">{{ aloc_func.funcao.nome }}</span>
+        </div>
+    </div>
+    <button hx-delete="{% url 'remover_funcionario_viatura' aloc_func.id %}"
+            hx-target="#aloc-func-{{ aloc_func.id }}"
+            hx-swap="outerHTML"
+            class="text-gray-300 hover:text-red-500 transition-colors p-1">
+        <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+        </svg>
+    </button>
+</div>

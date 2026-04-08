@@ -1,0 +1,52 @@
+<!-- OFICIAIS DE SERVIÇO -->
+<div class="bg-slate-900 rounded-[2rem] p-6 shadow-xl border-b-4 border-red-600 space-y-6">
+    <div class="flex items-center space-x-3 mb-2">
+        <div class="h-2 w-8 bg-red-600 rounded-full"></div>
+        <h3 class="text-xs font-black text-white uppercase tracking-widest">Oficiais de Serviço</h3>
+    </div>
+
+    <div class="space-y-4">
+        {% for oficial in oficiais %}
+        <div class="bg-slate-800/50 p-4 rounded-2xl border border-slate-700/50 group hover:bg-slate-800 transition-all">
+            <div class="flex justify-between items-start mb-1">
+                <span class="text-[8px] font-black text-slate-500 uppercase tracking-widest">{{ oficial.cargo }}</span>
+                <span class="text-[8px] bg-red-600/20 text-red-500 px-2 py-0.5 rounded font-black uppercase">{{ oficial.tipo }}</span>
+            </div>
+            <p class="text-xs font-black text-white group-hover:text-red-400 transition-colors uppercase tracking-tighter">{{ oficial.nome }}</p>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+
+<!-- PRONTIDÃO GERAL -->
+<div class="glass dark:bg-slate-900/50 rounded-[2rem] p-6 morphism-card space-y-6">
+    <div class="flex items-center justify-between">
+        <h3 class="text-[10px] font-black text-slate-400 uppercase tracking-widest">Prontidão Geral</h3>
+        <span class="h-2 w-2 bg-emerald-500 rounded-full animate-pulse"></span>
+    </div>
+
+    <div class="grid grid-cols-2 gap-3">
+        <div class="bg-white dark:bg-slate-800 p-3 rounded-2xl border border-slate-100 dark:border-slate-700 text-center">
+            <span class="text-[8px] font-bold text-slate-400 uppercase block mb-1">Mergulhador</span>
+            <span class="text-xs font-black text-emerald-600 uppercase">SIM</span>
+        </div>
+        <div class="bg-white dark:bg-slate-800 p-3 rounded-2xl border border-slate-100 dark:border-slate-700 text-center">
+            <span class="text-[8px] font-bold text-slate-400 uppercase block mb-1">USI Team</span>
+            <span class="text-xs font-black text-slate-900 dark:text-white tabular-nums">04</span>
+        </div>
+    </div>
+
+    <!-- TELEGRAPHISTA -->
+    <div class="pt-4 border-t border-slate-100 dark:border-slate-800">
+        <span class="text-[8px] font-black text-slate-400 uppercase tracking-widest block mb-3">Telegraphista de Serviço</span>
+        <div class="flex items-center space-x-3">
+            <div class="h-8 w-8 rounded-xl bg-slate-900 dark:bg-slate-800 flex items-center justify-center">
+                <svg class="h-4 w-4 text-red-600" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path d="M12 18h.01M8 21h8a2 2 0 002-2V5a2 2 0 00-2-2H8a2 2 0 00-2 2v14a2 2 0 002 2z" stroke-width="2.5"/></svg>
+            </div>
+            <div>
+                <p class="text-[10px] font-black text-slate-900 dark:text-white uppercase">SGT PM MARCOS</p>
+                <p class="text-[8px] font-bold text-slate-500 uppercase italic">Base: Sorocaba</p>
+            </div>
+        </div>
+    </div>
+</div>

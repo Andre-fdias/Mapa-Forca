@@ -4,8 +4,8 @@ import django
 os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'core.settings')
 django.setup()
 
-from employees.models import Funcionario
-from resources.models import Viatura, Posto
+from efetivo.models import Funcionario
+from unidades.models import Viatura, Posto
 
 def seed():
     print("Populando dados de teste...")

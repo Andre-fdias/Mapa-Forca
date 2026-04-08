@@ -72,6 +72,20 @@ class Command(BaseCommand):
                 ('INFO', 'INFO', 1),
                 ('ALERTA', 'ALERTA', 2),
                 ('CRITICO', 'CRITICO', 3),
+            ],
+            'TIPO_UNIDADE': [
+                ('GRANDE_COMANDO', 'Grande Comando', 1),
+                ('BATALHAO', 'Batalhão', 2),
+                ('POSTO', 'Posto de Bombeiros', 3),
+                ('CENTRAL', 'Central de Controle', 4),
+            ],
+            'FUNCAO_OPERACIONAL': [
+                ('COMANDANTE', 'Comandante', 1),
+                ('MOTORISTA', 'Motorista', 2),
+                ('AUXILIAR', 'Auxiliar', 3),
+                ('SUPERVISOR', 'Supervisor', 4),
+                ('DESPACHADOR', 'Despachador', 5),
+                ('TELEGRAFISTA', 'Telegrafista', 6),
             ]
         }
 

@@ -1,0 +1,11 @@
+<div class="py-1">
+    {% for funcionario in funcionarios %}
+    <div class="px-3 py-2 hover:bg-red-50 cursor-pointer border-b border-gray-50 last:border-0"
+         onclick="this.closest('form').querySelector('input[name=\'funcionario_re\']').value = '{{ funcionario.re }}'; this.parentElement.innerHTML = '';">
+        <div class="text-xs font-bold text-gray-900">{{ funcionario.identidade_militar }}</div>
+        <div class="text-[10px] text-gray-500">{{ funcionario.nome_completo }}</div>
+    </div>
+    {% empty %}
+    <div class="px-3 py-2 text-xs text-gray-400 italic">Nenhum funcionário encontrado.</div>
+    {% endfor %}
+</div>

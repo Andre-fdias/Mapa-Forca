@@ -1,0 +1,75 @@
+<!-- Militares Cadastrados (Com RE) -->
+{% for funcionario in funcionarios %}
+<div class="p-3 hover:bg-red-50 dark:hover:bg-red-900/20 cursor-pointer border-b border-slate-100 dark:border-slate-800 last:border-0 transition-colors"
+     onclick="selectFuncionario('{{ funcionario.re }}', '', '{{ funcionario.nome_guerra }}')">
+    <div class="flex items-center justify-between">
+        <div class="flex flex-col">
+            <span class="text-sm font-black text-slate-900 dark:text-white uppercase tracking-tight">
+                {{ funcionario.posto_graduacao.nome }} {{ funcionario.nome_guerra }}
+            </span>
+            <span class="text-[10px] text-slate-500 font-mono font-bold">{{ funcionario.re }} — {{ funcionario.nome_completo }}</span>
+        </div>
+        <span class="text-[10px] bg-red-600 text-white px-2 py-1 rounded uppercase font-black">Selecionar</span>
+    </div>
+</div>
+{% endfor %}
+
+<!-- Efetivo Importado (Sheets) -->
+{% if efetivo_extra %}
+<div class="bg-slate-100 dark:bg-slate-800 px-3 py-1 text-[9px] font-black text-slate-500 uppercase tracking-widest">
+    Lista Extra (Sheets)
+</div>
+{% for extra in efetivo_extra %}
+<div class="p-3 hover:bg-amber-50 dark:hover:bg-amber-900/20 cursor-pointer border-b border-slate-100 dark:border-slate-800 last:border-0 transition-colors"
+     onclick="selectFuncionario('', '{{ extra.nome }}', '{{ extra.nome }}')">
+    <div class="flex items-center justify-between">
+        <div class="flex flex-col">
+            <span class="text-sm font-bold text-slate-700 dark:text-slate-300 uppercase tracking-tight">
+                {{ extra.nome }}
+            </span>
+            <span class="text-[9px] text-slate-400 font-bold italic">Importado da Planilha</span>
+        </div>
+        <span class="text-[10px] bg-amber-500 text-white px-2 py-1 rounded uppercase font-black">Adicionar</span>
+    </div>
+</div>
+{% endfor %}
+{% endif %}
+
+{% if not funcionarios and not efetivo_extra %}
+<div class="p-4 text-center text-slate-500 text-xs italic uppercase font-bold">
+    Nenhum militar encontrado
+</div>
+{% endif %}
+
+<script>
+function selectFuncionario(re, nomeExtra, nomeGuerra) {
+    // Busca o card pai através do ID do container de resultados
+    const containerId = event.target.closest('[id^="results-"]').id;
+    const viaturaId = containerId.split('-')[1];
+    const card = document.getElementById('viatura-card-' + viaturaId);
+    const form = card.querySelector('form');
+    
+    // Identifica os inputs
+    const inputBusca = form.querySelector('input[name="funcionario_re"]');
+    let inputExtra = form.querySelector('input[name="nome_extra"]');
+    
+    // Cria o input oculto se não existir
+    if (!inputExtra) {
+        inputExtra = document.createElement('input');
+        inputExtra.type = 'hidden';
+        inputExtra.name = 'nome_extra';
+        form.appendChild(inputExtra);
+    }
+
+    if (re) {
+        inputBusca.value = re;
+        inputExtra.value = '';
+    } else {
+        inputBusca.value = nomeExtra;
+        inputExtra.value = nomeExtra;
+    }
+    
+    // Fecha a lista de resultados
+    document.getElementById(containerId).innerHTML = '';
+}
+</script>

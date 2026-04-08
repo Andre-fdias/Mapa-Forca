@@ -4,7 +4,7 @@ import django
 os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'core.settings')
 django.setup()
 
-from resources.models import Posto
+from unidades.models import Posto
 
 postos = [
     "Posto 01 - Centro", "Posto 02 - Norte", "Posto 03 - Sul", "Posto 04 - Leste", "Posto 05 - Oeste",

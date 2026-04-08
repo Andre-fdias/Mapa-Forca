@@ -1,0 +1,59 @@
+<div class="flex flex-col space-y-4 h-full">
+    <!-- SGB Header -->
+    <div class="bg-slate-900 rounded-2xl p-4 border-b-4 border-red-600 shadow-xl">
+        <h2 class="text-lg font-black text-white uppercase tracking-tighter italic">{{ sgb.nome }}</h2>
+        <p class="text-[9px] font-bold text-slate-500 uppercase tracking-[0.2em] mt-1">Sessão de Grupamento Bombeiros</p>
+    </div>
+
+    <!-- Subunidades / Postos -->
+    <div class="space-y-4 overflow-y-auto pr-2 custom-scrollbar">
+        {% for item in sgb.postos %}
+        <div class="bg-white dark:bg-slate-900 rounded-[1.5rem] border border-slate-100 dark:border-slate-800 shadow-sm overflow-hidden transition-all hover:shadow-md">
+            <!-- Título do Posto -->
+            <div class="bg-slate-50 dark:bg-slate-800/50 px-4 py-2 border-b border-slate-100 dark:border-slate-800 flex justify-between items-center">
+                <span class="text-[10px] font-black text-slate-900 dark:text-white uppercase tracking-tighter">{{ item.unidade.nome }}</span>
+                <span class="text-[9px] font-bold text-slate-400 tabular-nums">{{ item.unidade.telefone|default:"(15) 3232-0000" }}</span>
+            </div>
+
+            <!-- Tabela Compacta de Viaturas -->
+            <table class="w-full text-[10px]">
+                <thead class="bg-slate-100/50 dark:bg-slate-950/50 text-[8px] font-black text-slate-400 uppercase tracking-widest">
+                    <tr>
+                        <th class="px-3 py-1.5 text-left">VTR</th>
+                        <th class="px-3 py-1.5 text-center">ST</th>
+                        <th class="px-3 py-1.5 text-center">PM/BM</th>
+                        <th class="px-3 py-1.5 text-right">ENC.</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-slate-50 dark:divide-slate-800/50">
+                    {% for vtr in item.viaturas %}
+                    <tr class="vtr-row transition-colors">
+                        <td class="px-3 py-2">
+                            <span class="font-black text-slate-900 dark:text-slate-200">{{ vtr.prefixo }}</span>
+                        </td>
+                        <td class="px-3 py-2 text-center">
+                            <span class="vtr-badge 
+                                {% if vtr.status_codigo == 'OPERANDO' %}bg-emerald-500 text-white
+                                {% elif vtr.status_codigo == 'RESERVA' %}bg-amber-500 text-white
+                                {% else %}bg-red-600 text-white{% endif %} uppercase">
+                                {{ vtr.status_codigo|slice:":3" }}
+                            </span>
+                        </td>
+                        <td class="px-3 py-2 text-center font-bold text-slate-400 tabular-nums">0/2</td>
+                        <td class="px-3 py-2 text-right">
+                            <span class="font-black text-slate-500 uppercase tracking-tighter italic">{{ vtr.encarregado|default:"---" }}</span>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="4" class="px-3 py-6 text-center text-[9px] text-slate-400 font-bold uppercase italic opacity-50">
+                            Aguardando Transmissão
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% endfor %}
+    </div>
+</div>

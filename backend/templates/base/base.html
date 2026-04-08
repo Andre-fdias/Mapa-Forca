@@ -1,0 +1,108 @@
+{% load tailwind_tags %}
+<!DOCTYPE html>
+<html lang="pt-br" x-data="{ darkMode: localStorage.getItem('darkMode') === 'true' }" :class="{ 'dark': darkMode }">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Mapa Força Bombeiros{% endblock %}</title>
+    
+    <!-- Tailwind via CDN with Dark Mode enabled -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        brand: {
+                            red: '#E11D48', // Red-600
+                            dark: '#0F172A', // Slate-900
+                        },
+                        glass: {
+                            white: 'rgba(255, 255, 255, 0.1)',
+                            dark: 'rgba(0, 0, 0, 0.2)',
+                        }
+                    },
+                    backdropBlur: {
+                        xs: '2px',
+                    }
+                }
+            }
+        }
+    </script>
+    
+    <!-- HTMX -->
+    <script src="https://unpkg.com/htmx.org@2.0.3"></script>
+    
+    <!-- Alpine JS -->
+    <script defer src="https://unpkg.com/alpinejs@3.x.x/dist/cdn.min.js"></script>
+    
+    {% block extra_head %}{% endblock %}
+    
+    <style>
+        [x-cloak] { display: none !important; }
+        .glass {
+            background: rgba(255, 255, 255, 0.7);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+        .dark .glass {
+            background: rgba(15, 23, 42, 0.7);
+            border: 1px solid rgba(255, 255, 255, 0.05);
+        }
+        .morphism-card {
+            box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.07);
+        }
+        /* Custom scrollbar for dark mode */
+        .dark ::-webkit-scrollbar { width: 8px; }
+        .dark ::-webkit-scrollbar-track { background: #1e293b; }
+        .dark ::-webkit-scrollbar-thumb { background: #475569; border-radius: 4px; }
+        
+        .htmx-indicator { display: none; }
+        .htmx-request .htmx-indicator { display: block; }
+    </style>
+</head>
+<body class="bg-gray-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 font-sans min-h-screen transition-colors duration-300">
+
+    <div class="flex h-screen overflow-hidden" x-data="{ sidebarOpen: false }">
+        
+        <!-- Sidebar -->
+        {% include "base/sidebar.html" %}
+
+        <!-- Main Content Area -->
+        <div class="flex-1 flex flex-col overflow-y-auto overflow-x-hidden">
+            
+            <!-- Navbar -->
+            {% include "base/navbar.html" %}
+
+            <!-- Main Section -->
+            <main class="p-4 md:p-8 lg:p-10">
+                {% if messages %}
+                <div class="mb-6 space-y-2">
+                    {% for message in messages %}
+                    <div x-data="{ show: true }" x-show="show" x-transition 
+                         class="p-4 rounded-2xl flex items-center justify-between glass morphism-card {% if message.tags == 'success' %}text-green-700 bg-green-50/50 dark:text-green-400{% elif message.tags == 'error' %}text-red-700 bg-red-50/50 dark:text-red-400{% else %}text-blue-700 bg-blue-50/50 dark:text-blue-400{% endif %}">
+                        <span class="font-medium">{{ message }}</span>
+                        <button @click="show = false" class="p-1 hover:bg-black/5 rounded-full">
+                            <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path d="M6 18L18 6M6 6l12 12"/></svg>
+                        </button>
+                    </div>
+                    {% endfor %}
+                </div>
+                {% endif %}
+
+                {% block content %}
+                {% endblock %}
+            </main>
+        </div>
+    </div>
+
+    {% block extra_scripts %}{% endblock %}
+    
+    <script>
+        document.body.addEventListener('htmx:configRequest', (event) => {
+            event.detail.headers['X-CSRFToken'] = '{{ csrf_token }}';
+        });
+    </script>
+</body>
+</html>
