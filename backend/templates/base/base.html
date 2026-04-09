@@ -106,6 +106,20 @@
     {% block extra_scripts %}{% endblock %}
     
     <script>
+        // Monitoramento Global HTMX no Console
+        document.body.addEventListener('htmx:beforeRequest', (evt) => {
+            console.log('[HTMX] Iniciando requisição:', evt.detail.path);
+        });
+        document.body.addEventListener('htmx:afterRequest', (evt) => {
+            console.log('[HTMX] Requisição concluída:', evt.detail.path, 'Status:', evt.detail.xhr.status);
+            if (!evt.detail.successful) {
+                console.error('[HTMX] Erro na requisição!', evt.detail.xhr.responseText);
+            }
+        });
+        document.body.addEventListener('htmx:responseError', (evt) => {
+            console.error('[HTMX] Erro de Resposta:', evt.detail.xhr.status, evt.detail.xhr.responseText);
+        });
+
         document.body.addEventListener('htmx:configRequest', (event) => {
             event.detail.headers['X-CSRFToken'] = '{{ csrf_token }}';
         });

@@ -1,75 +1,100 @@
-<!-- Militares Cadastrados (Com RE) -->
-{% for funcionario in funcionarios %}
-<div class="p-3 hover:bg-red-50 dark:hover:bg-red-900/20 cursor-pointer border-b border-slate-100 dark:border-slate-800 last:border-0 transition-colors"
-     onclick="selectFuncionario('{{ funcionario.re }}', '', '{{ funcionario.nome_guerra }}')">
-    <div class="flex items-center justify-between">
-        <div class="flex flex-col">
-            <span class="text-sm font-black text-slate-900 dark:text-white uppercase tracking-tight">
-                {{ funcionario.posto_graduacao.nome }} {{ funcionario.nome_guerra }}
-            </span>
-            <span class="text-[10px] text-slate-500 font-mono font-bold">{{ funcionario.re }} — {{ funcionario.nome_completo }}</span>
-        </div>
-        <span class="text-[10px] bg-red-600 text-white px-2 py-1 rounded uppercase font-black">Selecionar</span>
-    </div>
-</div>
-{% endfor %}
-
-<!-- Efetivo Importado (Sheets) -->
+<!-- Efetivo Sincronizado (Dados Reais) -->
 {% if efetivo_extra %}
-<div class="bg-slate-100 dark:bg-slate-800 px-3 py-1 text-[9px] font-black text-slate-500 uppercase tracking-widest">
-    Lista Extra (Sheets)
+<div class="bg-slate-900 border-b border-white/5 px-4 py-3 flex justify-between items-center">
+    <span class="text-[10px] font-black text-white uppercase tracking-[0.2em]">EFETIVO REAL (SHEETS)</span>
+    <span class="bg-red-600 text-white text-[9px] font-black px-2 py-0.5 rounded-full uppercase tracking-tighter shadow-lg shadow-red-600/20">
+        {{ efetivo_extra|length }} ENCONTRADOS
+    </span>
 </div>
+
+<div class="flex flex-col">
 {% for extra in efetivo_extra %}
-<div class="p-3 hover:bg-amber-50 dark:hover:bg-amber-900/20 cursor-pointer border-b border-slate-100 dark:border-slate-800 last:border-0 transition-colors"
-     onclick="selectFuncionario('', '{{ extra.nome }}', '{{ extra.nome }}')">
+<div class="p-4 border-b border-white/5 transition-all duration-300 
+     {% if extra.indisponivel %}bg-slate-950/50 opacity-40 cursor-not-allowed{% else %}bg-slate-900 hover:bg-slate-800 cursor-pointer group{% endif %}"
+     {% if not extra.indisponivel %}onclick="selectFuncionario('{{ extra.re|default:"" }}', '{{ extra.nome }}', '{{ extra.id }}')"{% endif %}>
+    
     <div class="flex items-center justify-between">
-        <div class="flex flex-col">
-            <span class="text-sm font-bold text-slate-700 dark:text-slate-300 uppercase tracking-tight">
+        <div class="flex flex-col space-y-1">
+            <!-- NOME EM BRANCO DESTACADO (COLUNA I) -->
+            <span class="text-sm font-black text-white uppercase tracking-tight leading-none group-hover:text-emerald-400 transition-colors">
                 {{ extra.nome }}
             </span>
-            <span class="text-[9px] text-slate-400 font-bold italic">Importado da Planilha</span>
+            
+            <div class="flex items-center space-x-3">
+                <!-- RE EM CINZA CLARO -->
+                <span class="text-[10px] text-slate-500 font-mono font-bold">{{ extra.re|default:"S/ RE" }}</span>
+                
+                <!-- BADGES -->
+                {% if extra.mergulho == "1- SIM" %}
+                <span class="px-1.5 py-0.5 bg-blue-500/20 text-blue-400 rounded text-[7px] font-black uppercase border border-blue-500/20">MERG</span>
+                {% endif %}
+                
+                {% if extra.ovb %}
+                <span class="px-1.5 py-0.5 bg-slate-800 text-slate-400 rounded text-[7px] font-black uppercase border border-white/5">
+                    {{ extra.ovb }}
+                </span>
+                {% endif %}
+            </div>
         </div>
-        <span class="text-[10px] bg-amber-500 text-white px-2 py-1 rounded uppercase font-black">Adicionar</span>
+
+        <div class="flex flex-col items-end">
+            {% if extra.indisponivel %}
+                <span class="text-[8px] font-black text-red-500 uppercase tracking-widest">OCUPADO</span>
+                <span class="text-[9px] font-bold text-slate-600 uppercase tabular-nums">VTR {{ extra.indisponivel.alocacao_viatura.viatura.prefixo|default:"Avulso" }}</span>
+            {% else %}
+                <div class="flex flex-col items-end space-y-2">
+                    <span class="text-[8px] font-black text-emerald-500 uppercase tracking-widest">DISPONÍVEL</span>
+                    <button class="bg-emerald-600 hover:bg-emerald-500 text-white text-[9px] font-black px-4 py-1.5 rounded-full uppercase tracking-widest shadow-lg shadow-emerald-600/20 transition-all active:scale-90">
+                        SELECIONAR
+                    </button>
+                </div>
+            {% endif %}
+        </div>
     </div>
 </div>
 {% endfor %}
+</div>
 {% endif %}
 
-{% if not funcionarios and not efetivo_extra %}
-<div class="p-4 text-center text-slate-500 text-xs italic uppercase font-bold">
-    Nenhum militar encontrado
+{% if not efetivo_extra %}
+<div class="p-10 text-center bg-slate-900 border border-white/5 rounded-2xl">
+    <svg class="h-10 w-10 text-slate-700 mx-auto mb-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
+    <p class="text-xs font-black text-slate-500 uppercase tracking-widest">Nenhum militar real encontrado para "{{ query }}"</p>
 </div>
 {% endif %}
 
 <script>
-function selectFuncionario(re, nomeExtra, nomeGuerra) {
-    // Busca o card pai através do ID do container de resultados
-    const containerId = event.target.closest('[id^="results-"]').id;
-    const viaturaId = containerId.split('-')[1];
+function selectFuncionario(re, nomeCompleto, efetivoId) {
+    const container = event.target.closest('[id^="results-"]');
+    const viaturaId = container.id.split('-')[1];
     const card = document.getElementById('viatura-card-' + viaturaId);
     const form = card.querySelector('form');
     
-    // Identifica os inputs
     const inputBusca = form.querySelector('input[name="funcionario_re"]');
     let inputExtra = form.querySelector('input[name="nome_extra"]');
+    let inputEfetivoId = form.querySelector('input[name="efetivo_id"]');
     
-    // Cria o input oculto se não existir
     if (!inputExtra) {
         inputExtra = document.createElement('input');
         inputExtra.type = 'hidden';
         inputExtra.name = 'nome_extra';
         form.appendChild(inputExtra);
     }
-
-    if (re) {
-        inputBusca.value = re;
-        inputExtra.value = '';
-    } else {
-        inputBusca.value = nomeExtra;
-        inputExtra.value = nomeExtra;
+    if (!inputEfetivoId) {
+        inputEfetivoId = document.createElement('input');
+        inputEfetivoId.type = 'hidden';
+        inputEfetivoId.name = 'efetivo_id';
+        form.appendChild(inputEfetivoId);
     }
+
+    inputEfetivoId.value = efetivoId;
+    inputBusca.value = re && !re.includes('S/ RE') ? re : nomeCompleto;
+    inputExtra.value = nomeCompleto;
     
-    // Fecha a lista de resultados
-    document.getElementById(containerId).innerHTML = '';
+    // Feedback visual da seleção
+    inputBusca.classList.add('border-emerald-500', 'text-emerald-600');
+    
+    container.innerHTML = '';
+    // htmx.trigger(form, 'submit'); // REMOVIDO PARA PERMITIR SELECIONAR FUNÇÃO/DEJEM
 }
 </script>

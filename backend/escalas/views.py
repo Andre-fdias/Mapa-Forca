@@ -16,6 +16,7 @@ from .serializers import (
     MapaDiarioSerializer, AlocacaoFuncionarioSerializer, 
     AlocacaoViaturaSerializer, CloneMapaSerializer
 )
+import re
 
 # === VIEWS HTMX ===
 
@@ -27,23 +28,69 @@ def compor_mapa_view(request):
     if not unidade: return render(request, 'escalas/erro_permissao.html', {'mensagem': 'Unidade não encontrada.'})
     
     mapa, _ = MapaDiario.objects.get_or_create(data=hoje, unidade=unidade, defaults={'criado_por': request.user})
-    v_ids = mapa.alocacoes_viaturas.values_list('viatura_id', flat=True)
-    v_disp = Viatura.objects.filter(Q(unidade_base=unidade) | Q(unidade_base__isnull=True)).exclude(prefixo__in=v_ids).order_by('prefixo')
+    
+    # Filtra as unidades do 1º ao 5º SGB (excluindo 1 - EM)
+    todas_unidades = Unidade.objects.filter(
+        Q(parent__nome__icontains='1ºSGB') | 
+        Q(parent__nome__icontains='2ºSGB') | 
+        Q(parent__nome__icontains='3ºSGB') | 
+        Q(parent__nome__icontains='4ºSGB') | 
+        Q(parent__nome__icontains='5ºSGB')
+    ).order_by('parent__nome', 'nome')
 
     return render(request, 'mapa_forca/compose.html', {
-        'mapa': mapa, 'viaturas_disponiveis': v_disp, 'todas_unidades': Unidade.objects.all().order_by('nome'),
-        'unidade_selecionada': unidade, 'funcoes': Dictionary.objects.filter(tipo='FUNCAO_OPERACIONAL'),
+        'mapa': mapa, 
+        'todas_unidades': todas_unidades,
+        'unidade_selecionada': unidade, 
+        'funcoes': Dictionary.objects.filter(tipo='FUNCAO_OPERACIONAL'),
     })
 
 @login_required
 def buscar_funcionario_re(request):
     q = request.GET.get('funcionario_re', '').strip()
+    mapa_id = request.GET.get('mapa_id')
     if len(q) < 2: return HttpResponse('')
     
-    funcs = Funcionario.objects.filter(Q(re__icontains=q) | Q(nome_completo__icontains=q) | Q(nome_guerra__icontains=q)).select_related('posto_graduacao').order_by('posto_graduacao__ordem', 'nome_completo')[:10]
-    extra = Efetivo.objects.filter(nome__icontains=q).exclude(nome__in=[f.nome_completo for f in funcs]).order_by('nome')[:5] if len(funcs) < 5 else []
+    # Limpa o Q para busca numérica se parecer um RE (contém números e possivelmente traço)
+    q_numeric = re.sub(r'\D', '', q)
     
-    return render(request, 'mapa_forca/partials/lista_busca_funcionarios.html', {'funcionarios': funcs, 'efetivo_extra': extra})
+    mapa_atual = get_object_or_404(MapaDiario, id=mapa_id) if mapa_id else None
+    data_escala = mapa_atual.data if mapa_atual else timezone.now().date()
+    
+    # 1. Busca no Efetivo Real (Sincronizado do Sheets)
+    query_efetivo = Q(nome__icontains=q) | Q(nome_do_pm__icontains=q)
+    if q_numeric:
+        query_efetivo |= Q(re__icontains=q_numeric)
+    
+    efetivo_real = Efetivo.objects.filter(query_efetivo).order_by('nome')[:15]
+    
+    # 2. Busca no Funcionario (Local)
+    query_func = Q(nome_completo__icontains=q) | Q(nome_guerra__icontains=q)
+    if q_numeric:
+        query_func |= Q(re__icontains=q_numeric)
+        
+    funcs_locais = Funcionario.objects.filter(query_func).select_related('posto_graduacao').order_by('nome_completo')[:5]
+    
+    # 3. Verifica disponibilidade para cada resultado
+    for e in efetivo_real:
+        ja_alocado = AlocacaoFuncionario.objects.filter(
+            mapa__data=data_escala,
+            funcionario__nome_completo__iexact=e.nome_do_pm or e.nome
+        ).select_related('alocacao_viatura__viatura', 'mapa__unidade').first()
+        e.indisponivel = ja_alocado
+        
+    for f in funcs_locais:
+        ja_alocado = AlocacaoFuncionario.objects.filter(
+            mapa__data=data_escala,
+            funcionario=f
+        ).select_related('alocacao_viatura__viatura', 'mapa__unidade').first()
+        f.indisponivel = ja_alocado
+    
+    return render(request, 'mapa_forca/partials/lista_busca_funcionarios.html', {
+        'efetivo_extra': efetivo_real,
+        'funcionarios': funcs_locais,
+        'query': q
+    })
 
 @login_required
 def adicionar_viatura_mapa(request, mapa_id):
@@ -58,39 +105,96 @@ def adicionar_viatura_mapa(request, mapa_id):
 def alocar_funcionario_viatura(request, alocacao_viatura_id):
     re_in = request.POST.get('funcionario_re', '').strip()
     nome_ex = request.POST.get('nome_extra', '').strip()
+    efetivo_id = request.POST.get('efetivo_id')
     f_id = request.POST.get('funcao_id')
+    dejem_val = request.POST.get('dejem') == 'true'
+    inicio_dejem = request.POST.get('inicio_dejem')
+    termino_dejem = request.POST.get('termino_dejem')
+    
     aloc_v = get_object_or_404(AlocacaoViatura, id=alocacao_viatura_id)
     funcao = get_object_or_404(Dictionary, id=f_id)
     
     if aloc_v.equipe.count() >= 15: return HttpResponse('<script>showToast("Limite de 15 atingido!", "error");</script>')
 
-    # Tenta achar o militar
-    militar = Funcionario.objects.filter(re=re_in).first()
-    if not militar: militar = Funcionario.objects.filter(nome_completo__iexact=nome_ex if nome_ex else re_in).first()
+    # 1. Busca no Efetivo Real (Dados do Sheets)
+    efetivo_real = None
+    if efetivo_id:
+        efetivo_real = Efetivo.objects.filter(id=efetivo_id).first()
+    if not efetivo_real:
+        efetivo_real = Efetivo.objects.filter(Q(re=re_in) | Q(nome=nome_ex or re_in)).first()
 
-    # Se for novo (Sheets), cadastra
-    if not militar and (nome_ex or len(re_in) > 5):
-        nome = (nome_ex if nome_ex else re_in).upper()
-        import hashlib
-        tre = f"T-{hashlib.md5(nome.encode()).hexdigest()[:6]}"
-        
-        # Tenta extrair posto do nome (Ex: CB PM ANDRE -> Posto: CB)
-        p_sigla = "SD"
-        for s in ['CB', 'SGT', 'TEN', 'CAP', 'MAJ', 'SUB']:
-            if s in nome: p_sigla = s; break
-        
-        posto = Dictionary.objects.filter(tipo='POSTO_GRADUACAO', codigo=p_sigla).first()
-        # Nome de guerra é a última parte do nome
-        nguerra = nome.split()[-1]
-        
-        militar = Funcionario.objects.create(re=tre, nome_completo=nome, nome_guerra=nguerra, posto_graduacao=posto)
+    # 2. Tenta achar o militar local
+    militar = None
+    if efetivo_real and efetivo_real.re:
+        militar = Funcionario.objects.filter(re=efetivo_real.re).first()
+    if not militar:
+        militar = Funcionario.objects.filter(re=re_in).first()
+    if not militar:
+        militar = Funcionario.objects.filter(nome_completo__iexact=nome_ex if nome_ex else re_in).first()
 
+    # 3. Cria ou atualiza o militar local com os dados reais
+    if efetivo_real:
+        nome_padrao = efetivo_real.nome 
+        re_match = re.search(r'(\d{6}-\d{1})', nome_padrao)
+        re_real = re_match.group(1) if re_match else (efetivo_real.re if efetivo_real.re else None)
+        
+        if not re_real:
+            import hashlib
+            re_real = f"T-{hashlib.md5(nome_padrao.encode()).hexdigest()[:6]}"
+
+        # Mapeamento robusto de siglas para códigos do dicionário
+        p_codigo = "SD_PM"
+        if 'SUB' in nome_padrao: p_codigo = 'SUBTEN_PM'
+        elif 'SGT' in nome_padrao: p_codigo = 'SGT_PM'
+        elif 'CB' in nome_padrao: p_codigo = 'CB_PM'
+        elif 'SD' in nome_padrao: p_codigo = 'SD_PM'
+        elif '1º TEN' in nome_padrao: p_codigo = 'TEN_PM'
+        elif '2º TEN' in nome_padrao: p_codigo = 'TEN_PM'
+        elif 'CAP' in nome_padrao: p_codigo = 'CAP_PM'
+        elif 'MAJ' in nome_padrao: p_codigo = 'MAJ_PM'
+        
+        posto_obj = Dictionary.objects.filter(tipo='POSTO_GRADUACAO', codigo=p_codigo).first()
+        nguerra = nome_padrao.split(')')[-1].strip() if ')' in nome_padrao else nome_padrao.split()[-1]
+
+        if not militar:
+            militar = Funcionario.objects.create(
+                re=re_real,
+                nome_completo=nome_padrao,
+                nome_guerra=nguerra,
+                posto_graduacao=posto_obj,
+                mergulho=efetivo_real.mergulho,
+                ovb=efetivo_real.ovb
+            )
+        else:
+            militar.nome_completo = nome_padrao
+            militar.mergulho = efetivo_real.mergulho
+            militar.ovb = efetivo_real.ovb
+            if posto_obj: militar.posto_graduacao = posto_obj
+            militar.save()
+
+    # 4. Finaliza a alocação
     if militar:
+        ja_alocado = AlocacaoFuncionario.objects.filter(
+            mapa__data=aloc_v.mapa.data, 
+            funcionario=militar
+        ).exclude(alocacao_viatura=aloc_v).first()
+        
+        if ja_alocado:
+            return HttpResponse(f'<script>showToast("Militar já escalado hoje!", "error");</script>')
+
         AlocacaoFuncionario.objects.filter(mapa=aloc_v.mapa, funcionario=militar).delete()
-        af = AlocacaoFuncionario.objects.create(mapa=aloc_v.mapa, alocacao_viatura=aloc_v, funcionario=militar, funcao=funcao)
+        af = AlocacaoFuncionario.objects.create(
+            mapa=aloc_v.mapa, 
+            alocacao_viatura=aloc_v, 
+            funcionario=militar, 
+            funcao=funcao,
+            dejem=(dejem_val == True),
+            inicio_dejem=inicio_dejem if dejem_val and inicio_dejem else None,
+            termino_dejem=termino_dejem if dejem_val and termino_dejem else None
+        )
         return render(request, 'mapa_forca/partials/linha_funcionario_viatura.html', {'aloc_func': af})
     
-    return HttpResponse('<script>showToast("Militar não encontrado!", "error");</script>')
+    return HttpResponse('<script>showToast("Erro ao processar militar!", "error");</script>')
 
 @login_required
 def remover_viatura_mapa(request, alocacao_id):
@@ -104,19 +208,39 @@ def remover_funcionario_viatura(request, aloc_func_id):
 
 @login_required
 def get_viaturas_por_unidade(request):
-    u_id = request.GET.get('unidade_id')
-    if not u_id: return HttpResponse('<option>Selecione o posto...</option>')
-    viats = Viatura.objects.filter(unidade_base_id=u_id).order_by('prefixo')
+    # Para garantir que o usuário encontre qualquer viatura, listamos todas
+    # e garantimos que o TELEGRAFISTA esteja na lista.
+    viats = Viatura.objects.all().order_by('prefixo')
+    
     opts = ['<option value="">Selecione a viatura...</option>']
-    for v in viats: opts.append(f'<option value="{v.prefixo}">{v.prefixo} — {v.tipo.nome if v.tipo else ""}</option>')
+    for v in viats: 
+        opts.append(f'<option value="{v.prefixo}">{v.prefixo} — {v.tipo.nome if v.tipo else ""}</option>')
     return HttpResponse("".join(opts))
 
 @login_required
 def validar_mapa_final(request, mapa_id):
     mapa = get_object_or_404(MapaDiario, id=mapa_id)
-    vazias = [al.viatura.prefixo for al in mapa.alocacoes_viaturas.all() if al.equipe.count() == 0]
-    if vazias: return HttpResponse(f'<script>showToast("ERRO: Viaturas vazias: {", ".join(vazias)}", "error");</script>')
-    return HttpResponse('<script>showToast("MAPA FORÇA SALVO COM SUCESSO!", "success");</script>')
+    
+    # 1. Verifica se há viaturas sem guarnição (Excluindo o Telegrafista da obrigatoriedade)
+    vazias = [
+        al.viatura.prefixo for al in mapa.alocacoes_viaturas.all() 
+        if al.equipe.count() == 0 and al.viatura.prefixo != 'TELEGRAFISTA'
+    ]
+    
+    if vazias:
+        return HttpResponse(f'<script>showToast("ERRO: Viaturas vazias: {", ".join(vazias)}", "error");</script>')
+    
+    # 2. Marca o mapa como finalizado
+    mapa.finalizado = True
+    mapa.save()
+    
+    # 3. Retorna sucesso e recarrega para atualizar status visual
+    return HttpResponse('''
+        <script>
+            showToast("MAPA FORÇA SALVO COM SUCESSO!", "success");
+            setTimeout(() => { window.location.href = "/"; }, 2000);
+        </script>
+    ''')
 
 # === API REST ===
 class MapaDiarioViewSet(viewsets.ModelViewSet):

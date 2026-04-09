@@ -85,8 +85,10 @@
 
     <!-- Final Save Button -->
     <div class="flex justify-center pt-10">
+        <div id="save-response"></div>
         <button hx-post="{% url 'validar_mapa_final' mapa.id %}"
-                hx-swap="none"
+                hx-target="#save-response"
+                hx-swap="innerHTML"
                 class="bg-white text-slate-950 font-black py-6 px-24 rounded-[2rem] transition-all transform hover:scale-105 active:scale-95 shadow-2xl flex items-center space-x-4 border-4 border-slate-100">
             {% csrf_token %}
             <span class="text-xl uppercase tracking-tighter">Finalizar e Salvar Mapa</span>

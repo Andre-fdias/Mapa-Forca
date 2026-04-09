@@ -10,14 +10,22 @@
         {% for item in sgb.postos %}
         <div x-data="{ showDetails: null }" class="tactical-card flex flex-col bg-white dark:bg-slate-900 border-4 shadow-2xl overflow-hidden transition-all duration-300
             {% if item.esta_pronto %}border-emerald-500{% else %}border-red-600 animate-pulse-subtle{% endif %}">
-            
+
             <!-- 1. HEADER SUPERIOR -->
             <div class="bg-[#001f3f] dark:bg-[#001529] px-3 py-2 flex justify-between items-center border-b border-slate-200 dark:border-slate-800 text-white">
                 <div class="flex items-center space-x-2">
                     <div class="w-2 h-2 rounded-full {% if item.esta_pronto %}bg-emerald-500{% else %}bg-red-500{% endif %}"></div>
                     <span class="text-[10px] font-black uppercase tracking-tight">PELOTÃO - {{ item.unidade.nome|default:"NÃO DEFINIDO" }}</span>
                 </div>
-                <span class="text-[10px] font-bold tabular-nums opacity-80">{{ item.unidade.telefone|default:"" }}</span>
+                <div class="flex items-center space-x-3">
+                    <div class="flex items-center bg-white/10 px-2 py-0.5 rounded text-[9px] font-black">
+                        <span class="opacity-60 mr-1">VTRS:</span>
+                        <span class="text-emerald-400">{{ item.stats.vtrs_operando }}</span>
+                        <span class="mx-1">/</span>
+                        <span>{{ item.stats.vtrs_total }}</span>
+                    </div>
+                    <span class="text-[10px] font-bold tabular-nums opacity-80">{{ item.unidade.telefone|default:"" }}</span>
+                </div>
             </div>
 
             <!-- 2. TABELA DE VIATURAS -->
@@ -53,7 +61,7 @@
                             </td>
                         </tr>
                         {% endfor %}
-                        
+
                         <!-- Linhas vazias -->
                         {% if item.viaturas|length == 0 %}
                             <tr><td class="border border-slate-200 dark:border-slate-800 py-2.5">&nbsp;</td><td class="border border-slate-200 dark:border-slate-800">&nbsp;</td><td class="border border-slate-200 dark:border-slate-800">&nbsp;</td><td class="border border-slate-200 dark:border-slate-800">&nbsp;</td></tr>
@@ -88,7 +96,12 @@
                                 <div class="flex items-center space-x-1.5">
                                     {% if m.mergulhador %}<span class="px-1 bg-blue-500 text-white rounded-[2px] text-[7px] font-black" title="Mergulhador">MERG</span>{% endif %}
                                     <span class="px-1 bg-slate-200 dark:bg-slate-700 text-slate-600 dark:text-slate-300 rounded-[2px] text-[7px] font-black">{{ m.ovb|default:"S/ OVB" }}</span>
-                                    {% if m.dejem %}<span class="px-1 bg-amber-500 text-white rounded-[2px] text-[7px] font-black" title="Serviço Extra">DEJEM</span>{% endif %}
+                                    {% if m.dejem %}
+                                        <div class="flex items-center space-x-1">
+                                            <span class="px-1 bg-amber-500 text-white rounded-[2px] text-[7px] font-black" title="Serviço Extra">DEJEM</span>
+                                            <span class="text-[7px] font-black text-amber-600 tabular-nums">{{ m.horario }}</span>
+                                        </div>
+                                    {% endif %}
                                 </div>
                             </div>
                             {% endfor %}
@@ -105,7 +118,7 @@
                     <span class="{% if item.stats.mergulhadores > 0 %}text-blue-600{% else %}text-red-600{% endif %}">{{ item.stats.mergulhadores|stringformat:"02d" }}</span>
                 </div>
                 <div class="flex justify-between items-center border-b border-slate-200 dark:border-slate-700/50 pb-1">
-                    <span class="text-slate-400">DEJEM:</span>
+                    <span class="text-slate-400">TOTAL DEJEM:</span>
                     <span class="text-amber-600">{{ item.stats.dejem|stringformat:"02d" }}</span>
                 </div>
                 <div class="flex justify-between items-center">
@@ -123,16 +136,32 @@
                 <div class="px-3 py-1.5 flex justify-between items-center border-b border-white/5">
                     <div class="flex items-center space-x-2">
                         <span class="text-[8px] text-slate-500 font-bold tracking-widest">TELEGRAFISTA:</span>
-                        <a href="{% if item.unidade.id %}{% url 'compor_mapa' %}?unidade={{ item.unidade.id }}{% else %}#{% endif %}" 
-                           class="text-[9px] font-black hover:text-red-500 transition-colors uppercase italic tracking-tighter">
-                            AGUARDANDO...
-                        </a>
+                        <div class="flex items-center space-x-2">
+                            <span class="text-[9px] font-black {% if item.telegrafista.nome != 'AGUARDANDO...' %}text-emerald-400{% else %}text-white/40{% endif %} uppercase italic tracking-tighter">
+                                {{ item.telegrafista.nome }}
+                            </span>
+                            {% if item.telegrafista.is_dejem %}
+                                <div class="flex items-center space-x-1.5 bg-amber-500/10 px-1.5 py-0.5 rounded border border-amber-500/20">
+                                    <span class="text-[7px] font-black text-amber-500">DEJEM</span>
+                                    <span class="text-[7px] font-black text-amber-200 font-mono">{{ item.telegrafista.horario }}</span>
+                                </div>
+                            {% endif %}
+                        </div>
                     </div>
-                    <svg class="h-3 w-3 text-white/20" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M13 7l5 5m0 0l-5 5m5-5H6" /></svg>
                 </div>
-                <div class="px-3 py-1 bg-[#111] flex items-center space-x-2">
-                    <span class="text-[8px] text-slate-600 font-black uppercase">Efetivo Total:</span>
-                    <span class="text-[10px] font-black text-emerald-500 tabular-nums">{{ item.stats.efetivo_total|stringformat:"02d" }}</span>
+                <div class="px-3 py-1 bg-[#111] flex items-center justify-between">
+                    <div class="flex items-center space-x-2">
+                        <span class="text-[8px] text-slate-600 font-black uppercase">Efetivo Total:</span>
+                        <span class="text-[10px] font-black text-emerald-500 tabular-nums">{{ item.stats.efetivo_total|stringformat:"02d" }}</span>
+                    </div>
+
+                    {% if item.unidade.id %}
+                    <a href="{% url 'compor_mapa' %}?unidade_id={{ item.unidade.id }}" 
+                       class="bg-red-600 hover:bg-red-500 text-white text-[8px] font-black px-3 py-1 rounded uppercase tracking-widest transition-all active:scale-95 flex items-center space-x-1">
+                        <span>Editar</span>
+                        <svg class="h-2 w-2" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="4"><path d="M9 5l7 7-7 7"/></svg>
+                    </a>
+                    {% endif %}
                 </div>
             </div>
         </div>
@@ -152,3 +181,4 @@
         border-radius: 4px;
     }
 </style>
+

@@ -9,7 +9,7 @@ class Funcionario(models.Model):
     )
 
     re = models.CharField(
-        max_length=8, 
+        max_length=15, 
         primary_key=True, 
         validators=[re_validator],
         help_text='Formato: 000000-0'
@@ -17,11 +17,22 @@ class Funcionario(models.Model):
     nome_completo = models.CharField(max_length=255)
     nome_guerra = models.CharField(max_length=100)
     posto_graduacao = models.ForeignKey(Dictionary, on_delete=models.SET_NULL, null=True, limit_choices_to={'tipo': 'POSTO_GRADUACAO'})
+    
+    # Novos campos para exibição tática na escala
+    mergulho = models.CharField(max_length=100, null=True, blank=True)
+    ovb = models.CharField(max_length=100, null=True, blank=True)
 
     @property
     def identidade_militar(self):
-        pg = self.posto_graduacao.nome if self.posto_graduacao else 'S/P'
-        return f"{pg} {self.re} {self.nome_guerra}"
+        """Formato padrão: 1º SGT PM 105824-0 ROGERIO"""
+        pg = self.posto_graduacao.nome if self.posto_graduacao else ''
+        return f"{pg} {self.re} {self.nome_guerra}".strip()
+
+    @property
+    def nome_curto(self):
+        """Formato reduzido solicitado: CB PM JAO (sem RE)"""
+        pg = self.posto_graduacao.nome if self.posto_graduacao else ''
+        return f"{pg} {self.nome_guerra}".strip()
 
     def __str__(self):
         return self.identidade_militar
@@ -29,6 +40,7 @@ class Funcionario(models.Model):
     class Meta:
         verbose_name = 'Funcionário'
         verbose_name_plural = 'Funcionários'
+        # Ordenação crucial por ordem de precedência (CEL -> SD)
         ordering = ['posto_graduacao__ordem', 'nome_completo']
 
 class Efetivo(models.Model):

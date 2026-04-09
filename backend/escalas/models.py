@@ -15,6 +15,8 @@ class MapaDiario(models.Model):
         related_name='mapas_diarios'
     )
     
+    finalizado = models.BooleanField(default=False)
+    
     criado_por = models.ForeignKey(
         settings.AUTH_USER_MODEL, 
         on_delete=models.SET_NULL, 
@@ -84,6 +86,10 @@ class AlocacaoFuncionario(models.Model):
         limit_choices_to={'tipo': 'FUNCAO_OPERACIONAL'},
         help_text='Comandante, Motorista, Auxiliar, Supervisor, etc.'
     )
+
+    dejem = models.BooleanField(default=False, verbose_name="DEJEM")
+    inicio_dejem = models.TimeField(null=True, blank=True, verbose_name="Início DEJEM")
+    termino_dejem = models.TimeField(null=True, blank=True, verbose_name="Término DEJEM")
 
     def __str__(self):
         viatura_str = self.alocacao_viatura.viatura.prefixo if self.alocacao_viatura else 'Avulso'

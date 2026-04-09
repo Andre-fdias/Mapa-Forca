@@ -58,39 +58,10 @@ class Command(BaseCommand):
                 )
                 all_postos.append(posto)
 
-        # 3. Criar Viaturas Reais (Exemplos)
-        vtr_tipos = ['AB', 'UR', 'AT', 'VO', 'ABS', 'USA']
-        for posto in all_postos:
-            # Cada posto terá de 2 a 4 viaturas
-            num_vtrs = random.randint(2, 4)
-            for i in range(num_vtrs):
-                prefixo = f"{random.choice(vtr_tipos)}-15{random.randint(100, 999)}"
-                Viatura.objects.create(
-                    prefixo=prefixo,
-                    unidade_base=posto,
-                    status_base=random.choice([status_opr, status_opr, status_opr, status_res]), # Mais chance de Operando
-                    municipio=posto.nome
-                )
-
-        # 4. Criar Efetivo Base
-        grad_sgt = get_dict('POSTO_GRADUACAO', 'SGT_PM')
-        grad_cb = get_dict('POSTO_GRADUACAO', 'CB_PM')
-        grad_sd = get_dict('POSTO_GRADUACAO', 'SD_PM')
-
-        nomes = ["Silva", "Oliveira", "Souza", "Goulart", "Carlos", "Mendes", "Ribeiro", "Santos", "Ferreira", "Almeida"]
-        for i in range(1, 31):
-            re = f"{random.randint(100000, 999999)}-{random.randint(0, 9)}"
-            Funcionario.objects.create(
-                re=re,
-                nome_completo=f"BOMBEIRO EXEMPLO {i}",
-                nome_guerra=random.choice(nomes).upper(),
-                posto_graduacao=random.choice([grad_sgt, grad_cb, grad_sd])
-            )
-
-        # 5. Usuário Admin
+        # 3. Usuário Admin
         user = User.objects.create_superuser(email='admin@mapa.sp.gov.br', password='admin123')
         user.unidade = grupamento
         user.role = 'ADMIN'
         user.save()
         
-        self.stdout.write(self.style.SUCCESS(f'Sucesso: 15º GB populado com {Unidade.objects.count()} unidades e {Viatura.objects.count()} viaturas.'))
+        self.stdout.write(self.style.SUCCESS(f'Sucesso: 15º GB populado com {Unidade.objects.count()} unidades.'))

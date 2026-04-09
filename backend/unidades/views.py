@@ -55,12 +55,12 @@ def dashboard_batalhao(request):
             total_completos += 1
             alocacoes = AlocacaoViatura.objects.filter(mapa=mapa).select_related('viatura', 'status_no_dia')
             for aloc in alocacoes:
-                cmt = AlocacaoFuncionario.objects.filter(alocacao_viatura=aloc, funcao__codigo='COMANDANTE').select_related('funcionario').first()
+                cmt = AlocacaoFuncionario.objects.filter(alocacao_viatura=aloc, funcao__codigo='COMANDANTE').select_related('funcionario__posto_graduacao').first()
                 alocacoes_vtr.append({
                     'prefixo': aloc.viatura.prefixo, 
                     'status': aloc.status_no_dia.nome if aloc.status_no_dia else 'N/D', 
                     'status_codigo': aloc.status_no_dia.codigo if aloc.status_no_dia else 'BAIXADO', 
-                    'encarregado': cmt.funcionario.nome_guerra if cmt else 'S/ CMT'
+                    'encarregado': cmt.funcionario.nome_curto if cmt else 'S/ CMT'
                 })
         
         data_postos.append({
@@ -130,19 +130,46 @@ def dashboard_cobom(request):
     for sgb_nome, postos_nomes in OPCOES_POR_SGB.items():
         postos_result = []
         for p_nome in postos_nomes:
-            total_unidades += 1
-            unidade = Unidade.objects.filter(nome=p_nome).first()
+            unidade = None
+            posto_obj_real = None
+            if " - " in p_nome:
+                partes = p_nome.split(" - ")
+                codigo = partes[0].strip()
+                nome_limpo = partes[1].strip()
+                unidade = Unidade.objects.filter(Q(codigo_secao=codigo) | Q(nome=nome_limpo)).first()
+                posto_obj_real = Posto.objects.filter(Q(cod_secao=codigo) | Q(nome__icontains=nome_limpo)).first()
+            else:
+                unidade = Unidade.objects.filter(nome=p_nome).first()
+                posto_obj_real = Posto.objects.filter(nome__icontains=p_nome).first()
+
+            is_operacional = False
+            if posto_obj_real and posto_obj_real.operacional_adm:
+                if "OPERACIONAL" in str(posto_obj_real.operacional_adm).upper():
+                    is_operacional = True
             
+            if not is_operacional:
+                continue
+
+            total_unidades += 1
             viaturas_data = []
             esta_pronto = False
             mapa_existe = False
+            
+            # Dados do Telegrafista
+            telegrafista_info = {
+                'nome': "AGUARDANDO...",
+                'is_dejem': False,
+                'horario': ""
+            }
             
             stats = {
                 'mergulhadores': 0,
                 'dejem': 0,
                 'ovb_leve': 0,
                 'ovb_pesado': 0,
-                'efetivo_total': 0
+                'efetivo_total': 0,
+                'vtrs_total': 0,
+                'vtrs_operando': 0
             }
             
             if unidade:
@@ -152,29 +179,45 @@ def dashboard_cobom(request):
                     esta_pronto = True
                     total_completos += 1
                     
-                    # 1. Processar Viaturas (Operando e Reserva)
                     alocacoes_vtr = AlocacaoViatura.objects.filter(
                         mapa=mapa, 
                         status_no_dia__codigo__in=['OPERANDO', 'RESERVA']
-                    ).select_related('viatura', 'status_no_dia')
+                    ).select_related('viatura', 'status_no_dia').exclude(viatura__prefixo='TELEGRAFISTA')
                     
+                    stats['vtrs_total'] = alocacoes_vtr.count()
+                    
+                    # Busca o Telegrafista especificamente
+                    aloc_tel = AlocacaoViatura.objects.filter(mapa=mapa, viatura__prefixo='TELEGRAFISTA').first()
+                    if aloc_tel:
+                        tel_func = AlocacaoFuncionario.objects.filter(alocacao_viatura=aloc_tel).select_related('funcionario__posto_graduacao').first()
+                        if tel_func:
+                            telegrafista_info['nome'] = tel_func.funcionario.nome_curto
+                            telegrafista_info['is_dejem'] = tel_func.dejem
+                            if tel_func.dejem and tel_func.inicio_dejem:
+                                telegrafista_info['horario'] = f"{tel_func.inicio_dejem.strftime('%H:%M')} > {tel_func.termino_dejem.strftime('%H:%M')}"
+
                     for aloc in alocacoes_vtr:
-                        equipe = AlocacaoFuncionario.objects.filter(alocacao_viatura=aloc).select_related('funcionario', 'funcao')
+                        if aloc.status_no_dia.codigo == 'OPERANDO':
+                            stats['vtrs_operando'] += 1
+
+                        equipe = AlocacaoFuncionario.objects.filter(alocacao_viatura=aloc).select_related('funcionario__posto_graduacao', 'funcao')
                         cmt = equipe.filter(funcao__codigo='COMANDANTE').first()
                         
                         membros = []
                         for m in equipe:
-                            # Busca dados táticos no modelo Efetivo sincronizado
-                            efetivo_info = Efetivo.objects.filter(nome=m.funcionario.nome_guerra).first()
+                            if m.dejem: stats['dejem'] += 1
+
+                            efetivo_info = Efetivo.objects.filter(Q(re=m.funcionario.re) | Q(nome__icontains=m.funcionario.nome_guerra)).first()
+                            
                             membros.append({
-                                'nome': m.funcionario.nome_guerra,
+                                'nome': m.funcionario.nome_curto,
                                 'funcao': m.funcao.nome if m.funcao else 'AUX',
                                 'mergulhador': 'SIM' in str(efetivo_info.mergulho).upper() if efetivo_info else False,
                                 'ovb': efetivo_info.ovb if efetivo_info else None,
-                                'dejem': False # Implementar flag de DEJEM no AlocacaoFuncionario se existir
+                                'dejem': m.dejem,
+                                'horario': f"{m.inicio_dejem.strftime('%H:%M')} > {m.termino_dejem.strftime('%H:%M')}" if m.dejem and m.inicio_dejem else ""
                             })
                             
-                            # Acumula stats globais do posto
                             if efetivo_info:
                                 if 'SIM' in str(efetivo_info.mergulho).upper(): stats['mergulhadores'] += 1
                                 if 'LEVE' in str(efetivo_info.ovb).upper(): stats['ovb_leve'] += 1
@@ -187,7 +230,7 @@ def dashboard_cobom(request):
                             'status': aloc.status_no_dia.nome,
                             'status_codigo': aloc.status_no_dia.codigo,
                             'num_pm': equipe.count(),
-                            'encarregado': cmt.funcionario.nome_guerra if cmt else 'S/ CMT',
+                            'encarregado': cmt.funcionario.nome_curto if cmt else 'S/ CMT',
                             'equipe_completa': membros
                         })
             
@@ -196,6 +239,7 @@ def dashboard_cobom(request):
                 'viaturas': viaturas_data, 
                 'mapa_existe': mapa_existe,
                 'esta_pronto': esta_pronto,
+                'telegrafista': telegrafista_info,
                 'stats': stats
             })
             
@@ -218,8 +262,6 @@ def dashboard_cobom(request):
         ]
     })
 
-# --- NOVA VIEW: CADASTRO DE VIATURAS ---
-
 @login_required
 def cadastro_viaturas_view(request):
     """Lista todas as viaturas com filtros e suporte a sincronização."""
@@ -227,29 +269,18 @@ def cadastro_viaturas_view(request):
     status_filter = request.GET.get('status', '')
     sgb_filter = request.GET.get('sgb', '')
     garagem_filter = request.GET.get('garagem', '')
-    
     viaturas = Viatura.objects.select_related('status_base', 'unidade_base').all()
-    
-    # Filtros de Texto (Busca)
     if query:
         viaturas = viaturas.filter(Q(prefixo__icontains=query) | Q(placa__icontains=query))
-    
-    # Filtros de Seleção (Exatos)
     if status_filter:
         viaturas = viaturas.filter(status_base__codigo=status_filter)
     if sgb_filter:
         viaturas = viaturas.filter(sgb=sgb_filter)
     if garagem_filter:
         viaturas = viaturas.filter(garagem=garagem_filter)
-        
-    # Listas Únicas para popular os Filtros Select
-    # Usamos distinct() para evitar duplicatas e values_list para eficiência
     lista_sgb = Viatura.objects.exclude(sgb__isnull=True).values_list('sgb', flat=True).distinct().order_by('sgb')
     lista_garagem = Viatura.objects.exclude(garagem__isnull=True).values_list('garagem', flat=True).distinct().order_by('garagem')
-    
-    # Opções de Status baseadas no Dicionário
     status_options = Dictionary.objects.filter(tipo='STATUS_VIATURA').order_by('ordem')
-        
     return render(request, 'unidades/cadastro_viaturas.html', {
         'viaturas': viaturas,
         'query': query,
@@ -263,33 +294,22 @@ def cadastro_viaturas_view(request):
 
 @login_required
 def sync_sheets_action(request):
-    """Action HTMX para disparar o comando de sincronização."""
     try:
-        # Chama o comando de gerenciamento internamente
         call_command('sync_viaturas_sheets')
         return HttpResponse('<div class="p-4 bg-emerald-500/20 text-emerald-400 rounded-2xl text-xs font-black uppercase tracking-widest animate-pulse">Sincronização realizada com sucesso! Recarregando...<script>setTimeout(() => location.reload(), 2000)</script></div>')
     except Exception as e:
         return HttpResponse(f'<div class="p-4 bg-red-500/20 text-red-400 rounded-2xl text-xs font-bold">Erro: {str(e)}</div>')
 
-# --- NOVA VIEW: POSTOS DE ATENDIMENTO ---
-
 @login_required
 def lista_postos_view(request):
-    """Lista todos os postos importados com busca."""
     query = request.GET.get('q', '')
     postos = Posto.objects.prefetch_related('municipios').all()
-    
     if query:
         postos = postos.filter(Q(nome__icontains=query) | Q(sgb__icontains=query) | Q(cidade_posto__icontains=query))
-        
-    return render(request, 'unidades/lista_postos.html', {
-        'postos': postos,
-        'query': query
-    })
+    return render(request, 'unidades/lista_postos.html', {'postos': postos, 'query': query})
 
 @login_required
 def sync_postos_sheets_action(request):
-    """Action HTMX para sincronizar postos."""
     try:
         call_command('sync_postos_sheets')
         return HttpResponse('<div class="p-4 bg-emerald-500/20 text-emerald-400 rounded-2xl text-xs font-black uppercase tracking-widest animate-pulse">Postos sincronizados! Recarregando...<script>setTimeout(() => location.reload(), 2000)</script></div>')
