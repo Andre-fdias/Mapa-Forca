@@ -1,0 +1,106 @@
+<div class="grid grid-cols-1 xl:grid-cols-3 gap-10">
+    
+    <!-- Lado Esquerdo: Visualização da Escala -->
+    <div class="xl:col-span-2 space-y-8">
+        {% if mapa %}
+            <div class="bg-white dark:bg-slate-900 rounded-[2.5rem] shadow-xl border-t-8 border-red-600 overflow-hidden">
+                <div class="p-8 border-b border-slate-100 dark:border-slate-800 flex justify-between items-center">
+                    <div>
+                        <h3 class="text-xl font-black text-slate-900 dark:text-white uppercase italic tracking-tighter">
+                            Escala {{ unidade_selecionada.nome }}
+                        </h3>
+                        <p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-1">
+                            {{ data_selecionada|date:"l, d \d\e F \d\e Y" }}
+                        </p>
+                    </div>
+                    {% if mapa.finalizado %}
+                    <span class="bg-emerald-500/10 text-emerald-500 border border-emerald-500/20 px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest flex items-center">
+                        <span class="h-1.5 w-1.5 bg-emerald-500 rounded-full mr-2 animate-pulse"></span>
+                        Finalizado
+                    </span>
+                    {% else %}
+                    <span class="bg-amber-500/10 text-amber-500 border border-amber-500/20 px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest flex items-center">
+                        <span class="h-1.5 w-1.5 bg-amber-500 rounded-full mr-2"></span>
+                        Em Aberto
+                    </span>
+                    {% endif %}
+                </div>
+
+                <div class="p-8">
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        {% for aloc in mapa.alocacoes_viaturas.all %}
+                        <div class="bg-slate-50 dark:bg-slate-800/50 rounded-3xl p-6 border border-slate-100 dark:border-slate-800">
+                            <div class="flex justify-between items-start mb-4">
+                                <div class="flex flex-col">
+                                    <span class="text-xs font-black text-red-600 uppercase tracking-widest">{{ aloc.viatura.prefixo }}</span>
+                                    <span class="text-[9px] font-bold text-slate-400 uppercase">{{ aloc.viatura.tipo.nome }}</span>
+                                </div>
+                                <span class="text-[9px] font-black px-3 py-1 bg-white dark:bg-slate-950 rounded-lg text-slate-600 dark:text-slate-400 uppercase tracking-tighter border border-slate-200 dark:border-slate-800 shadow-sm">
+                                    {{ aloc.status_no_dia.nome }}
+                                </span>
+                            </div>
+
+                            <ul class="space-y-3">
+                                {% for af in aloc.equipe.all %}
+                                <li class="flex items-center justify-between p-3 bg-white dark:bg-slate-950/50 rounded-2xl border border-slate-100 dark:border-slate-800/50">
+                                    <div class="flex flex-col">
+                                        <span class="text-[10px] font-black text-slate-800 dark:text-slate-200 uppercase tracking-tight">
+                                            {{ af.funcionario.posto_graduacao.nome }} {{ af.funcionario.nome_guerra }}
+                                        </span>
+                                        <span class="text-[8px] font-bold text-slate-400 uppercase tracking-widest">RE: {{ af.funcionario.re }}</span>
+                                    </div>
+                                    <span class="text-[8px] font-black text-red-600/80 uppercase italic">{{ af.funcao.nome }}</span>
+                                </li>
+                                {% endfor %}
+                            </ul>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+        {% else %}
+            <div class="bg-slate-100 dark:bg-slate-900/50 rounded-[2.5rem] p-20 text-center border-2 border-dashed border-slate-200 dark:border-slate-800">
+                <div class="h-20 w-20 bg-slate-200 dark:bg-slate-800 rounded-full flex items-center justify-center mx-auto mb-6">
+                    <svg class="h-10 w-10 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                    </svg>
+                </div>
+                <h3 class="text-xl font-black text-slate-400 uppercase tracking-tighter mb-2 italic">Nenhum Mapa Encontrado</h3>
+                <p class="text-xs font-bold text-slate-500 uppercase tracking-widest">Não houve registro de escala nesta unidade para o dia selecionado.</p>
+            </div>
+        {% endif %}
+    </div>
+
+    <!-- Lado Direito: Linha do Tempo de Alterações (Auditoria) -->
+    <div class="space-y-6">
+        <h4 class="text-xs font-black text-slate-900 dark:text-white uppercase tracking-[0.2em] ml-2 flex items-center">
+            <svg class="h-4 w-4 mr-2 text-red-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+            Auditoria de Alterações
+        </h4>
+
+        <div class="relative pl-6 border-l-2 border-slate-200 dark:border-slate-800 space-y-6 ml-4">
+            {% if mapa and mapa.historico.all %}
+                {% for log in mapa.historico.all %}
+                <div class="relative">
+                    <div class="absolute -left-[31px] mt-1.5 h-4 w-4 rounded-full border-4 border-slate-950 
+                        {% if log.tipo_acao == 'CREATE' %}bg-blue-500{% elif log.tipo_acao == 'FINISH' %}bg-emerald-500{% elif log.tipo_acao == 'DELETE' %}bg-red-500{% else %}bg-slate-400{% endif %}"></div>
+                    <div class="bg-white dark:bg-slate-900 p-4 rounded-2xl shadow-sm border border-slate-100 dark:border-slate-800">
+                        <div class="flex justify-between items-start mb-1">
+                            <span class="text-[9px] font-black text-slate-400 uppercase tracking-widest">{{ log.data_hora|date:"H:i" }}</span>
+                            <span class="text-[8px] font-black text-slate-400 uppercase">{{ log.usuario.username|default:"Sistema" }}</span>
+                        </div>
+                        <p class="text-[10px] font-bold text-slate-700 dark:text-slate-300">{{ log.descricao }}</p>
+                    </div>
+                </div>
+                {% endfor %}
+            {% else %}
+                <div class="p-10 text-center opacity-40">
+                    <p class="text-[9px] font-black text-slate-400 uppercase tracking-widest italic">Nenhum log registrado para este dia.</p>
+                </div>
+            {% endif %}
+        </div>
+    </div>
+
+</div>

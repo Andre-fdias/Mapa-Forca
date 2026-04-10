@@ -1,0 +1,67 @@
+{% extends "base/base.html" %}
+{% load static %}
+
+{% block title %}Histórico de Escalas | Mapa-Força{% endblock %}
+
+{% block content %}
+<div class="flex flex-col space-y-8 animate-fade-in">
+    
+    <!-- Header com Seletor de Data -->
+    <div class="relative p-8 rounded-[2.5rem] glass border border-white/10 overflow-hidden morphism-card">
+        <div class="absolute top-0 right-0 -mt-10 -mr-10 h-40 w-40 bg-red-600/10 rounded-full blur-[50px]"></div>
+        
+        <div class="relative z-10 flex flex-col md:flex-row md:items-center justify-between space-y-6 md:space-y-0">
+            <div class="space-y-1">
+                <div class="flex items-center space-x-3">
+                    <span class="h-1 w-6 bg-red-600 rounded-full"></span>
+                    <span class="text-[10px] font-black text-red-600 uppercase tracking-[0.3em]">Arquivo Operacional</span>
+                </div>
+                <h1 class="text-4xl font-black text-slate-900 dark:text-white uppercase tracking-tighter italic">
+                    Histórico de <span class="text-red-600">Escalas</span>
+                </h1>
+            </div>
+
+            <!-- Seletor de Data e Unidade -->
+            <form class="flex flex-wrap gap-4 items-center bg-slate-100 dark:bg-slate-900/50 p-4 rounded-[2rem] border border-slate-200 dark:border-slate-800"
+                  hx-get="{% url 'historico_mapa' %}" 
+                  hx-target="#conteudo-historico" 
+                  hx-trigger="change from:input, change from:select"
+                  hx-push-url="true">
+                
+                <div class="flex flex-col">
+                    <label class="text-[9px] font-black text-slate-500 uppercase tracking-widest ml-4 mb-1">Data da Escala</label>
+                    <input type="date" name="data" value="{{ data_selecionada|date:'Y-m-d' }}"
+                           class="bg-white dark:bg-slate-950 border-none rounded-xl px-5 py-2.5 text-xs font-bold text-slate-900 dark:text-white focus:ring-2 focus:ring-red-600 transition-all cursor-pointer">
+                </div>
+
+                <div class="flex flex-col">
+                    <label class="text-[9px] font-black text-slate-500 uppercase tracking-widest ml-4 mb-1">Unidade</label>
+                    <select name="unidade_id" class="bg-white dark:bg-slate-950 border-none rounded-xl px-5 py-2.5 text-xs font-bold text-slate-900 dark:text-white focus:ring-2 focus:ring-red-600 transition-all cursor-pointer">
+                        {% for u in todas_unidades %}
+                        <option value="{{ u.id }}" {% if u.id == unidade_selecionada.id %}selected{% endif %}>
+                            {{ u.nome }}
+                        </option>
+                        {% endfor %}
+                    </select>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Conteúdo Dinâmico (HTMX) -->
+    <div id="conteudo-historico">
+        {% include "escalas/partials/conteudo_historico.html" %}
+    </div>
+
+</div>
+
+<style>
+    @keyframes fade-in {
+        from { opacity: 0; transform: translateY(10px); }
+        to { opacity: 1; transform: translateY(0); }
+    }
+    .animate-fade-in {
+        animation: fade-in 0.5s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+    }
+</style>
+{% endblock %}

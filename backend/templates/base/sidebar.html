@@ -76,8 +76,8 @@
                 </a>
                 {% endif %}
 
-                <a href="#" class="flex items-center space-x-4 px-4 py-3.5 rounded-2xl transition-all duration-300 group text-slate-500 hover:bg-slate-900/50 hover:text-slate-300">
-                    <div class="p-2 rounded-xl bg-slate-900 text-slate-600 group-hover:text-slate-400 transition-colors shadow-sm">
+                <a href="{% url 'historico_mapa' %}" class="flex items-center space-x-4 px-4 py-3.5 rounded-2xl transition-all duration-300 group {% if '/escalas/historico/' in request.path %}bg-slate-900 text-white shadow-lg border border-slate-800{% else %}text-slate-500 hover:bg-slate-900/50 hover:text-slate-300{% endif %}">
+                    <div class="p-2 rounded-xl {% if '/escalas/historico/' in request.path %}bg-red-600 text-white{% else %}bg-slate-900 text-slate-600 group-hover:text-slate-400{% endif %} transition-colors shadow-sm">
                         <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
                         </svg>

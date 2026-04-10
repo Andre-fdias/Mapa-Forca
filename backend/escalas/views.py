@@ -98,11 +98,21 @@ def adicionar_viatura_mapa(request, mapa_id):
     mapa = get_object_or_404(MapaDiario, id=mapa_id)
     viat = get_object_or_404(Viatura, prefixo=pref)
     status_op = Dictionary.objects.filter(tipo='STATUS_VIATURA', codigo='OPERANDO').first()
-    aloc, _ = AlocacaoViatura.objects.get_or_create(mapa=mapa, viatura=viat, defaults={'status_no_dia': status_op})
+    aloc, created = AlocacaoViatura.objects.get_or_create(mapa=mapa, viatura=viat, defaults={'status_no_dia': status_op})
+    
+    if created:
+        HistoricoAlteracao.objects.create(
+            mapa=mapa,
+            usuario=request.user,
+            tipo_acao='UPDATE',
+            descricao=f"Adicionou viatura {viat.prefixo} ao mapa."
+        )
+        
     return render(request, 'mapa_forca/partials/card_viatura_alocada.html', {'alocacao': aloc, 'funcoes': Dictionary.objects.filter(tipo='FUNCAO_OPERACIONAL')})
 
 @login_required
 def alocar_funcionario_viatura(request, alocacao_viatura_id):
+    # ... (restante do código anterior de busca de militar) ...
     re_in = request.POST.get('funcionario_re', '').strip()
     nome_ex = request.POST.get('nome_extra', '').strip()
     efetivo_id = request.POST.get('efetivo_id')
@@ -192,18 +202,47 @@ def alocar_funcionario_viatura(request, alocacao_viatura_id):
             inicio_dejem=inicio_dejem if dejem_val and inicio_dejem else None,
             termino_dejem=termino_dejem if dejem_val and termino_dejem else None
         )
+        
+        HistoricoAlteracao.objects.create(
+            mapa=aloc_v.mapa,
+            usuario=request.user,
+            tipo_acao='UPDATE',
+            descricao=f"Alocou {militar.nome_guerra} na viatura {aloc_v.viatura.prefixo} como {funcao.nome}."
+        )
+        
         return render(request, 'mapa_forca/partials/linha_funcionario_viatura.html', {'aloc_func': af})
     
     return HttpResponse('<script>showToast("Erro ao processar militar!", "error");</script>')
 
 @login_required
 def remover_viatura_mapa(request, alocacao_id):
-    get_object_or_404(AlocacaoViatura, id=alocacao_id).delete()
+    aloc = get_object_or_404(AlocacaoViatura, id=alocacao_id)
+    mapa = aloc.mapa
+    pref = aloc.viatura.prefixo
+    aloc.delete()
+    
+    HistoricoAlteracao.objects.create(
+        mapa=mapa,
+        usuario=request.user,
+        tipo_acao='DELETE',
+        descricao=f"Removeu viatura {pref} do mapa."
+    )
     return HttpResponse("")
 
 @login_required
 def remover_funcionario_viatura(request, aloc_func_id):
-    get_object_or_404(AlocacaoFuncionario, id=aloc_func_id).delete()
+    af = get_object_or_404(AlocacaoFuncionario, id=aloc_func_id)
+    mapa = af.mapa
+    nome = af.funcionario.nome_guerra
+    vtr = af.alocacao_viatura.viatura.prefixo if af.alocacao_viatura else "Avulso"
+    af.delete()
+    
+    HistoricoAlteracao.objects.create(
+        mapa=mapa,
+        usuario=request.user,
+        tipo_acao='DELETE',
+        descricao=f"Removeu {nome} da viatura {vtr}."
+    )
     return HttpResponse("")
 
 @login_required
@@ -216,6 +255,7 @@ def get_viaturas_por_unidade(request):
     for v in viats: 
         opts.append(f'<option value="{v.prefixo}">{v.prefixo} — {v.tipo.nome if v.tipo else ""}</option>')
     return HttpResponse("".join(opts))
+
 
 @login_required
 def validar_mapa_final(request, mapa_id):
@@ -234,6 +274,13 @@ def validar_mapa_final(request, mapa_id):
     mapa.finalizado = True
     mapa.save()
     
+    HistoricoAlteracao.objects.create(
+        mapa=mapa,
+        usuario=request.user,
+        tipo_acao='FINISH',
+        descricao="Finalizou o mapa força do dia."
+    )
+    
     # 3. Retorna sucesso e recarrega para atualizar status visual
     return HttpResponse('''
         <script>
@@ -241,6 +288,44 @@ def validar_mapa_final(request, mapa_id):
             setTimeout(() => { window.location.href = "/"; }, 2000);
         </script>
     ''')
+
+@login_required
+def historico_view(request):
+    data_str = request.GET.get('data')
+    u_id = request.GET.get('unidade_id')
+    
+    # Se não vier data, assume hoje
+    if data_str:
+        data_selecionada = timezone.datetime.strptime(data_str, '%Y-%m-%d').date()
+    else:
+        data_selecionada = timezone.now().date()
+        
+    unidade = get_object_or_404(Unidade, id=u_id) if u_id else request.user.unidade
+    
+    # Busca o mapa daquela data/unidade
+    mapa = MapaDiario.objects.filter(data=data_selecionada, unidade=unidade).first()
+    
+    # Se for uma requisição HTMX para trocar a data, retorna apenas o fragmento
+    if request.headers.get('HX-Request'):
+        template_name = 'escalas/partials/conteudo_historico.html'
+    else:
+        template_name = 'escalas/historico.html'
+
+    # Busca as unidades para o seletor lateral (mesma lógica do compor)
+    todas_unidades = Unidade.objects.filter(
+        Q(parent__nome__icontains='1ºSGB') | 
+        Q(parent__nome__icontains='2ºSGB') | 
+        Q(parent__nome__icontains='3ºSGB') | 
+        Q(parent__nome__icontains='4ºSGB') | 
+        Q(parent__nome__icontains='5ºSGB')
+    ).order_by('parent__nome', 'nome')
+
+    return render(request, template_name, {
+        'mapa': mapa,
+        'data_selecionada': data_selecionada,
+        'todas_unidades': todas_unidades,
+        'unidade_selecionada': unidade,
+    })
 
 # === API REST ===
 class MapaDiarioViewSet(viewsets.ModelViewSet):

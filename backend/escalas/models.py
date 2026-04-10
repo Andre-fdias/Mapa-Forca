@@ -23,6 +23,7 @@ class MapaDiario(models.Model):
         null=True
     )
     criado_em = models.DateTimeField(auto_now_add=True)
+    atualizado_em = models.DateTimeField(auto_now=True)
 
     def __str__(self):
         return f"Mapa {self.unidade.nome} - {self.data}"
@@ -99,3 +100,29 @@ class AlocacaoFuncionario(models.Model):
         verbose_name = 'Alocação de Funcionário'
         verbose_name_plural = 'Alocações de Funcionários'
         unique_together = ('mapa', 'funcionario')
+
+
+class HistoricoAlteracao(models.Model):
+    """
+    Registra toda e qualquer alteração feita nos mapas para fins de auditoria.
+    """
+    TIPO_ACAO = (
+        ('CREATE', 'Criação'),
+        ('UPDATE', 'Atualização'),
+        ('DELETE', 'Exclusão'),
+        ('FINISH', 'Finalização'),
+    )
+
+    mapa = models.ForeignKey(MapaDiario, on_delete=models.CASCADE, related_name='historico')
+    usuario = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True)
+    data_hora = models.DateTimeField(auto_now_add=True)
+    tipo_acao = models.CharField(max_length=10, choices=TIPO_ACAO)
+    descricao = models.TextField()
+
+    class Meta:
+        verbose_name = 'Histórico de Alteração'
+        verbose_name_plural = 'Históricos de Alterações'
+        ordering = ['-data_hora']
+
+    def __str__(self):
+        return f"{self.get_tipo_acao_display()} - {self.mapa} por {self.usuario}"
