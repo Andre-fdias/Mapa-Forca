@@ -8,7 +8,7 @@ from rest_framework.decorators import action
 from rest_framework.response import Response
 from django_filters.rest_framework import DjangoFilterBackend
 
-from .models import MapaDiario, AlocacaoViatura, AlocacaoFuncionario
+from .models import MapaDiario, AlocacaoViatura, AlocacaoFuncionario, HistoricoAlteracao
 from unidades.models import Unidade, Viatura
 from efetivo.models import Funcionario, Efetivo
 from dictionaries.models import Dictionary
@@ -17,8 +17,9 @@ from .serializers import (
     AlocacaoViaturaSerializer, CloneMapaSerializer
 )
 import re
-
-# === VIEWS HTMX ===
+import csv
+from django.http import HttpResponse, JsonResponse
+# ... (restante dos imports)
 
 @login_required
 def compor_mapa_view(request):
@@ -26,9 +27,19 @@ def compor_mapa_view(request):
     u_id = request.GET.get('unidade_id')
     unidade = get_object_or_404(Unidade, id=u_id) if u_id else request.user.unidade
     if not unidade: return render(request, 'escalas/erro_permissao.html', {'mensagem': 'Unidade não encontrada.'})
-    
-    mapa, _ = MapaDiario.objects.get_or_create(data=hoje, unidade=unidade, defaults={'criado_por': request.user})
-    
+
+    mapa, created = MapaDiario.objects.get_or_create(data=hoje, unidade=unidade, defaults={'criado_por': request.user})
+
+    if created:
+        HistoricoAlteracao.objects.create(
+            mapa=mapa,
+            usuario=request.user,
+            tipo_acao='CREATE',
+            descricao="Iniciou a composição do mapa força do dia."
+        )
+
+    # ...
+
     # Filtra as unidades do 1º ao 5º SGB (excluindo 1 - EM)
     todas_unidades = Unidade.objects.filter(
         Q(parent__nome__icontains='1ºSGB') | 
@@ -296,6 +307,8 @@ def historico_view(request):
     sgb_id = request.GET.get('sgb_id')
     v_prefixo = request.GET.get('viatura_prefixo')
     dejem_only = request.GET.get('dejem') == 'true'
+    view_type = request.GET.get('view', 'cards') # 'cards' ou 'table'
+    export_format = request.GET.get('export') # 'csv' ou 'pdf'
     
     # Se não vier data, assume hoje
     if data_str:
@@ -312,28 +325,50 @@ def historico_view(request):
     if u_id:
         filtros &= Q(unidade_id=u_id)
     elif sgb_id:
-        # Busca todas as subunidades do SGB selecionado
         subunidades = Unidade.objects.filter(Q(id=sgb_id) | Q(parent_id=sgb_id)).values_list('id', flat=True)
         filtros &= Q(unidade_id__in=subunidades)
     
     if v_prefixo:
         filtros &= Q(alocacoes_viaturas__viatura__prefixo__icontains=v_prefixo)
 
-    # Busca os mapas (pode haver mais de um se filtrar por SGB ou Viatura)
-    mapas = MapaDiario.objects.filter(filtros).distinct().prefetch_related(
+    # Busca os mapas
+    mapas = MapaDiario.objects.filter(filtros).distinct().select_related('unidade', 'criado_por').prefetch_related(
         'alocacoes_viaturas__viatura',
-        'alocacoes_viaturas__equipe__funcionario',
+        'alocacoes_viaturas__equipe__funcionario__posto_graduacao',
         'alocacoes_viaturas__equipe__funcao',
-        'unidade',
         'historico__usuario'
     )
-    
-    # Busca SGBs (Unidades que têm parent como Batalhão ou são o próprio Batalhão)
-    sgbs = Unidade.objects.filter(
-        Q(nome__icontains='SGB') | Q(tipo_unidade__codigo='BATALHAO')
-    ).order_by('nome')
 
-    # Busca as unidades (Postos) dependendo do SGB selecionado
+    # Lógica de Exportação CSV
+    if export_format == 'csv':
+        response = HttpResponse(content_type='text/csv')
+        response['Content-Disposition'] = f'attachment; filename="mapa-forca-{data_selecionada}.csv"'
+        writer = csv.writer(response)
+        writer.writerow(['Unidade', 'Viatura', 'Posto/Grad', 'Nome', 'Função', 'DEJEM', 'Horário'])
+        for m in mapas:
+            for aloc in m.alocacoes_viaturas.all():
+                for af in aloc.equipe.all():
+                    if not dejem_only or af.dejem:
+                        p_grad = af.funcionario.posto_graduacao.nome if af.funcionario.posto_graduacao else 'S/P'
+                        f_nome = af.funcao.nome if af.funcao else 'S/F'
+                        writer.writerow([
+                            m.unidade.nome, aloc.viatura.prefixo, 
+                            p_grad, af.funcionario.nome_guerra,
+                            f_nome, 'SIM' if af.dejem else 'NÃO',
+                            f"{af.inicio_dejem}-{af.termino_dejem}" if af.dejem else '-'
+                        ])
+        return response
+
+    # Lógica de Exportação PDF (Renderização otimizada para impressão)
+    if export_format == 'pdf':
+        return render(request, 'escalas/export/mapa_pdf.html', {
+            'mapas': mapas,
+            'data_selecionada': data_selecionada,
+            'dejem_only': dejem_only
+        })
+    
+    # Contexto comum para a view
+    sgbs = Unidade.objects.filter(Q(nome__icontains='SGB') | Q(tipo_unidade__codigo='BATALHAO')).order_by('nome')
     if sgb_id:
         unidades_lista = Unidade.objects.filter(parent_id=sgb_id).order_by('nome')
     else:
@@ -348,10 +383,12 @@ def historico_view(request):
         'unidade_selecionada_id': int(u_id) if u_id else None,
         'v_prefixo': v_prefixo,
         'dejem_only': dejem_only,
+        'view_type': view_type,
     }
 
     if request.headers.get('HX-Request'):
-        return render(request, 'escalas/partials/conteudo_historico.html', context)
+        template = 'escalas/partials/conteudo_historico_tabela.html' if view_type == 'table' else 'escalas/partials/conteudo_historico.html'
+        return render(request, template, context)
     
     return render(request, 'escalas/historico.html', context)
 
