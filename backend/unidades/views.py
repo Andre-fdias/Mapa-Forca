@@ -85,6 +85,14 @@ def dashboard_cobom(request):
     total_unidades = 0
     total_completos = 0
     
+    global_stats = {
+        'vtrs_operando': 0,
+        'militares_escalados': 0,
+        'mergulhadores': 0,
+        'dejem': 0,
+        'motoristas': 0
+    }
+    
     OPCOES_POR_SGB = {
       "2 - 1ºSGB": [
         "703151000 - CMT 1ºSGB", "703151100 - ADM PB CERRADO",
@@ -126,10 +134,12 @@ def dashboard_cobom(request):
     }
     
     sgbs_data = []
+    vtrs_reserva_global = []
     
     for sgb_nome, postos_nomes in OPCOES_POR_SGB.items():
         postos_result = []
         for p_nome in postos_nomes:
+            # ... (manter lógica de busca de unidade)
             unidade = None
             posto_obj_real = None
             if " - " in p_nome:
@@ -195,17 +205,34 @@ def dashboard_cobom(request):
                             telegrafista_info['is_dejem'] = tel_func.dejem
                             if tel_func.dejem and tel_func.inicio_dejem:
                                 telegrafista_info['horario'] = f"{tel_func.inicio_dejem.strftime('%H:%M')} > {tel_func.termino_dejem.strftime('%H:%M')}"
+                            
+                            # Acumula telegrafista se estiver escalado
+                            global_stats['militares_escalados'] += 1
+                            if tel_func.dejem:
+                                global_stats['dejem'] += 1
 
                     for aloc in alocacoes_vtr:
                         if aloc.status_no_dia.codigo == 'OPERANDO':
                             stats['vtrs_operando'] += 1
+                            global_stats['vtrs_operando'] += 1
+                        elif aloc.status_no_dia.codigo == 'RESERVA':
+                            vtrs_reserva_global.append({
+                                'prefixo': aloc.viatura.prefixo,
+                                'unidade': unidade.nome,
+                                'sgb': sgb_nome
+                            })
 
                         equipe = AlocacaoFuncionario.objects.filter(alocacao_viatura=aloc).select_related('funcionario__posto_graduacao', 'funcao')
                         cmt = equipe.filter(funcao__codigo='COMANDANTE').first()
                         
                         membros = []
                         for m in equipe:
-                            if m.dejem: stats['dejem'] += 1
+                            if m.dejem: 
+                                stats['dejem'] += 1
+                                global_stats['dejem'] += 1
+                            
+                            if m.funcao and m.funcao.codigo == 'MOTORISTA':
+                                global_stats['motoristas'] += 1
 
                             efetivo_info = Efetivo.objects.filter(Q(re=m.funcionario.re) | Q(nome__icontains=m.funcionario.nome_guerra)).first()
                             
@@ -219,11 +246,14 @@ def dashboard_cobom(request):
                             })
                             
                             if efetivo_info:
-                                if 'SIM' in str(efetivo_info.mergulho).upper(): stats['mergulhadores'] += 1
+                                if 'SIM' in str(efetivo_info.mergulho).upper(): 
+                                    stats['mergulhadores'] += 1
+                                    global_stats['mergulhadores'] += 1
                                 if 'LEVE' in str(efetivo_info.ovb).upper(): stats['ovb_leve'] += 1
                                 if 'PESADO' in str(efetivo_info.ovb).upper(): stats['ovb_pesado'] += 1
                             
                             stats['efetivo_total'] += 1
+                            global_stats['militares_escalados'] += 1
 
                         viaturas_data.append({
                             'prefixo': aloc.viatura.prefixo, 
@@ -254,6 +284,8 @@ def dashboard_cobom(request):
         'sgbs': sgbs_data, 
         'hoje': hoje, 
         'mapa_completo': mapa_completo,
+        'global_stats': global_stats,
+        'vtrs_reserva_global': vtrs_reserva_global,
         'botoes_atalho': ['Aeroportos', 'Alarmes / Cód OPM', 'VTR Reserva', 'Normas do CB', 'Links / Intranet', 'Bairros', 'Pesquisa'],
         'oficiais': [
             {'cargo': 'Supervisor de Serviço', 'nome': 'CAP PM RODRIGUES', 'tipo': 'DIA'}, 

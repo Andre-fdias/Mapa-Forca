@@ -293,39 +293,67 @@ def validar_mapa_final(request, mapa_id):
 def historico_view(request):
     data_str = request.GET.get('data')
     u_id = request.GET.get('unidade_id')
+    sgb_id = request.GET.get('sgb_id')
+    v_prefixo = request.GET.get('viatura_prefixo')
+    dejem_only = request.GET.get('dejem') == 'true'
     
     # Se não vier data, assume hoje
     if data_str:
-        data_selecionada = timezone.datetime.strptime(data_str, '%Y-%m-%d').date()
+        try:
+            data_selecionada = timezone.datetime.strptime(data_str, '%Y-%m-%d').date()
+        except ValueError:
+            data_selecionada = timezone.now().date()
     else:
         data_selecionada = timezone.now().date()
         
-    unidade = get_object_or_404(Unidade, id=u_id) if u_id else request.user.unidade
+    # Lógica de Filtro de Mapas
+    filtros = Q(data=data_selecionada)
     
-    # Busca o mapa daquela data/unidade
-    mapa = MapaDiario.objects.filter(data=data_selecionada, unidade=unidade).first()
+    if u_id:
+        filtros &= Q(unidade_id=u_id)
+    elif sgb_id:
+        # Busca todas as subunidades do SGB selecionado
+        subunidades = Unidade.objects.filter(Q(id=sgb_id) | Q(parent_id=sgb_id)).values_list('id', flat=True)
+        filtros &= Q(unidade_id__in=subunidades)
     
-    # Se for uma requisição HTMX para trocar a data, retorna apenas o fragmento
-    if request.headers.get('HX-Request'):
-        template_name = 'escalas/partials/conteudo_historico.html'
+    if v_prefixo:
+        filtros &= Q(alocacoes_viaturas__viatura__prefixo__icontains=v_prefixo)
+
+    # Busca os mapas (pode haver mais de um se filtrar por SGB ou Viatura)
+    mapas = MapaDiario.objects.filter(filtros).distinct().prefetch_related(
+        'alocacoes_viaturas__viatura',
+        'alocacoes_viaturas__equipe__funcionario',
+        'alocacoes_viaturas__equipe__funcao',
+        'unidade',
+        'historico__usuario'
+    )
+    
+    # Busca SGBs (Unidades que têm parent como Batalhão ou são o próprio Batalhão)
+    sgbs = Unidade.objects.filter(
+        Q(nome__icontains='SGB') | Q(tipo_unidade__codigo='BATALHAO')
+    ).order_by('nome')
+
+    # Busca as unidades (Postos) dependendo do SGB selecionado
+    if sgb_id:
+        unidades_lista = Unidade.objects.filter(parent_id=sgb_id).order_by('nome')
     else:
-        template_name = 'escalas/historico.html'
+        unidades_lista = Unidade.objects.filter(tipo_unidade__codigo='POSTO').order_by('nome')
 
-    # Busca as unidades para o seletor lateral (mesma lógica do compor)
-    todas_unidades = Unidade.objects.filter(
-        Q(parent__nome__icontains='1ºSGB') | 
-        Q(parent__nome__icontains='2ºSGB') | 
-        Q(parent__nome__icontains='3ºSGB') | 
-        Q(parent__nome__icontains='4ºSGB') | 
-        Q(parent__nome__icontains='5ºSGB')
-    ).order_by('parent__nome', 'nome')
-
-    return render(request, template_name, {
-        'mapa': mapa,
+    context = {
+        'mapas': mapas,
         'data_selecionada': data_selecionada,
-        'todas_unidades': todas_unidades,
-        'unidade_selecionada': unidade,
-    })
+        'sgbs': sgbs,
+        'unidades_lista': unidades_lista,
+        'sgb_selecionado': int(sgb_id) if sgb_id else None,
+        'unidade_selecionada_id': int(u_id) if u_id else None,
+        'v_prefixo': v_prefixo,
+        'dejem_only': dejem_only,
+    }
+
+    if request.headers.get('HX-Request'):
+        return render(request, 'escalas/partials/conteudo_historico.html', context)
+    
+    return render(request, 'escalas/historico.html', context)
 
 # === API REST ===
 class MapaDiarioViewSet(viewsets.ModelViewSet):

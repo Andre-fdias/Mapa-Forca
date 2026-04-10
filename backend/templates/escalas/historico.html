@@ -21,28 +21,52 @@
                 </h1>
             </div>
 
-            <!-- Seletor de Data e Unidade -->
-            <form class="flex flex-wrap gap-4 items-center bg-slate-100 dark:bg-slate-900/50 p-4 rounded-[2rem] border border-slate-200 dark:border-slate-800"
+            <!-- Filtros Avançados -->
+            <form class="flex flex-wrap gap-4 items-end bg-slate-100 dark:bg-slate-900/50 p-6 rounded-[2.5rem] border border-slate-200 dark:border-slate-800"
                   hx-get="{% url 'historico_mapa' %}" 
                   hx-target="#conteudo-historico" 
-                  hx-trigger="change from:input, change from:select"
+                  hx-trigger="change from:input, change from:select, keyup from:input[name='viatura_prefixo'] delay:500ms"
                   hx-push-url="true">
                 
                 <div class="flex flex-col">
-                    <label class="text-[9px] font-black text-slate-500 uppercase tracking-widest ml-4 mb-1">Data da Escala</label>
+                    <label class="text-[9px] font-black text-slate-500 uppercase tracking-widest ml-4 mb-1">Data</label>
                     <input type="date" name="data" value="{{ data_selecionada|date:'Y-m-d' }}"
-                           class="bg-white dark:bg-slate-950 border-none rounded-xl px-5 py-2.5 text-xs font-bold text-slate-900 dark:text-white focus:ring-2 focus:ring-red-600 transition-all cursor-pointer">
+                           class="bg-white dark:bg-slate-950 border-none rounded-xl px-4 py-2 text-xs font-bold text-slate-900 dark:text-white focus:ring-2 focus:ring-red-600 transition-all cursor-pointer">
                 </div>
 
                 <div class="flex flex-col">
-                    <label class="text-[9px] font-black text-slate-500 uppercase tracking-widest ml-4 mb-1">Unidade</label>
-                    <select name="unidade_id" class="bg-white dark:bg-slate-950 border-none rounded-xl px-5 py-2.5 text-xs font-bold text-slate-900 dark:text-white focus:ring-2 focus:ring-red-600 transition-all cursor-pointer">
-                        {% for u in todas_unidades %}
-                        <option value="{{ u.id }}" {% if u.id == unidade_selecionada.id %}selected{% endif %}>
-                            {{ u.nome }}
-                        </option>
+                    <label class="text-[9px] font-black text-slate-500 uppercase tracking-widest ml-4 mb-1">SGB</label>
+                    <select name="sgb_id" class="bg-white dark:bg-slate-950 border-none rounded-xl px-4 py-2 text-xs font-bold text-slate-900 dark:text-white focus:ring-2 focus:ring-red-600 transition-all cursor-pointer min-w-[120px]">
+                        <option value="">Todos</option>
+                        {% for sgb in sgbs %}
+                        <option value="{{ sgb.id }}" {% if sgb.id == sgb_selecionado %}selected{% endif %}>{{ sgb.nome }}</option>
                         {% endfor %}
                     </select>
+                </div>
+
+                <div class="flex flex-col">
+                    <label class="text-[9px] font-black text-slate-500 uppercase tracking-widest ml-4 mb-1">Posto/Unidade</label>
+                    <select name="unidade_id" class="bg-white dark:bg-slate-950 border-none rounded-xl px-4 py-2 text-xs font-bold text-slate-900 dark:text-white focus:ring-2 focus:ring-red-600 transition-all cursor-pointer min-w-[150px]">
+                        <option value="">Todas</option>
+                        {% for u in unidades_lista %}
+                        <option value="{{ u.id }}" {% if u.id == unidade_selecionada_id %}selected{% endif %}>{{ u.nome }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <div class="flex flex-col">
+                    <label class="text-[9px] font-black text-slate-500 uppercase tracking-widest ml-4 mb-1">Viatura (Prefixo)</label>
+                    <input type="text" name="viatura_prefixo" placeholder="Ex: L-15..." value="{{ v_prefixo|default:'' }}"
+                           class="bg-white dark:bg-slate-950 border-none rounded-xl px-4 py-2 text-xs font-bold text-slate-900 dark:text-white focus:ring-2 focus:ring-red-600 transition-all placeholder:text-slate-600">
+                </div>
+
+                <!-- Toggle DEJEM -->
+                <div class="flex items-center space-x-3 mb-2 px-4">
+                    <label class="relative inline-flex items-center cursor-pointer">
+                        <input type="checkbox" name="dejem" value="true" class="sr-only peer" {% if dejem_only %}checked{% endif %}>
+                        <div class="w-10 h-5 bg-slate-300 peer-focus:outline-none dark:bg-slate-700 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-red-600"></div>
+                    </label>
+                    <span class="text-[9px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-widest">Apenas DEJEM</span>
                 </div>
             </form>
         </div>

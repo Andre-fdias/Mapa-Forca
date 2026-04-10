@@ -1,4 +1,5 @@
 {% extends "base/base.html" %}
+{% load static %}
 
 {% block title %}COBOM — 15º Grupamento de Bombeiros{% endblock %}
 
@@ -22,12 +23,252 @@
     .sidebar-cobom {
         width: 320px;
     }
+    [x-cloak] { display: none !important; }
 </style>
 {% endblock %}
 
 {% block content %}
-<div class="flex flex-col space-y-6 h-full animate-fade-in">
+<div x-data="{ activeModal: null }" class="flex flex-col space-y-6 h-full animate-fade-in">
     
+    <!-- MODAL AEROPORTOS -->
+    <div x-show="activeModal === 'aeroportos'" 
+         x-cloak
+         x-transition:enter="transition ease-out duration-300"
+         x-transition:enter-start="opacity-0 scale-95"
+         x-transition:enter-end="opacity-100 scale-100"
+         x-transition:leave="transition ease-in duration-200"
+         x-transition:leave-start="opacity-100 scale-100"
+         x-transition:leave-end="opacity-0 scale-95"
+         class="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/80 backdrop-blur-sm">
+        
+        <div @click.away="activeModal = null" class="bg-white dark:bg-slate-900 w-full max-w-2xl rounded-[2rem] shadow-2xl border border-white/10 overflow-hidden">
+            <div class="bg-red-600 p-6 flex justify-between items-center text-white">
+                <div class="flex items-center space-x-3">
+                    <svg class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"/></svg>
+                    <h2 class="text-xl font-black uppercase tracking-tighter italic">Contatos — Aeroportos</h2>
+                </div>
+                <button @click="activeModal = null" class="text-white/80 hover:text-white">
+                    <svg class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M6 18L18 6M6 6l12 12"/></svg>
+                </button>
+            </div>
+            
+            <div class="p-6 space-y-4 max-h-[70vh] overflow-y-auto custom-scrollbar">
+                <div class="bg-slate-50 dark:bg-slate-800/50 p-4 rounded-2xl border border-slate-200 dark:border-slate-700">
+                    <h3 class="text-sm font-black text-red-600 uppercase mb-1">Sorocaba (SOD / SDRK)</h3>
+                    <p class="text-[10px] font-bold text-slate-500 uppercase mb-2">Av. Santos Dumont, s/nº - Vila Valença</p>
+                    <div class="grid grid-cols-2 gap-2 text-xs font-black">
+                        <div class="flex items-center space-x-2 bg-white dark:bg-slate-800 p-2 rounded-xl"><span class="text-slate-400">Torre:</span><span class="text-slate-900 dark:text-white">(15) 3223-1133</span></div>
+                        <div class="flex items-center space-x-2 bg-white dark:bg-slate-800 p-2 rounded-xl"><span class="text-slate-400">ADM:</span><span class="text-slate-900 dark:text-white">(15) 3223-2633</span></div>
+                    </div>
+                </div>
+                <div class="bg-slate-50 dark:bg-slate-800/50 p-4 rounded-2xl border border-slate-200 dark:border-slate-700">
+                    <h3 class="text-sm font-black text-red-600 uppercase mb-1">Jundiaí (SBJD)</h3>
+                    <p class="text-[10px] font-bold text-slate-500 uppercase mb-2">Av. Emílio Antonon, s/nº - Chácara Aeroporto</p>
+                    <div class="grid grid-cols-2 gap-2 text-xs font-black">
+                        <div class="flex items-center space-x-2 bg-white dark:bg-slate-800 p-2 rounded-xl"><span class="text-slate-400">Torre:</span><span class="text-slate-900 dark:text-white">(11) 4585-2311</span></div>
+                        <div class="flex items-center space-x-2 bg-white dark:bg-slate-800 p-2 rounded-xl"><span class="text-slate-400">Operações:</span><span class="text-slate-900 dark:text-white">(11) 4585-2315</span></div>
+                    </div>
+                </div>
+                <div class="bg-slate-50 dark:bg-slate-800/50 p-4 rounded-2xl border border-slate-200 dark:border-slate-700">
+                    <h3 class="text-sm font-black text-red-600 uppercase mb-1">Viracopos (VCP / SBKP)</h3>
+                    <p class="text-[10px] font-bold text-slate-500 uppercase mb-2">Rodovia Santos Dumont, km 66 - Campinas</p>
+                    <div class="grid grid-cols-2 gap-2 text-xs font-black">
+                        <div class="flex items-center space-x-2 bg-white dark:bg-slate-800 p-2 rounded-xl"><span class="text-slate-400">Centro Op:</span><span class="text-slate-900 dark:text-white">(19) 3725-5000</span></div>
+                        <div class="flex items-center space-x-2 bg-white dark:bg-slate-800 p-2 rounded-xl"><span class="text-slate-400">Bombeiros:</span><span class="text-slate-900 dark:text-white">(19) 3725-5022</span></div>
+                    </div>
+                </div>
+            </div>
+            <div class="p-4 bg-slate-100 dark:bg-slate-800/50 text-center">
+                <p class="text-[9px] font-black text-slate-500 uppercase italic tracking-widest">Informações de uso restrito ao Centro de Operações (COBOM)</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL VTRS RESERVA -->
+    <div x-show="activeModal === 'vtrs_reserva'" 
+         x-cloak
+         x-transition:enter="transition ease-out duration-300"
+         x-transition:enter-start="opacity-0 scale-95"
+         x-transition:enter-end="opacity-100 scale-100"
+         x-transition:leave="transition ease-in duration-200"
+         x-transition:leave-start="opacity-100 scale-100"
+         x-transition:leave-end="opacity-0 scale-95"
+         class="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/80 backdrop-blur-sm">
+        
+        <div @click.away="activeModal = null" class="bg-white dark:bg-slate-900 w-full max-w-3xl rounded-[2rem] shadow-2xl border border-white/10 overflow-hidden">
+            <div class="bg-slate-800 p-6 flex justify-between items-center border-b border-white/5 text-white">
+                <div class="flex items-center space-x-3">
+                    <svg class="h-6 w-6 text-emerald-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M9 17a2 2 0 11-4 0 2 2 0 014 0zM19 17a2 2 0 11-4 0 2 2 0 014 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16V6a1 1 0 00-1-1H4a1 1 0 00-1 1v10a1 1 0 001 1h1m8-1a1 1 0 01-1 1H9m4-1V8a1 1 0 011-1h2.586a1 1 0 01.707.293l3.414 3.414a1 1 0 01.293.707V16a1 1 0 01-1 1h-1m-6-1a1 1 0 001 1h1M5 17a2 2 0 104 0m-4 0a2 2 0 114 0m6 0a2 2 0 104 0m-4 0a2 2 0 114 0"/></svg>
+                    <h2 class="text-xl font-black uppercase tracking-tighter italic">Viaturas em Reserva Operacional</h2>
+                </div>
+                <button @click="activeModal = null" class="text-white/80 hover:text-white">
+                    <svg class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M6 18L18 6M6 6l12 12"/></svg>
+                </button>
+            </div>
+            
+            <div class="p-6 max-h-[60vh] overflow-y-auto custom-scrollbar">
+                {% if vtrs_reserva_global %}
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {% for vtr in vtrs_reserva_global %}
+                    <div class="flex items-center justify-between p-4 bg-slate-50 dark:bg-slate-800/50 rounded-2xl border border-slate-200 dark:border-slate-700">
+                        <div class="flex flex-col">
+                            <span class="text-lg font-black text-slate-900 dark:text-white">{{ vtr.prefixo }}</span>
+                            <span class="text-[9px] font-bold text-slate-500 uppercase">{{ vtr.sgb }}</span>
+                        </div>
+                        <div class="text-right">
+                            <span class="text-[10px] font-black text-emerald-500 uppercase bg-emerald-500/10 px-2 py-1 rounded-lg">Disponível</span>
+                            <p class="text-[9px] font-bold text-slate-400 mt-1 uppercase">{{ vtr.unidade }}</p>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+                {% else %}
+                <div class="text-center py-12">
+                    <p class="text-slate-400 font-black uppercase tracking-widest">Nenhuma viatura reserva alocada no momento.</p>
+                </div>
+                {% endif %}
+            </div>
+            <div class="p-4 bg-slate-100 dark:bg-slate-800/50 flex justify-between items-center px-8">
+                <p class="text-[9px] font-black text-slate-500 uppercase">Total de Reservas: {{ vtrs_reserva_global|length|stringformat:"02d" }}</p>
+                <p class="text-[9px] font-black text-slate-400 uppercase italic">Dados consolidados do 15º GB</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL ALARMES / COD OPM -->
+    <div x-show="activeModal === 'alarmes'" 
+         x-cloak
+         x-transition:enter="transition ease-out duration-300"
+         x-transition:enter-start="opacity-0 scale-95"
+         x-transition:enter-end="opacity-100 scale-100"
+         x-transition:leave="transition ease-in duration-200"
+         x-transition:leave-start="opacity-100 scale-100"
+         x-transition:leave-end="opacity-0 scale-95"
+         class="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/80 backdrop-blur-sm">
+        
+        <div @click.away="activeModal = null" class="bg-white dark:bg-slate-900 w-full max-w-4xl rounded-[2rem] shadow-2xl border border-white/10 overflow-hidden">
+            <div class="bg-amber-600 p-6 flex justify-between items-center text-white">
+                <div class="flex items-center space-x-3">
+                    <svg class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>
+                    <h2 class="text-xl font-black uppercase tracking-tighter italic">Referência Rápida — Alarmes e OPM</h2>
+                </div>
+                <button @click="activeModal = null" class="text-white/80 hover:text-white">
+                    <svg class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M6 18L18 6M6 6l12 12"/></svg>
+                </button>
+            </div>
+            
+            <div class="p-6 grid grid-cols-1 md:grid-cols-2 gap-6 max-h-[70vh] overflow-y-auto custom-scrollbar">
+                <div class="space-y-4">
+                    <h3 class="text-sm font-black text-amber-600 uppercase border-b border-amber-500/20 pb-2">Naturezas (Alarmes)</h3>
+                    <div class="space-y-1 text-[10px] font-bold uppercase">
+                        <div class="flex justify-between p-2 bg-slate-50 dark:bg-slate-800/50 rounded"><span>A-01</span><span>Incêndio em Edificação</span></div>
+                        <div class="flex justify-between p-2 bg-white dark:bg-slate-800 rounded"><span>A-02</span><span>Incêndio em Veículo</span></div>
+                        <div class="flex justify-between p-2 bg-slate-50 dark:bg-slate-800/50 rounded"><span>A-03</span><span>Incêndio em Vegetação</span></div>
+                        <div class="flex justify-between p-2 bg-white dark:bg-slate-800 rounded"><span>B-01</span><span>Atropelamento</span></div>
+                        <div class="flex justify-between p-2 bg-slate-50 dark:bg-slate-800/50 rounded"><span>B-02</span><span>Colisão / Choque</span></div>
+                        <div class="flex justify-between p-2 bg-white dark:bg-slate-800 rounded"><span>C-01</span><span>Afogamento</span></div>
+                    </div>
+                </div>
+                <div class="space-y-4">
+                    <h3 class="text-sm font-black text-amber-600 uppercase border-b border-amber-500/20 pb-2">Unidades (OPM)</h3>
+                    <div class="space-y-1 text-[10px] font-bold uppercase">
+                        <div class="flex justify-between p-2 bg-slate-50 dark:bg-slate-800/50 rounded"><span>15-GB</span><span>Sede Sorocaba</span></div>
+                        <div class="flex justify-between p-2 bg-white dark:bg-slate-800 rounded"><span>1-SGB</span><span>Sorocaba / Votorantim</span></div>
+                        <div class="flex justify-between p-2 bg-slate-50 dark:bg-slate-800/50 rounded"><span>2-SGB</span><span>Itu / Salto</span></div>
+                        <div class="flex justify-between p-2 bg-white dark:bg-slate-800 rounded"><span>3-SGB</span><span>Itapeva / Itararé</span></div>
+                        <div class="flex justify-between p-2 bg-slate-50 dark:bg-slate-800/50 rounded"><span>4-SGB</span><span>Itapetininga</span></div>
+                        <div class="flex justify-between p-2 bg-white dark:bg-slate-800 rounded"><span>5-SGB</span><span>Botucatu / Avaré</span></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL LINKS / INTRANET -->
+    <div x-show="activeModal === 'links_intranet'" 
+         x-cloak
+         x-transition:enter="transition ease-out duration-300"
+         x-transition:enter-start="opacity-0 scale-95"
+         x-transition:enter-end="opacity-100 scale-100"
+         x-transition:leave="transition ease-in duration-200"
+         x-transition:leave-start="opacity-100 scale-100"
+         x-transition:leave-end="opacity-0 scale-95"
+         class="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/80 backdrop-blur-sm">
+        
+        <div @click.away="activeModal = null" class="bg-white dark:bg-slate-900 w-full max-w-5xl rounded-[2rem] shadow-2xl border border-white/10 overflow-hidden">
+            <div class="bg-slate-800 p-6 flex justify-between items-center border-b border-white/5 text-white">
+                <div class="flex items-center space-x-3">
+                    <svg class="h-6 w-6 text-blue-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.828a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1"/></svg>
+                    <h2 class="text-xl font-black uppercase tracking-tighter italic">Links Úteis & Intranet</h2>
+                </div>
+                <button @click="activeModal = null" class="text-white/80 hover:text-white">
+                    <svg class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M6 18L18 6M6 6l12 12"/></svg>
+                </button>
+            </div>
+            
+            <div class="p-8 max-h-[70vh] overflow-y-auto custom-scrollbar">
+                <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-6">
+                    <a href="http://prdwiang.ccb.policiamilitar.sp.gov.br/intranetCB/#/" target="_blank" class="group flex flex-col items-center p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/50 hover:bg-red-600/10 border border-slate-200 dark:border-slate-700 transition-all">
+                        <img src="{% static 'img/brasao.png' %}" class="w-16 h-16 object-contain mb-3 group-hover:scale-110 transition-transform" alt="CB">
+                        <span class="text-[10px] font-black uppercase text-slate-600 dark:text-slate-300 text-center">Intranet CB</span>
+                    </a>
+                    <a href="http://intranet.policiamilitar.sp.gov.br/" target="_blank" class="group flex flex-col items-center p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/50 hover:bg-blue-600/10 border border-slate-200 dark:border-slate-700 transition-all">
+                        <img src="{% static 'img/brasaopm.png' %}" class="w-16 h-16 object-contain mb-3 group-hover:scale-110 transition-transform" alt="PMESP">
+                        <span class="text-[10px] font-black uppercase text-slate-600 dark:text-slate-300 text-center">Intranet PMESP</span>
+                    </a>
+                    <a href="https://minhaarea.sp.gov.br/plataformasp" target="_blank" class="group flex flex-col items-center p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/50 hover:bg-emerald-600/10 border border-slate-200 dark:border-slate-700 transition-all">
+                        <img src="{% static 'img/sei.jpg' %}" class="w-16 h-16 rounded-lg object-cover mb-3 group-hover:scale-110 transition-transform" alt="Minha Área">
+                        <span class="text-[10px] font-black uppercase text-slate-600 dark:text-slate-300 text-center">Minha Área SP</span>
+                    </a>
+                    <a href="http://cobomonline.ccb.policiamilitar.sp.gov.br/Singes/login" target="_blank" class="group flex flex-col items-center p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/50 hover:bg-red-600/10 border border-slate-200 dark:border-slate-700 transition-all">
+                        <img src="{% static 'img/brasao.png' %}" class="w-16 h-16 object-contain mb-3 group-hover:scale-110 transition-transform" alt="Cobom">
+                        <span class="text-[10px] font-black uppercase text-slate-600 dark:text-slate-300 text-center">Cobom Online</span>
+                    </a>
+                    <a href="https://www.rh.intranet.policiamilitar.sp.gov.br/" target="_blank" class="group flex flex-col items-center p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/50 hover:bg-blue-600/10 border border-slate-200 dark:border-slate-700 transition-all">
+                        <img src="{% static 'img/sgp.png' %}" class="w-16 h-16 object-contain mb-3 group-hover:scale-110 transition-transform" alt="SGP">
+                        <span class="text-[10px] font-black uppercase text-slate-600 dark:text-slate-300 text-center">SGP (RH)</span>
+                    </a>
+                    <a href="https://doe.sp.gov.br/" target="_blank" class="group flex flex-col items-center p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/50 hover:bg-slate-600/10 border border-slate-200 dark:border-slate-700 transition-all">
+                        <img src="{% static 'img/logo_DO.jpeg' %}" class="w-16 h-16 rounded-lg object-cover mb-3 group-hover:scale-110 transition-transform" alt="DOE">
+                        <span class="text-[10px] font-black uppercase text-slate-600 dark:text-slate-300 text-center">DOE SP</span>
+                    </a>
+                    <a href="https://ead.pmesp.org/login/index.php" target="_blank" class="group flex flex-col items-center p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/50 hover:bg-blue-600/10 border border-slate-200 dark:border-slate-700 transition-all">
+                        <img src="https://ead.pmesp.org/pluginfile.php/1/core_admin/logo/0x200/1739404529/Logo-EAD_Fundo-Quadrado-Claro_Alfa.png" class="w-16 h-16 object-contain mb-3 group-hover:scale-110 transition-transform" alt="EAD">
+                        <span class="text-[10px] font-black uppercase text-slate-600 dark:text-slate-300 text-center">EAD PMESP</span>
+                    </a>
+                    <a href="http://www.intranet.ciaf.policiamilitar.sp.gov.br/" target="_blank" class="group flex flex-col items-center p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/50 hover:bg-emerald-600/10 border border-slate-200 dark:border-slate-700 transition-all">
+                        <img src="{% static 'img/brasao_ciaf.png' %}" class="w-16 h-16 object-contain mb-3 group-hover:scale-110 transition-transform" alt="CIAF">
+                        <span class="text-[10px] font-black uppercase text-slate-600 dark:text-slate-300 text-center">CIAF</span>
+                    </a>
+                    <a href="https://dtic.policiamilitar.sp.gov.br/formularios-pm/" target="_blank" class="group flex flex-col items-center p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/50 hover:bg-blue-600/10 border border-slate-200 dark:border-slate-700 transition-all">
+                        <img src="{% static 'img/dtic.png' %}" class="w-16 h-16 object-contain mb-3 group-hover:scale-110 transition-transform" alt="DTIC">
+                        <span class="text-[10px] font-black uppercase text-slate-600 dark:text-slate-300 text-center">Formulários DTIC</span>
+                    </a>
+                    <a href="http://seccom.intranet.policiamilitar.sp.gov.br/#/home" target="_blank" class="group flex flex-col items-center p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/50 hover:bg-blue-600/10 border border-slate-200 dark:border-slate-700 transition-all">
+                        <img src="{% static 'img/cpp.png' %}" class="w-16 h-16 object-contain mb-3 group-hover:scale-110 transition-transform" alt="CPP">
+                        <span class="text-[10px] font-black uppercase text-slate-600 dark:text-slate-300 text-center">CPO / CPP</span>
+                    </a>
+                    <a href="http://intranet.dp.policiamilitar.sp.gov.br/" target="_blank" class="group flex flex-col items-center p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/50 hover:bg-blue-600/10 border border-slate-200 dark:border-slate-700 transition-all">
+                        <img src="{% static 'img/dp.png' %}" class="w-16 h-16 object-contain mb-3 group-hover:scale-110 transition-transform" alt="DP">
+                        <span class="text-[10px] font-black uppercase text-slate-600 dark:text-slate-300 text-center">Diretoria Pessoal</span>
+                    </a>
+                    <a href="https://www.ciaf.policiamilitar.sp.gov.br/folhadepagamento/autenticacaosegura.aspx" target="_blank" class="group flex flex-col items-center p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/50 hover:bg-amber-600/10 border border-slate-200 dark:border-slate-700 transition-all">
+                        <img src="{% static 'img/holerite.jpg' %}" class="w-16 h-16 rounded-lg object-cover mb-3 group-hover:scale-110 transition-transform" alt="Holerite">
+                        <span class="text-[10px] font-black uppercase text-slate-600 dark:text-slate-300 text-center">Holerite</span>
+                    </a>
+                    <a href="https://www7.intranet.policiamilitar.sp.gov.br/unidades/1empm/1empm_v3/" target="_blank" class="group flex flex-col items-center p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/50 hover:bg-blue-600/10 border border-slate-200 dark:border-slate-700 transition-all">
+                        <img src="{% static 'img/brasaopm.png' %}" class="w-16 h-16 object-contain mb-3 group-hover:scale-110 transition-transform" alt="Normas">
+                        <span class="text-[10px] font-black uppercase text-slate-600 dark:text-slate-300 text-center">Normas EM</span>
+                    </a>
+                    <a href="https://www.policiamilitar.sp.gov.br/servico-ao-pm/login" target="_blank" class="group flex flex-col items-center p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/50 hover:bg-emerald-600/10 border border-slate-200 dark:border-slate-700 transition-all">
+                        <img src="{% static 'img/brasao.png' %}" class="w-16 h-16 object-contain mb-3 group-hover:scale-110 transition-transform" alt="Serviços">
+                        <span class="text-[10px] font-black uppercase text-slate-600 dark:text-slate-300 text-center">Serviços PM</span>
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <!-- Mensagem de Conclusão Total -->
     {% if mapa_completo %}
     <div class="bg-emerald-500 text-white p-6 rounded-[2rem] shadow-xl shadow-emerald-500/20 flex items-center justify-center space-x-4 animate-bounce mb-4">
@@ -52,7 +293,9 @@
 
         <div class="flex flex-wrap items-center gap-2">
             {% for btn in botoes_atalho %}
-            <button class="px-4 py-2 bg-slate-100 dark:bg-slate-800 text-[10px] font-black uppercase tracking-tight rounded-xl hover:bg-red-600 hover:text-white transition-all shadow-sm border border-slate-200 dark:border-slate-700">
+            <button 
+                @click="{% if btn == 'Aeroportos' %}activeModal = 'aeroportos'{% elif btn == 'VTR Reserva' %}activeModal = 'vtrs_reserva'{% elif btn == 'Alarmes / Cód OPM' %}activeModal = 'alarmes'{% elif btn == 'Links / Intranet' %}activeModal = 'links_intranet'{% else %}null{% endif %}"
+                class="px-4 py-2 bg-slate-100 dark:bg-slate-800 text-[10px] font-black uppercase tracking-tight rounded-xl hover:bg-red-600 hover:text-white transition-all shadow-sm border border-slate-200 dark:border-slate-700">
                 {{ btn }}
             </button>
             {% endfor %}
@@ -70,10 +313,32 @@
         </div>
     </div>
 
+    <!-- MÉTRICAS GLOBAIS (ESTILO TÁTICO) -->
+    <div class="grid grid-cols-2 md:grid-cols-5 gap-4">
+        <div class="bg-slate-900 rounded-2xl p-4 border-l-4 border-emerald-500 shadow-lg">
+            <p class="text-[9px] font-black text-slate-500 uppercase tracking-widest">Viaturas Operando</p>
+            <p class="text-2xl font-black text-white tabular-nums">{{ global_stats.vtrs_operando|stringformat:"02d" }}</p>
+        </div>
+        <div class="bg-slate-900 rounded-2xl p-4 border-l-4 border-blue-500 shadow-lg">
+            <p class="text-[9px] font-black text-slate-500 uppercase tracking-widest">Militares Escalados</p>
+            <p class="text-2xl font-black text-white tabular-nums">{{ global_stats.militares_escalados|stringformat:"02d" }}</p>
+        </div>
+        <div class="bg-slate-900 rounded-2xl p-4 border-l-4 border-cyan-400 shadow-lg">
+            <p class="text-[9px] font-black text-slate-500 uppercase tracking-widest">Mergulhadores</p>
+            <p class="text-2xl font-black text-white tabular-nums">{{ global_stats.mergulhadores|stringformat:"02d" }}</p>
+        </div>
+        <div class="bg-slate-900 rounded-2xl p-4 border-l-4 border-amber-500 shadow-lg">
+            <p class="text-[9px] font-black text-slate-500 uppercase tracking-widest">Total DEJEM</p>
+            <p class="text-2xl font-black text-white tabular-nums">{{ global_stats.dejem|stringformat:"02d" }}</p>
+        </div>
+        <div class="bg-slate-900 rounded-2xl p-4 border-l-4 border-red-600 shadow-lg">
+            <p class="text-[9px] font-black text-slate-500 uppercase tracking-widest">Motoristas</p>
+            <p class="text-2xl font-black text-white tabular-nums">{{ global_stats.motoristas|stringformat:"02d" }}</p>
+        </div>
+    </div>
+
     <!-- MAIN DASHBOARD AREA -->
     <div class="flex space-x-6 flex-1 overflow-hidden">
-        
-        <!-- GRID DE SGBs (5 COLUNAS) -->
         <div class="flex-1 overflow-x-auto pb-4 custom-scrollbar">
             <div class="war-room-grid h-full min-w-[1600px]">
                 {% for sgb in sgbs %}
@@ -81,12 +346,9 @@
                 {% endfor %}
             </div>
         </div>
-
-        <!-- PAINEL LATERAL DE COMANDO -->
         <div class="sidebar-cobom hidden 2xl:flex flex-col space-y-6">
             {% include "dashboard/partials/sidebar_oficiais.html" %}
         </div>
-
     </div>
 </div>
 
