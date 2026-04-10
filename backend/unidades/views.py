@@ -13,6 +13,19 @@ from escalas.models import MapaDiario, AlocacaoViatura, AlocacaoFuncionario
 from django.db.models import Q, Count, Sum
 import datetime
 
+def get_data_operacional():
+    """
+    Retorna a data operacional baseada no horário de reset (07:40).
+    Se for antes das 07:40, ainda é a data do dia anterior.
+    """
+    agora = timezone.localtime(timezone.now())
+    horario_reset = agora.replace(hour=7, minute=40, second=0, microsecond=0)
+    
+    if agora < horario_reset:
+        return (agora - datetime.timedelta(days=1)).date()
+    return agora.date()
+
+
 class UnidadeViewSet(viewsets.ModelViewSet):
     queryset = Unidade.objects.filter(ativo=True)
     serializer_class = UnidadeSerializer
@@ -34,7 +47,7 @@ def dashboard_batalhao(request):
         return dashboard_cobom(request)
         
     unidade_usuario = request.user.unidade
-    hoje = timezone.now().date()
+    hoje = get_data_operacional()
     
     # Busca as unidades (Postos) que devem aparecer no dashboard
     if request.user.role == 'BATALHAO':
@@ -81,7 +94,7 @@ def dashboard_batalhao(request):
 @login_required
 def dashboard_cobom(request):
     """Dashboard Geral (COBOM/Grande Comando) com mapeamento fixo e dados REAIS."""
-    hoje = timezone.now().date()
+    hoje = get_data_operacional()
     total_unidades = 0
     total_completos = 0
     

@@ -21,9 +21,19 @@ import csv
 from django.http import HttpResponse, JsonResponse
 # ... (restante dos imports)
 
+import datetime
+
+def get_data_operacional():
+    """Retorna a data operacional baseada no horário de reset (07:40)."""
+    agora = timezone.localtime(timezone.now())
+    horario_reset = agora.replace(hour=7, minute=40, second=0, microsecond=0)
+    if agora < horario_reset:
+        return (agora - datetime.timedelta(days=1)).date()
+    return agora.date()
+
 @login_required
 def compor_mapa_view(request):
-    hoje = timezone.now().date()
+    hoje = get_data_operacional()
     u_id = request.GET.get('unidade_id')
     unidade = get_object_or_404(Unidade, id=u_id) if u_id else request.user.unidade
     if not unidade: return render(request, 'escalas/erro_permissao.html', {'mensagem': 'Unidade não encontrada.'})
@@ -66,7 +76,7 @@ def buscar_funcionario_re(request):
     q_numeric = re.sub(r'\D', '', q)
     
     mapa_atual = get_object_or_404(MapaDiario, id=mapa_id) if mapa_id else None
-    data_escala = mapa_atual.data if mapa_atual else timezone.now().date()
+    data_escala = mapa_atual.data if mapa_atual else get_data_operacional()
     
     # 1. Busca no Efetivo Real (Sincronizado do Sheets)
     query_efetivo = Q(nome__icontains=q) | Q(nome_do_pm__icontains=q)
@@ -108,6 +118,17 @@ def adicionar_viatura_mapa(request, mapa_id):
     pref = request.POST.get('prefixo')
     mapa = get_object_or_404(MapaDiario, id=mapa_id)
     viat = get_object_or_404(Viatura, prefixo=pref)
+    
+    # Validação: Viatura única por dia em todo o sistema
+    ja_alocada = AlocacaoViatura.objects.filter(
+        mapa__data=mapa.data, 
+        viatura=viat
+    ).exclude(mapa=mapa).select_related('mapa__unidade').first()
+    
+    if ja_alocada:
+        msg = f"A viatura {viat.prefixo} já está escalada hoje na unidade: {ja_alocada.mapa.unidade.nome}"
+        return HttpResponse(f'<script>showToast("{msg}", "error");</script>')
+
     status_op = Dictionary.objects.filter(tipo='STATUS_VIATURA', codigo='OPERANDO').first()
     aloc, created = AlocacaoViatura.objects.get_or_create(mapa=mapa, viatura=viat, defaults={'status_no_dia': status_op})
     
