@@ -2,6 +2,7 @@ from django.shortcuts import render, get_object_or_404, redirect
 from django.contrib.auth.decorators import login_required
 from django.http import HttpResponse, JsonResponse
 from django.utils import timezone
+from django.utils.html import escape
 from django.db.models import Q
 from rest_framework import viewsets, status, filters
 from rest_framework.decorators import action
@@ -18,8 +19,6 @@ from .serializers import (
 )
 import re
 import csv
-from django.http import HttpResponse, JsonResponse
-# ... (restante dos imports)
 
 import datetime
 
@@ -35,36 +34,67 @@ def get_data_operacional():
 def compor_mapa_view(request):
     hoje = get_data_operacional()
     u_id = request.GET.get('unidade_id')
-    unidade = get_object_or_404(Unidade, id=u_id) if u_id else request.user.unidade
-    if not unidade: return render(request, 'escalas/erro_permissao.html', {'mensagem': 'Unidade não encontrada.'})
+    categoria = request.GET.get('categoria', '15GB')
+    mapa = None
+    
+    # Se não houver unidade_id, tenta pegar a unidade do usuário se ela for do tipo POSTO
+    unidade = None
+    if u_id:
+        unidade = get_object_or_404(Unidade, id=u_id)
+    elif request.user.unidade and request.user.unidade.tipo_unidade and request.user.unidade.tipo_unidade.codigo == 'POSTO':
+        unidade = request.user.unidade
 
-    mapa, created = MapaDiario.objects.get_or_create(data=hoje, unidade=unidade, defaults={'criado_por': request.user})
+    # Se ainda não houver unidade, redirecionamos ou mostramos uma tela de seleção
+    if not unidade and not request.headers.get('HX-Request'):
+        # Caso inicial sem unidade selecionada
+        pass
+    elif unidade:
+        mapa, created = MapaDiario.objects.get_or_create(data=hoje, unidade=unidade, defaults={'criado_por': request.user})
+        if created:
+            HistoricoAlteracao.objects.create(
+                mapa=mapa, usuario=request.user, tipo_acao='CREATE',
+                descricao="Iniciou a composição do mapa força do dia."
+            )
+    else:
+        mapa = None
 
-    if created:
-        HistoricoAlteracao.objects.create(
-            mapa=mapa,
-            usuario=request.user,
-            tipo_acao='CREATE',
-            descricao="Iniciou a composição do mapa força do dia."
-        )
+    # Filtragem de Unidades Principal (Categorias)
+    categorias = [
+        {'id': '15GB', 'nome': '15º Grupamento de Bombeiros'},
+        {'id': '07GB', 'nome': '07º Grupamento'},
+        {'id': '16GB', 'nome': '16º Grupamento'},
+        {'id': '19GB', 'nome': '19º Grupamento'},
+        {'id': 'CBI1', 'nome': 'CBI-1'},
+        {'id': 'COBOM', 'nome': 'COBOM'},
+    ]
 
-    # ...
+    # Filtragem dos Postos Operacionais (EB) baseado na categoria
+    # Nota: Por enquanto, todos os postos EB estão sob o 15GB no seu banco.
+    # Se categoria for diferente, a lista virá vazia até que novos dados sejam inseridos.
+    filtro_unidade = Q(nome__icontains='EB') | Q(codigo_secao__icontains='EB')
+    
+    # Se a categoria for 15GB, filtramos os postos que pertencem a ele
+    if categoria == '15GB':
+        todas_unidades = Unidade.objects.filter(filtro_unidade).order_by('parent__nome', 'nome')
+    else:
+        # Futuramente, filtrar por outras categorias
+        todas_unidades = Unidade.objects.filter(filtro_unidade).order_by('nome')
 
-    # Filtra as unidades do 1º ao 5º SGB (excluindo 1 - EM)
-    todas_unidades = Unidade.objects.filter(
-        Q(parent__nome__icontains='1ºSGB') | 
-        Q(parent__nome__icontains='2ºSGB') | 
-        Q(parent__nome__icontains='3ºSGB') | 
-        Q(parent__nome__icontains='4ºSGB') | 
-        Q(parent__nome__icontains='5ºSGB')
-    ).order_by('parent__nome', 'nome')
-
-    return render(request, 'mapa_forca/compose.html', {
+    context = {
         'mapa': mapa, 
         'todas_unidades': todas_unidades,
         'unidade_selecionada': unidade, 
+        'categorias': categorias,
+        'categoria_selecionada': categoria,
         'funcoes': Dictionary.objects.filter(tipo='FUNCAO_OPERACIONAL'),
-    })
+        'base_template': 'base/partial.html' if request.headers.get('HX-Request') else 'base/base.html'
+    }
+
+    if request.headers.get('HX-Request') and not u_id:
+        # Se for troca de categoria via HTMX, recarrega apenas o select de unidades
+        return render(request, 'mapa_forca/partials/select_postos.html', context)
+
+    return render(request, 'mapa_forca/compose.html', context)
 
 @login_required
 def buscar_funcionario_re(request):
@@ -279,13 +309,29 @@ def remover_funcionario_viatura(request, aloc_func_id):
 
 @login_required
 def get_viaturas_por_unidade(request):
-    # Para garantir que o usuário encontre qualquer viatura, listamos todas
-    # e garantimos que o TELEGRAFISTA esteja na lista.
-    viats = Viatura.objects.all().order_by('prefixo')
+    u_id = request.GET.get('unidade_id')
+    
+    # 1. Tenta filtrar viaturas da unidade específica ou globais
+    viats = Viatura.objects.filter(Q(unidade_base_id=u_id) | Q(unidade_base__isnull=True)).order_by('prefixo')
+    
+    # 2. Se não encontrou nada específico para a unidade além das globais (ou se u_id está vazio),
+    # pegamos todas para não deixar o select vazio e permitir flexibilidade
+    if not viats.filter(unidade_base_id=u_id).exists():
+        viats = Viatura.objects.all().order_by('prefixo')
     
     opts = ['<option value="">Selecione a viatura...</option>']
-    for v in viats: 
-        opts.append(f'<option value="{v.prefixo}">{v.prefixo} — {v.tipo.nome if v.tipo else ""}</option>')
+    opts.append('<option value="" disabled>Viatura | SGB | Status | Vol. Água | Garagem</option>')
+
+    for v in viats:
+        sgb = escape(v.sgb or '—')
+        status = escape(v.status_base.nome if v.status_base else 'SEM STATUS')
+        vol_agua = escape(v.vol_agua or '—')
+        garagem = escape(v.garagem or '—')
+        prefixo = escape(v.prefixo)
+        opts.append(
+            f'<option value="{prefixo}">{prefixo} | {sgb} | {status} | {vol_agua} | {garagem}</option>'
+        )
+    
     return HttpResponse("".join(opts))
 
 

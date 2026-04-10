@@ -1,83 +1,108 @@
-{% extends "base/base.html" %}
+{% extends base_template|default:"base/base.html" %}
 
 {% block title %}Compor Mapa Força - {{ unidade_selecionada.nome }}{% endblock %}
-
-{% block extra_js %}
-<script src="https://unpkg.com/htmx.org@1.9.10"></script>
-{% endblock %}
 
 {% block content %}
 <div class="flex flex-col space-y-10 animate-fade-in pb-20">
     <!-- Header Context -->
-    <div class="flex flex-col md:flex-row items-center justify-between gap-6 px-4">
-        <div class="flex-1 w-full max-w-md">
-            <label class="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2 ml-2">Unidade Selecionada</label>
-            <select onchange="window.location.href='?unidade_id=' + this.value" 
-                    class="w-full bg-white dark:bg-slate-900 border-2 border-slate-100 dark:border-slate-800 text-slate-900 dark:text-white rounded-2xl p-4 text-sm font-black cursor-pointer focus:ring-4 focus:ring-red-600/10 focus:border-red-600 transition-all">
-                {% for unidade in todas_unidades %}
-                <option value="{{ unidade.id }}" {% if unidade.id == unidade_selecionada.id %}selected{% endif %}>
-                    {{ unidade.nome }}
-                </option>
-                {% endfor %}
-            </select>
+    <div class="flex flex-col md:flex-row items-end justify-between gap-6 px-4 bg-slate-100 dark:bg-slate-900/50 p-8 rounded-[3rem] border border-slate-200 dark:border-slate-800">
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6 flex-1 w-full max-w-3xl">
+            <div class="flex flex-col">
+                <label class="text-[9px] font-black text-slate-500 uppercase tracking-widest ml-4 mb-1">Unidade Principal</label>
+                <select name="categoria" 
+                        class="bg-white dark:bg-slate-950 border-none rounded-2xl px-5 py-3 text-xs font-bold text-slate-900 dark:text-white focus:ring-2 focus:ring-red-600 transition-all cursor-pointer shadow-sm"
+                        hx-get="{% url 'compor_mapa' %}" 
+                        hx-target="#select-posto-container" 
+                        hx-trigger="change">
+                    {% for cat in categorias %}
+                    <option value="{{ cat.id }}" {% if cat.id == categoria_selecionada %}selected{% endif %}>
+                        {{ cat.nome }}
+                    </option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <div id="select-posto-container" class="flex flex-col">
+                {% include "mapa_forca/partials/select_postos.html" %}
+            </div>
         </div>
         
-        <div class="bg-slate-950 p-4 rounded-3xl border border-slate-900 shadow-xl flex items-center space-x-4">
+        <div class="bg-slate-950 p-5 rounded-3xl border border-slate-800 shadow-xl flex items-center space-x-4">
              <div class="flex flex-col items-end pr-5 border-r border-slate-800">
-                <span class="text-[9px] font-black text-slate-500 uppercase tracking-widest mb-1">Mapa Força</span>
-                <span class="text-xl font-black text-red-500 tabular-nums">{{ mapa.data|date:"d/m/Y" }}</span>
+                <span class="text-[9px] font-black text-slate-500 uppercase tracking-widest mb-1">Ciclo Operacional</span>
+                <span class="text-xl font-black text-red-500 tabular-nums italic">{{ mapa.data|date:"d/m/Y"|default:"SELECIONE POSTO" }}</span>
             </div>
             <div class="h-10 w-10 bg-emerald-500/10 rounded-xl flex items-center justify-center border border-emerald-500/20">
-                <div class="h-2 w-2 bg-emerald-500 rounded-full animate-ping"></div>
+                <div class="h-2 w-2 bg-emerald-500 rounded-full {% if mapa %}animate-ping{% endif %}"></div>
             </div>
         </div>
     </div>
 
-    <!-- Add Vehicle Form -->
-    <div class="bg-slate-950 rounded-[2.5rem] p-10 shadow-2xl border border-slate-900 group">
+    {% if not mapa %}
+    <div class="bg-white dark:bg-slate-900 rounded-[3rem] p-20 text-center border-4 border-dashed border-slate-100 dark:border-slate-800 animate-pulse">
+        <div class="h-24 w-24 bg-slate-100 dark:bg-slate-800 rounded-full flex items-center justify-center mx-auto mb-8 shadow-inner">
+            <svg class="h-12 w-12 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"/></svg>
+        </div>
+        <h3 class="text-2xl font-black text-slate-400 uppercase tracking-tighter mb-2 italic">Aguardando Seleção de Unidade</h3>
+        <p class="text-xs font-bold text-slate-500 uppercase tracking-[0.2em]">Selecione um posto operacional acima para iniciar a composição do mapa força.</p>
+    </div>
+    {% else %}
+    <!-- COMPONENTE: VIATURA SELECT PRO (ULTRA COLOR VERSION) -->
+    <div class="bg-slate-950 rounded-[2.5rem] p-10 shadow-2xl border border-slate-900 group relative">
         <div class="mb-8 border-b border-slate-900 pb-6">
             <h2 class="text-2xl font-black text-white uppercase tracking-tighter">Compor Guarnição</h2>
-            <p class="text-slate-500 text-[10px] font-black uppercase tracking-widest mt-1 italic">Posto → Viatura → Adicionar</p>
+            <p class="text-slate-500 text-[10px] font-black uppercase tracking-widest mt-1 italic">Selecione a viatura operacional na lista abaixo</p>
         </div>
         
         <form hx-post="{% url 'adicionar_viatura_mapa' mapa.id %}" 
               hx-target="#lista-viaturas"
               hx-swap="afterbegin"
-              class="flex flex-col lg:flex-row items-end gap-6">
+              id="vtr-form"
+              class="flex flex-col lg:flex-row items-end gap-6 relative">
             {% csrf_token %}
+            <input type="hidden" name="unidade_id" value="{{ unidade_selecionada.id }}">
             
-            <div class="flex-1 w-full">
-                <label class="block text-[9px] font-black text-slate-500 uppercase tracking-[0.2em] mb-3 ml-2">1. Selecionar Posto</label>
-                <select name="unidade_id" 
-                        hx-get="{% url 'get_viaturas_por_unidade' %}"
-                        hx-target="#viatura-select"
-                        hx-trigger="change"
-                        class="w-full bg-slate-900 border-2 border-slate-800 text-white rounded-2xl p-5 text-sm font-black focus:border-red-600 transition-all cursor-pointer">
-                    <option value="">Selecione...</option>
-                    {% for unidade in todas_unidades %}
-                    <option value="{{ unidade.id }}">{{ unidade.nome }}</option>
-                    {% endfor %}
-                </select>
-            </div>
+            <div class="flex-1 w-full relative" id="vtr-select-wrapper">
+                <label class="block text-[9px] font-black text-slate-500 uppercase tracking-[0.2em] mb-3 ml-2">Viatura Operacional</label>
+                
+                <div id="vtr-trigger" 
+                     class="w-full bg-slate-900 border-2 border-slate-800 text-white rounded-2xl p-5 text-sm font-black flex justify-between items-center cursor-pointer hover:border-red-600/50 transition-all shadow-2xl">
+                    <span id="vtr-selected-label" class="text-slate-500 uppercase tracking-widest">Escolha na lista...</span>
+                    <div class="flex items-center space-x-3">
+                        <div id="vtr-status-dot" class="h-2 w-2 rounded-full bg-slate-700 transition-all duration-500"></div>
+                        <svg class="h-5 w-5 text-slate-500 transition-transform duration-300" id="vtr-chevron" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-width="3" d="M19 9l-7 7-7-7"/></svg>
+                    </div>
+                </div>
 
-            <div class="flex-1 w-full">
-                <label class="block text-[9px] font-black text-slate-500 uppercase tracking-[0.2em] mb-3 ml-2">2. Selecionar Viatura</label>
-                <select id="viatura-select" name="prefixo" required
-                        class="w-full bg-slate-900 border-2 border-slate-800 text-white rounded-2xl p-5 text-sm font-black focus:border-red-600 transition-all cursor-pointer">
-                    <option value="">Escolha o posto acima...</option>
-                </select>
+                <input type="hidden" name="prefixo" id="vtr-hidden-prefixo" required>
+
+                <!-- Dropdown List -->
+                <div id="vtr-dropdown" 
+                     class="absolute z-[100] w-full mt-4 bg-slate-900 border-2 border-slate-800 rounded-[2rem] shadow-[0_30px_90px_rgba(0,0,0,0.9)] overflow-hidden hidden animate-slide-down">
+                    
+                    <div class="p-4 border-b border-slate-800 bg-slate-950/80">
+                        <input type="text" id="vtr-search-inner" placeholder="Filtrar por prefixo, placa ou SGB..." 
+                               class="w-full bg-slate-950 border border-slate-800 rounded-xl p-4 text-xs font-bold text-white outline-none focus:border-red-600 transition-all placeholder-slate-600">
+                    </div>
+
+                    <div id="vtr-list" class="max-h-[450px] overflow-y-auto scrollbar-vtr p-2 space-y-2">
+                        <!-- Itens via JS -->
+                    </div>
+                </div>
             </div>
 
             <button type="submit"
-                    class="w-full lg:w-auto bg-red-600 hover:bg-red-500 text-white font-black py-5 px-12 rounded-2xl transition-all shadow-[0_15px_40px_rgba(225,29,72,0.3)] flex items-center justify-center space-x-3 active:scale-95">
-                <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-width="3" d="M12 4v16m8-8H4"/></svg>
+                    id="vtr-submit-btn"
+                    disabled
+                    class="w-full lg:w-auto bg-slate-800 text-slate-600 font-black py-6 px-12 rounded-2xl transition-all flex items-center justify-center space-x-3 cursor-not-allowed shadow-xl active:scale-95">
+                <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-width="4" d="M12 4v16m8-8H4"/></svg>
                 <span class="uppercase">Adicionar</span>
             </button>
         </form>
     </div>
 
     <!-- Cards Grid -->
-    <div id="lista-viaturas" class="grid grid-cols-1 xl:grid-cols-2 gap-10">
+    <div id="lista-viaturas" class="grid grid-cols-1 xl:grid-cols-2 gap-10 mt-10">
         {% for alocacao in mapa.alocacoes_viaturas.all %}
             {% include "mapa_forca/partials/card_viatura_alocada.html" with alocacao=alocacao %}
         {% endfor %}
@@ -97,6 +122,7 @@
             </div>
         </button>
     </div>
+    {% endif %}
 </div>
 
 <!-- Toast System -->
@@ -111,35 +137,241 @@
         </div>
     </div>
 </div>
+{% endblock %}
 
-<script>
-    function showToast(message, type = "success") {
-        const toast = document.getElementById('toast');
-        const container = document.getElementById('toast-container');
-        const msgSpan = document.getElementById('toast-message');
-        
-        msgSpan.innerText = message;
-        
-        if (type === "error") {
-            container.classList.replace('bg-slate-900', 'bg-red-600');
-        } else {
-            container.classList.replace('bg-red-600', 'bg-slate-900');
-        }
-        
-        toast.classList.remove('translate-y-20', 'opacity-0');
-        setTimeout(() => toast.classList.add('translate-y-20', 'opacity-0'), 5000);
+{% block extra_scripts %}
+<style>
+    .scrollbar-vtr::-webkit-scrollbar { width: 8px; }
+    .scrollbar-vtr::-webkit-scrollbar-track { background: transparent; }
+    .scrollbar-vtr::-webkit-scrollbar-thumb { background: #1e293b; border-radius: 20px; border: 2px solid #0f172a; }
+    .scrollbar-vtr::-webkit-scrollbar-thumb:hover { background: #ef4444; }
+
+    /* Item do Select */
+    .vtr-item {
+        background: rgba(30, 41, 59, 0.2);
+        border: 1px solid rgba(51, 65, 85, 0.3);
+        border-radius: 1.25rem;
+        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+    .vtr-item:hover {
+        background: rgba(225, 29, 72, 0.05);
+        border-color: #ef4444;
+        transform: translateX(5px);
+    }
+    .vtr-item.selected-nav {
+        background: rgba(225, 29, 72, 0.1);
+        border-color: #ef4444;
     }
 
-    document.body.addEventListener('htmx:afterRequest', function(evt) {
-        if (evt.detail.target.id === 'lista-viaturas' && evt.detail.successful) {
-            const empty = document.getElementById('empty-state');
-            if (empty) empty.remove();
-        }
-    });
-</script>
+    /* Badges Customizados */
+    .status-badge {
+        padding: 4px 10px;
+        border-radius: 8px;
+        font-size: 9px;
+        font-weight: 900;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+    }
+    .status-operando { 
+        background: #064e3b; color: #10b981; border: 1px solid #059669;
+        box-shadow: 0 0 15px rgba(16, 185, 129, 0.1);
+    }
+    .status-reserva { background: #1e293b; color: #94a3b8; border: 1px solid #334155; }
 
-<style>
+    .sgb-pill {
+        background: #ef4444; color: white; padding: 2px 8px; border-radius: 6px;
+        font-size: 9px; font-weight: 900;
+    }
+
+    .placa-box {
+        background: #cbd5e1; color: #0f172a; padding: 2px 8px; border-radius: 4px;
+        font-family: 'Monaco', 'Consolas', monospace; font-weight: 800; font-size: 10px;
+    }
+
+    @keyframes slide-down {
+        from { opacity: 0; transform: translateY(-20px); }
+        to { opacity: 1; transform: translateY(0); }
+    }
+    .animate-slide-down { animation: slide-down 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
+
     @keyframes fade-in { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
     .animate-fade-in { animation: fade-in 0.8s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
 </style>
+
+<script>
+(function() {
+    const CONFIG = {
+        api: 'https://opensheet.elk.sh/1OlbWTO9JrWTxB247DlMrLQADy9p_dwFTEVEwqxAVeUU/QFF',
+        trigger: '#vtr-trigger',
+        dropdown: '#vtr-dropdown',
+        list: '#vtr-list',
+        search: '#vtr-search-inner',
+        label: '#vtr-selected-label',
+        hidden: '#vtr-hidden-prefixo',
+        btn: '#vtr-submit-btn',
+        dot: '#vtr-status-dot',
+        chevron: '#vtr-chevron'
+    };
+
+    let viaturas = [];
+    let currentIndex = -1;
+
+    const els = {
+        trigger: document.querySelector(CONFIG.trigger),
+        dropdown: document.querySelector(CONFIG.dropdown),
+        list: document.querySelector(CONFIG.list),
+        search: document.querySelector(CONFIG.search),
+        label: document.querySelector(CONFIG.label),
+        hidden: document.querySelector(CONFIG.hidden),
+        btn: document.querySelector(CONFIG.btn),
+        dot: document.querySelector(CONFIG.dot),
+        chevron: document.querySelector(CONFIG.chevron)
+    };
+
+    async function loadData() {
+        try {
+            const res = await fetch(CONFIG.api);
+            viaturas = await res.json();
+            
+            // Ordenação: 1º SGB -> 2º Garagem -> 3º VIATURAS
+            viaturas.sort((a, b) => {
+                const sgbA = (a.SGB || "").toString().toUpperCase();
+                const sgbB = (b.SGB || "").toString().toUpperCase();
+                if (sgbA !== sgbB) return sgbA.localeCompare(sgbB, 'pt-BR');
+
+                const garA = (a.Garagem || "").toString().toUpperCase();
+                const garB = (b.Garagem || "").toString().toUpperCase();
+                if (garA !== garB) return garA.localeCompare(garB, 'pt-BR');
+
+                const vtrA = (a.VIATURAS || "").toString().toUpperCase();
+                const vtrB = (b.VIATURAS || "").toString().toUpperCase();
+                return vtrA.localeCompare(vtrB, 'pt-BR');
+            });
+
+            renderList(viaturas);
+        } catch (e) {
+            console.error("Erro API:", e);
+        }
+    }
+
+    function renderList(data) {
+        if (!els.list) return;
+
+        if (data.length === 0) {
+            els.list.innerHTML = '<div class="p-8 text-center text-slate-500 text-xs font-black uppercase">Nenhuma viatura encontrada</div>';
+            return;
+        }
+
+        els.list.innerHTML = data.map((v, i) => {
+            const isOperando = v.STATUS?.toLowerCase().includes('operando');
+            const statusEmoji = isOperando ? '🟢' : '⚪';
+            const statusClass = isOperando ? 'status-operando' : 'status-reserva';
+            
+            return `
+                <div class="vtr-item p-5 cursor-pointer flex flex-col space-y-3" 
+                     data-index="${i}" data-prefixo="${v.VIATURAS}" data-op="${isOperando}">
+                    <!-- Linha 1 -->
+                    <div class="flex justify-between items-start">
+                        <span class="text-lg font-black text-amber-400 uppercase tracking-tight">${v.VIATURAS}</span>
+                        <span class="sgb-pill uppercase">${v.SGB || 'N/D'}</span>
+                    </div>
+                    <!-- Linha 2 -->
+                    <div class="flex items-center space-x-2">
+                        <span class="text-[9px] font-black text-slate-500 uppercase">Placa:</span>
+                        <span class="placa-box">${v.PLACA || 'S/ PLACA'}</span>
+                    </div>
+                    <!-- Linha 3 -->
+                    <div class="flex justify-between items-center pt-1">
+                        <span class="status-badge ${statusClass}">
+                            ${statusEmoji} ${v.STATUS || 'INDETERMINADO'}
+                        </span>
+                        <div class="flex flex-col items-end">
+                             <span class="text-[8px] font-black text-slate-500 uppercase tracking-widest mb-0.5">Garagem</span>
+                             <span class="text-[10px] font-bold text-white uppercase italic">${v.Garagem || '---'}</span>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }).join('');
+
+        attachEvents();
+    }
+
+    function selectItem(prefixo, isOp) {
+        els.label.innerText = prefixo;
+        els.label.classList.replace('text-slate-500', 'text-white');
+        els.hidden.value = prefixo;
+        els.dropdown.classList.add('hidden');
+        els.chevron.classList.remove('rotate-180');
+        
+        // LED Status
+        els.dot.className = `h-2 w-2 rounded-full ${isOp === 'true' ? 'bg-emerald-500 shadow-[0_0_10px_#10b981]' : 'bg-slate-500 shadow-none'}`;
+        
+        // Habilita Botão
+        els.btn.disabled = false;
+        els.btn.classList.replace('bg-slate-800', 'bg-red-600');
+        els.btn.classList.replace('text-slate-600', 'text-white');
+        els.btn.classList.remove('cursor-not-allowed');
+    }
+
+    function attachEvents() {
+        document.querySelectorAll('.vtr-item').forEach(el => {
+            el.onclick = () => selectItem(el.dataset.prefixo, el.dataset.op);
+        });
+    }
+
+    if (els.trigger) {
+        els.trigger.onclick = () => {
+            const isHidden = els.dropdown.classList.toggle('hidden');
+            els.chevron.classList.toggle('rotate-180', !isHidden);
+            if (!isHidden) els.search.focus();
+        };
+    }
+
+    if (els.search) {
+        els.search.oninput = (e) => {
+            const query = e.target.value.toUpperCase();
+            const filtered = viaturas.filter(v => 
+                `${v.VIATURAS} ${v.PLACA} ${v.SGB}`.toUpperCase().includes(query)
+            );
+            renderList(filtered);
+        };
+    }
+
+    document.addEventListener('click', (e) => {
+        const wrapper = document.getElementById('vtr-select-wrapper');
+        if (wrapper && !wrapper.contains(e.target)) {
+            els.dropdown.classList.add('hidden');
+            els.chevron.classList.remove('rotate-180');
+        }
+    });
+
+    window.showToast = function(message, type = "success") {
+        const toast = document.getElementById('toast');
+        const container = document.getElementById('toast-container');
+        const msgSpan = document.getElementById('toast-message');
+        if (!msgSpan) return;
+        msgSpan.innerText = message;
+        if (type === "error") container.classList.replace('bg-slate-900', 'bg-red-600');
+        else container.classList.replace('bg-red-600', 'bg-slate-900');
+        toast.classList.remove('translate-y-20', 'opacity-0');
+        setTimeout(() => toast.classList.add('translate-y-20', 'opacity-0'), 5000);
+    };
+
+    document.body.addEventListener('htmx:afterRequest', function(evt) {
+        if (evt.detail.target.id === 'lista-viaturas' && evt.detail.successful) {
+            els.label.innerText = 'Escolha na lista...';
+            els.label.classList.replace('text-white', 'text-slate-500');
+            els.hidden.value = '';
+            els.dot.className = "h-2 w-2 rounded-full bg-slate-700";
+            els.btn.disabled = true;
+            els.btn.classList.replace('bg-red-600', 'bg-slate-800');
+            els.btn.classList.replace('text-white', 'text-slate-600');
+            els.btn.classList.add('cursor-not-allowed');
+        }
+    });
+
+    loadData();
+})();
+</script>
 {% endblock %}
