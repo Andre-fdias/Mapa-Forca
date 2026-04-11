@@ -94,6 +94,7 @@
                     <span class="text-sm font-black uppercase tracking-tight">Meu Perfil</span>
                 </a>
 
+                {% if user.role == 'ADMIN' or user.is_superuser %}
                 <p class="text-[10px] font-black text-slate-600 uppercase tracking-[0.2em] mt-10 mb-4 ml-2">Gestão</p>
                 <a href="{% url 'admin_dashboard' %}" class="flex items-center space-x-4 px-4 py-3.5 rounded-2xl transition-all duration-300 group {% if '/accounts/admin-dashboard/' in request.path %}bg-slate-900 text-white shadow-lg border border-slate-800{% else %}text-slate-500 hover:bg-slate-900/50 hover:text-slate-300{% endif %}">
                     <div class="p-2 rounded-xl {% if '/accounts/admin-dashboard/' in request.path %}bg-red-600 text-white{% else %}bg-slate-900 text-slate-600 group-hover:text-slate-400{% endif %} transition-colors shadow-sm">
@@ -103,9 +104,10 @@
                     </div>
                     <span class="text-sm font-black uppercase tracking-tight">Painel Admin</span>
                 </a>
+                {% endif %}
             {% endif %}
 
-            {% if user.is_staff %}
+            {% if user.is_superuser %}
                 <p class="text-[10px] font-black text-slate-600 uppercase tracking-[0.2em] mt-10 mb-4 ml-2">Controle</p>
                 <a href="/admin/" class="flex items-center space-x-4 px-4 py-3.5 rounded-2xl transition-all duration-300 group text-slate-500 hover:bg-slate-900/50 hover:text-slate-300">
                     <div class="p-2 rounded-xl bg-slate-900 text-slate-600 group-hover:text-slate-400 transition-colors shadow-sm">

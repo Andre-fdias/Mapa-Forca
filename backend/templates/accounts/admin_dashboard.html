@@ -133,9 +133,73 @@
     </div>
     {% endif %}
 
+    <!-- Listagem Completa de Usuários -->
+    <div class="bg-white dark:bg-slate-900 rounded-[3rem] p-10 shadow-2xl border border-slate-100 dark:border-slate-800">
+        <div class="mb-8 flex items-center justify-between">
+            <div>
+                <h2 class="text-2xl font-black text-slate-900 dark:text-white uppercase tracking-tighter">Listagem Completa</h2>
+                <p class="text-slate-500 text-[10px] font-black uppercase tracking-widest mt-1 italic">Todos os usuários cadastrados (Total: {{ all_users.count }})</p>
+            </div>
+            <div class="h-px flex-1 bg-slate-100 dark:bg-slate-800 mx-8"></div>
+        </div>
+
+        <div class="overflow-x-auto">
+            <table class="w-full text-left">
+                <thead>
+                    <tr class="text-[10px] font-black text-slate-400 uppercase tracking-widest border-b border-slate-100 dark:border-slate-800">
+                        <th class="pb-4 px-4">Usuário</th>
+                        <th class="pb-4 px-4">Papel (Role)</th>
+                        <th class="pb-4 px-4">Unidade Vínculo</th>
+                        <th class="pb-4 px-4">Status</th>
+                        <th class="pb-4 px-4 text-right">Data de Cadastro</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-slate-100 dark:divide-slate-800">
+                    {% for u in all_users %}
+                    <tr class="group hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-all">
+                        <td class="py-5 px-4">
+                            <div class="flex items-center space-x-3">
+                                <div class="h-8 w-8 bg-slate-100 dark:bg-slate-800 rounded-lg flex items-center justify-center text-[10px] font-black text-slate-500">
+                                    {{ u.email|slice:":1"|upper }}
+                                </div>
+                                <span class="text-xs font-bold text-slate-900 dark:text-white">{{ u.email }}</span>
+                            </div>
+                        </td>
+                        <td class="py-5 px-4">
+                            <span class="px-2 py-1 bg-slate-100 dark:bg-slate-800 text-slate-500 rounded-lg text-[9px] font-black uppercase tracking-tighter">
+                                {{ u.get_role_display }}
+                            </span>
+                        </td>
+                        <td class="py-5 px-4">
+                            <span class="text-[10px] font-black text-slate-600 dark:text-slate-400 uppercase">
+                                {% if u.unidade %}{{ u.unidade.nome }}{% else %}Sem Vínculo{% endif %}
+                            </span>
+                        </td>
+                        <td class="py-5 px-4">
+                            {% if u.is_active %}
+                            <div class="flex items-center space-x-2">
+                                <div class="h-1.5 w-1.5 bg-emerald-500 rounded-full"></div>
+                                <span class="text-[9px] font-black text-emerald-600 uppercase">Ativo</span>
+                            </div>
+                            {% else %}
+                            <div class="flex items-center space-x-2">
+                                <div class="h-1.5 w-1.5 bg-red-500 rounded-full"></div>
+                                <span class="text-[9px] font-black text-red-600 uppercase">Inativo</span>
+                            </div>
+                            {% endif %}
+                        </td>
+                        <td class="py-5 px-4 text-right text-[10px] font-bold text-slate-400">
+                            {{ u.date_joined|date:"d/m/Y H:i" }}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
     <!-- Atividades Recentes -->
     <div class="bg-white dark:bg-slate-900 rounded-[3rem] p-10 shadow-2xl border border-slate-100 dark:border-slate-800">
-        <!-- (Mesma tabela de atividades anterior) -->
         <div class="mb-8 flex items-center justify-between">
             <div>
                 <h2 class="text-2xl font-black text-slate-900 dark:text-white uppercase tracking-tighter">Atividades Recentes</h2>

@@ -51,24 +51,29 @@ def profile_view(request):
     return render(request, 'account/profile.html', context)
 
 @login_required
+@user_passes_test(lambda u: u.is_superuser or u.role == 'ADMIN')
 def admin_dashboard_view(request):
-    """Painel de Gestão acessível a todos conforme solicitado."""
+    """Painel de Gestão restrito a Administradores."""
     total_usuarios = User.objects.count()
     total_mapas_hoje = MapaDiario.objects.count()
     total_viaturas = Viatura.objects.count()
-    
+
+    # Todos os usuários para a listagem completa
+    all_users = User.objects.all().order_by('-date_joined')
+
     # Novos usuários (Google) inativos
     pending_users = User.objects.filter(is_active=False).order_by('-date_joined')
-    
+
     # Usuários com solicitação de vínculo pendente
     pending_links = User.objects.filter(is_link_pending=True).prefetch_related('requested_unidades')
-    
+
     recent_activities = HistoricoAlteracao.objects.select_related('usuario', 'mapa__unidade').order_by('-data_hora')[:10]
-    
+
     context = {
         'total_usuarios': total_usuarios,
         'total_mapas_hoje': total_mapas_hoje,
         'total_viaturas': total_viaturas,
+        'all_users': all_users,
         'pending_users': pending_users,
         'pending_links': pending_links,
         'recent_activities': recent_activities,
@@ -76,6 +81,7 @@ def admin_dashboard_view(request):
     return render(request, 'accounts/admin_dashboard.html', context)
 
 @login_required
+@user_passes_test(lambda u: u.is_superuser or u.role == 'ADMIN')
 def approve_user_view(request, user_id):
     user_to_approve = get_object_or_404(User, id=user_id)
     user_to_approve.is_active = True
@@ -84,6 +90,7 @@ def approve_user_view(request, user_id):
     return redirect('admin_dashboard')
 
 @login_required
+@user_passes_test(lambda u: u.is_superuser or u.role == 'ADMIN')
 def approve_link_view(request, user_id):
     u = get_object_or_404(User, id=user_id)
     # Efetiva o cargo
