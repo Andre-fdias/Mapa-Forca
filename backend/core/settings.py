@@ -188,13 +188,28 @@ CORS_ALLOW_ALL_ORIGINS = True # In production, set specific origins
 
 # Authentication settings
 ACCOUNT_EMAIL_VERIFICATION = 'none'
-ACCOUNT_LOGIN_METHODS = {'email'}
-ACCOUNT_SIGNUP_FIELDS = ['email*', 'password1*', 'password2*']
 ACCOUNT_UNIQUE_EMAIL = True
 ACCOUNT_USER_MODEL_USERNAME_FIELD = None
+ACCOUNT_USERNAME_REQUIRED = False
+ACCOUNT_EMAIL_REQUIRED = True
+ACCOUNT_AUTHENTICATION_METHOD = 'email'
 ACCOUNT_LOGOUT_ON_GET = True
 ACCOUNT_LOGOUT_REDIRECT_URL = '/accounts/login/'
 LOGIN_REDIRECT_URL = '/'
+
+# Impede o cadastro manual (apenas Google ou Admin)
+# Redireciona tentativas de signup para o login
+ACCOUNT_ADAPTER = 'allauth.account.adapter.DefaultAccountAdapter'
+def signup_disabled(self, request):
+    return False # Desativa o formulário de cadastro
+    
+# Pula a página "Deseja entrar com Google?" e vai direto para o Google
+SOCIALACCOUNT_LOGIN_ON_GET = True
+SOCIALACCOUNT_ADAPTER = 'accounts.adapter.ApprovalSocialAccountAdapter'
+SOCIALACCOUNT_AUTO_SIGNUP = True
+
+# URLs de Inatividade e Social
+ACCOUNT_INACTIVE_URL = '/accounts/inactive/'
 
 # Tailwind Settings
 TAILWIND_APP_NAME = 'theme'

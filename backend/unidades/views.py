@@ -42,54 +42,58 @@ class ViaturaViewSet(viewsets.ModelViewSet):
 
 @login_required
 def dashboard_batalhao(request):
-    """Dashboard consolidado para Batalhão ou Posto específico."""
-    if request.user.role in ['GRANDE_COMANDO', 'ADMIN', 'CENTRAL']:
-        return dashboard_cobom(request)
+    """Dashboard principal. Redireciona para o COBOM (Geral) por padrão para ver tudo."""
+    # Se o usuário explicitamente pedir a visão de batalhão/unidade via parâmetro, 
+    # ou se for mantida a lógica anterior, mas o pedido é "ver tudo por completo".
+    if request.GET.get('view') == 'batalhao':
+        unidade_usuario = request.user.unidade
+        hoje = get_data_operacional()
         
-    unidade_usuario = request.user.unidade
-    hoje = get_data_operacional()
-    
-    # Busca as unidades (Postos) que devem aparecer no dashboard
-    if request.user.role == 'BATALHAO':
-        unidades = Unidade.objects.filter(parent=unidade_usuario, tipo_unidade__codigo='POSTO').order_by('nome')
-    else:
-        unidades = Unidade.objects.filter(id=unidade_usuario.id) if unidade_usuario else []
+        # Busca as unidades (Postos) baseadas no vínculo, mas permite ver todos se não houver vínculo
+        if unidade_usuario and unidade_usuario.tipo_unidade and unidade_usuario.tipo_unidade.codigo == 'BATALHAO':
+            unidades = Unidade.objects.filter(parent=unidade_usuario, tipo_unidade__codigo='POSTO').order_by('nome')
+        else:
+            # Se não houver unidade ou não for batalhão, mostra todos os postos (ver tudo)
+            unidades = Unidade.objects.filter(tipo_unidade__codigo='POSTO').order_by('nome')
+            
+        data_postos = []
+        total_completos = 0
         
-    data_postos = []
-    total_completos = 0
-    
-    for unidade in unidades:
-        mapa = MapaDiario.objects.filter(data=hoje, unidade=unidade).first()
-        alocacoes_vtr = []
-        esta_pronto = False
+        for unidade in unidades:
+            mapa = MapaDiario.objects.filter(data=hoje, unidade=unidade).first()
+            alocacoes_vtr = []
+            esta_pronto = False
+            
+            if mapa:
+                esta_pronto = True
+                total_completos += 1
+                alocacoes = AlocacaoViatura.objects.filter(mapa=mapa).select_related('viatura', 'status_no_dia')
+                for aloc in alocacoes:
+                    cmt = AlocacaoFuncionario.objects.filter(alocacao_viatura=aloc, funcao__codigo='COMANDANTE').select_related('funcionario__posto_graduacao').first()
+                    alocacoes_vtr.append({
+                        'prefixo': aloc.viatura.prefixo, 
+                        'status': aloc.status_no_dia.nome if aloc.status_no_dia else 'N/D', 
+                        'status_codigo': aloc.status_no_dia.codigo if aloc.status_no_dia else 'BAIXADO', 
+                        'encarregado': cmt.funcionario.nome_curto if cmt else 'S/ CMT'
+                    })
+            
+            data_postos.append({
+                'unidade': unidade, 
+                'viaturas': alocacoes_vtr, 
+                'mapa_existe': bool(mapa),
+                'esta_pronto': esta_pronto
+            })
         
-        if mapa:
-            esta_pronto = True
-            total_completos += 1
-            alocacoes = AlocacaoViatura.objects.filter(mapa=mapa).select_related('viatura', 'status_no_dia')
-            for aloc in alocacoes:
-                cmt = AlocacaoFuncionario.objects.filter(alocacao_viatura=aloc, funcao__codigo='COMANDANTE').select_related('funcionario__posto_graduacao').first()
-                alocacoes_vtr.append({
-                    'prefixo': aloc.viatura.prefixo, 
-                    'status': aloc.status_no_dia.nome if aloc.status_no_dia else 'N/D', 
-                    'status_codigo': aloc.status_no_dia.codigo if aloc.status_no_dia else 'BAIXADO', 
-                    'encarregado': cmt.funcionario.nome_curto if cmt else 'S/ CMT'
-                })
+        mapa_completo = (total_completos == len(unidades)) if unidades else False
         
-        data_postos.append({
-            'unidade': unidade, 
-            'viaturas': alocacoes_vtr, 
-            'mapa_existe': bool(mapa),
-            'esta_pronto': esta_pronto
+        return render(request, 'dashboard/batalhao.html', {
+            'data_postos': data_postos, 
+            'hoje': hoje,
+            'mapa_completo': mapa_completo
         })
     
-    mapa_completo = (total_completos == len(unidades)) if unidades else False
-    
-    return render(request, 'dashboard/batalhao.html', {
-        'data_postos': data_postos, 
-        'hoje': hoje,
-        'mapa_completo': mapa_completo
-    })
+    # PADRÃO: Mostrar Visão Geral (COBOM) para todos verem tudo
+    return dashboard_cobom(request)
 
 @login_required
 def dashboard_cobom(request):

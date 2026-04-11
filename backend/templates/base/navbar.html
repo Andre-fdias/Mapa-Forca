@@ -36,14 +36,14 @@
         </div>
 
         <!-- User/Profile -->
-        <div class="hidden sm:flex items-center space-x-3 pl-5 border-l border-slate-200 dark:border-slate-800">
+        <a href="{% url 'profile' %}" class="hidden sm:flex items-center space-x-3 pl-5 border-l border-slate-200 dark:border-slate-800 hover:opacity-80 transition-all group">
              <div class="text-right">
-                 <p class="text-xs font-black text-slate-900 dark:text-white uppercase leading-none">{{ user.email|slice:":15" }}...</p>
-                 <span class="text-[9px] font-bold text-slate-400 uppercase tracking-tighter">{{ user.get_role_display }}</span>
+                 <p class="text-xs font-black text-slate-900 dark:text-white uppercase leading-none">{{ user.email }}</p>
+                 <span class="text-[9px] font-bold text-slate-400 uppercase tracking-tighter">{% if user.unidade %}{{ user.unidade.nome }}{% else %}Sem Vínculo{% endif %}</span>
              </div>
-             <div class="h-10 w-10 rounded-2xl bg-slate-900 dark:bg-white text-white dark:text-slate-900 flex items-center justify-center text-xs font-black shadow-lg">
+             <div class="h-10 w-10 rounded-2xl bg-slate-900 dark:bg-white text-white dark:text-slate-900 flex items-center justify-center text-xs font-black shadow-lg group-hover:scale-105 transition-transform">
                 {{ user.email|slice:":1"|upper }}
              </div>
-        </div>
+        </a>
     </div>
 </header>

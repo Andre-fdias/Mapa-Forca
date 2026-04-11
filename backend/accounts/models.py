@@ -21,10 +21,9 @@ class UserManager(BaseUserManager):
 class User(AbstractUser):
     ROLE_CHOICES = (
         ('ADMIN', 'Administrador'),
-        ('POSTO', 'Operador de Posto'),
-        ('BATALHAO', 'Operador de Batalhão'),
-        ('GRANDE_COMANDO', 'Grande Comando'),
-        ('CENTRAL', 'Central de Controle'),
+        ('BATALHAO', 'Batalhão (Total)'),
+        ('SGB', 'SGB (Subgrupamento)'),
+        ('POSTO', 'Posto Operacional'),
     )
 
     username = None
@@ -42,8 +41,13 @@ class User(AbstractUser):
         null=True, 
         blank=True,
         related_name='usuarios',
-        help_text='Unidade à qual este usuário pertence'
+        help_text='Unidade principal à qual este usuário pertence'
     )
+
+    # Novos campos para fluxo de aprovação de vínculo
+    requested_role = models.CharField(max_length=20, choices=ROLE_CHOICES, null=True, blank=True)
+    requested_unidades = models.ManyToManyField(Unidade, blank=True, related_name='solicitacoes_vinculo')
+    is_link_pending = models.BooleanField(default=False)
     
     USERNAME_FIELD = 'email'
     REQUIRED_FIELDS = []

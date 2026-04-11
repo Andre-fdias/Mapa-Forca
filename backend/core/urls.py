@@ -33,6 +33,7 @@ urlpatterns = [
     path('escalas/', include('escalas.urls')),
     path('unidades/', include('unidades.urls')),
     path('efetivo/', include('efetivo.urls')),
+    path('accounts/', include('accounts.urls')),
     
     # Auth
     path('api/auth/', include('dj_rest_auth.urls')),
@@ -41,7 +42,6 @@ urlpatterns = [
     path('api/auth/token/refresh/', TokenRefreshView.as_view(), name='token_refresh'),
     
     # Social Auth (Google)
-    path('api/auth/social/', include('accounts.urls')),
     path('accounts/', include('allauth.urls')),
     
     # Tailwind browser reload

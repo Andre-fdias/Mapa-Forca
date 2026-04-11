@@ -1,0 +1,141 @@
+{% extends "base/base.html" %}
+
+{% block title %}Perfil de Usuário - Mapa Força{% endblock %}
+
+{% block content %}
+<div class="max-w-5xl mx-auto py-10 px-4 sm:px-6 lg:px-8 animate-fade-in">
+    <!-- Header -->
+    <div class="mb-10 text-center">
+        <h1 class="text-4xl font-black text-slate-900 dark:text-white uppercase tracking-tighter">Seu Perfil</h1>
+        <p class="text-slate-500 dark:text-slate-400 font-bold uppercase tracking-widest text-xs mt-2 italic">Gerencie suas informações e solicitações de acesso</p>
+    </div>
+
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+        <!-- Sidebar Informações -->
+        <div class="lg:col-span-1 space-y-6">
+            <div class="bg-white dark:bg-slate-900 rounded-[2rem] p-8 shadow-xl border border-slate-100 dark:border-slate-800 text-center">
+                <div class="h-24 w-24 bg-red-600 rounded-full flex items-center justify-center mx-auto mb-6 shadow-lg shadow-red-600/20 text-3xl font-black text-white">
+                    {{ user.email|slice:":1"|upper }}
+                </div>
+                <h2 class="text-xl font-black text-slate-900 dark:text-white uppercase tracking-tight truncate">{{ user.email }}</h2>
+                <span class="inline-block mt-2 px-4 py-1 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 rounded-full text-[10px] font-black uppercase tracking-widest">
+                    {{ user.get_role_display }}
+                </span>
+                
+                {% if is_social %}
+                <div class="mt-4 flex items-center justify-center space-x-2 text-emerald-500 bg-emerald-500/10 py-2 rounded-xl border border-emerald-500/20">
+                    <svg class="h-4 w-4" fill="currentColor" viewBox="0 0 24 24">
+                        <path d="M12.48 10.92v3.28h7.84c-.24 1.84-.909 3.264-2.09 4.34-1.206 1.082-3.09 2.14-6.21 2.14-4.629 0-8.448-3.763-8.448-8.4s3.82-8.4 8.448-8.4c2.497 0 4.387.983 5.752 2.303l2.31-2.303C17.938 1.09 15.446 0 12.48 0 5.867 0 .307 5.387.307 12s5.56 12 12.173 12c3.57 0 6.267-1.177 8.37-3.347 2.16-2.16 2.84-5.19 2.84-7.51 0-.72-.06-1.4-.18-2.08H12.48z"/>
+                    </svg>
+                    <span class="text-[10px] font-black uppercase tracking-widest">Google Auth</span>
+                </div>
+                {% endif %}
+            </div>
+
+            <div class="bg-white dark:bg-slate-900 rounded-[2rem] p-8 shadow-xl border border-slate-100 dark:border-slate-800">
+                <h3 class="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-4">Dados Cadastrais</h3>
+                <div class="space-y-4 text-xs">
+                    <div class="flex justify-between border-b border-slate-50 dark:border-slate-800 pb-2">
+                        <span class="font-black text-slate-400 uppercase">Email</span>
+                        <span class="font-bold text-slate-900 dark:text-white">{{ user.email }}</span>
+                    </div>
+                    <div class="flex justify-between border-b border-slate-50 dark:border-slate-800 pb-2">
+                        <span class="font-black text-slate-400 uppercase">Status</span>
+                        <span class="font-bold text-emerald-500 uppercase">Ativo</span>
+                    </div>
+                    <div class="flex justify-between">
+                        <span class="font-black text-slate-400 uppercase">Acesso</span>
+                        <span class="font-bold text-slate-900 dark:text-white uppercase">{{ user.get_role_display }}</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Área Principal -->
+        <div class="lg:col-span-2 space-y-8">
+            
+            <!-- Solicitação de Vínculo -->
+            <div class="bg-white dark:bg-slate-900 rounded-[2.5rem] p-10 shadow-2xl border border-slate-100 dark:border-slate-800">
+                <div class="mb-8 border-b border-slate-100 dark:border-slate-800 pb-6 flex justify-between items-end">
+                    <div>
+                        <h2 class="text-2xl font-black text-slate-900 dark:text-white uppercase tracking-tighter">Vínculo de Unidade</h2>
+                        <p class="text-slate-500 text-[10px] font-black uppercase tracking-widest mt-1 italic">Solicite acesso aos seus postos de atuação</p>
+                    </div>
+                    {% if user.is_link_pending %}
+                    <span class="px-4 py-2 bg-amber-500/10 text-amber-500 rounded-xl text-[9px] font-black uppercase tracking-widest border border-amber-500/20 animate-pulse">
+                        Aguardando Auditoria
+                    </span>
+                    {% endif %}
+                </div>
+
+                <form method="post" class="space-y-8">
+                    {% csrf_token %}
+                    
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+                        <!-- Nível de Acesso -->
+                        <div class="space-y-3">
+                            <label class="block text-[10px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-widest ml-2">Nível de Acesso Desejado</label>
+                            <select name="requested_role" required class="w-full bg-slate-50 dark:bg-slate-950 border-2 border-slate-100 dark:border-slate-800 rounded-2xl p-4 text-xs font-bold text-slate-900 dark:text-white focus:border-red-600 transition-all outline-none">
+                                {% for code, name in role_choices %}
+                                    <option value="{{ code }}" {% if user.role == code %}selected{% endif %}>{{ name }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+
+                        <!-- Unidade Principal -->
+                        <div class="space-y-3">
+                            <label class="block text-[10px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-widest ml-2">Posto(s) de Atendimento</label>
+                            <div class="relative group">
+                                <select name="requested_unidades" multiple required class="w-full bg-slate-50 dark:bg-slate-950 border-2 border-slate-100 dark:border-slate-800 rounded-2xl p-4 text-xs font-bold text-slate-900 dark:text-white focus:border-red-600 transition-all outline-none min-h-[150px]">
+                                    {% for u in unidades %}
+                                        <option value="{{ u.id }}">{{ u.nome }}</option>
+                                    {% endfor %}
+                                </select>
+                                <p class="text-[9px] text-slate-500 font-bold mt-2 ml-2 italic">Mantenha 'Ctrl' pressionado para selecionar mais de um posto.</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <button type="submit" name="request_link" class="w-full bg-slate-900 dark:bg-white text-white dark:text-slate-950 font-black py-5 px-12 rounded-2xl transition-all shadow-xl flex items-center justify-center space-x-3 active:scale-95 group">
+                        <svg class="h-5 w-5 group-hover:rotate-12 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="3">
+                            <path d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"/><path d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"/>
+                        </svg>
+                        <span class="uppercase tracking-widest">Solicitar Vínculo Operacional</span>
+                    </button>
+                </form>
+            </div>
+
+            <!-- Troca de Senha (se não for Google) -->
+            {% if not is_social %}
+            <div class="bg-white dark:bg-slate-900 rounded-[2.5rem] p-10 shadow-2xl border border-slate-100 dark:border-slate-800">
+                <div class="mb-8 border-b border-slate-100 dark:border-slate-800 pb-6">
+                    <h2 class="text-2xl font-black text-slate-900 dark:text-white uppercase tracking-tighter">Segurança</h2>
+                    <p class="text-slate-500 text-[10px] font-black uppercase tracking-widest mt-1 italic">Mantenha sua conta admin local segura</p>
+                </div>
+
+                <form method="post" class="space-y-6">
+                    {% csrf_token %}
+                    {% for field in form %}
+                    <div class="space-y-2">
+                        <label class="block text-[10px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-widest ml-2">{{ field.label }}</label>
+                        {{ field }}
+                    </div>
+                    {% endfor %}
+                    <button type="submit" name="change_password" class="w-full bg-red-600 hover:bg-red-500 text-white font-black py-5 px-12 rounded-2xl transition-all shadow-xl active:scale-95 mt-4">
+                        <span class="uppercase tracking-widest">Atualizar Senha</span>
+                    </button>
+                </form>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<style>
+    input[type="password"] {
+        width: 100%; background-color: #f8fafc; border: 2px solid #e2e8f0; border-radius: 1rem; padding: 1rem 1.25rem; font-weight: 700; transition: all 0.3s;
+    }
+    .dark input[type="password"] { background-color: #020617; border-color: #1e293b; color: white; }
+    input[type="password"]:focus { border-color: #E11D48; outline: none; box-shadow: 0 0 0 4px rgba(225, 29, 72, 0.1); }
+</style>
+{% endblock %}
