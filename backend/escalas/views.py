@@ -102,27 +102,45 @@ def buscar_funcionario_re(request):
     mapa_id = request.GET.get('mapa_id')
     if len(q) < 2: return HttpResponse('')
     
-    # Limpa o Q para busca numérica se parecer um RE (contém números e possivelmente traço)
+    # Limpa o Q para busca numérica se parecer um RE
     q_numeric = re.sub(r'\D', '', q)
     
     mapa_atual = get_object_or_404(MapaDiario, id=mapa_id) if mapa_id else None
     data_escala = mapa_atual.data if mapa_atual else get_data_operacional()
     
-    # 1. Busca no Efetivo Real (Sincronizado do Sheets)
+    efetivo_real = []
+    funcs_locais = []
+
+    # 1. TENTATIVA POR RE EXATO (Prioridade Máxima)
+    if q_numeric and len(q_numeric) >= 4:
+        # Busca exata no Efetivo (Sheets)
+        efetivo_real = list(Efetivo.objects.filter(re=q_numeric))
+        # Busca exata no Local
+        funcs_locais = list(Funcionario.objects.filter(re=q_numeric))
+        
+        # Se achou RE exato, retornamos imediatamente apenas ele
+        if efetivo_real or funcs_locais:
+            return render_busca_results(request, efetivo_real, funcs_locais, data_escala, q)
+
+    # 2. BUSCA POR NOME OU RE PARCIAL (Aproximação)
+    # Usamos icontains para ser case-insensitive
     query_efetivo = Q(nome__icontains=q) | Q(nome_do_pm__icontains=q)
     if q_numeric:
         query_efetivo |= Q(re__icontains=q_numeric)
     
-    efetivo_real = Efetivo.objects.filter(query_efetivo).order_by('nome')[:15]
+    efetivo_real = list(Efetivo.objects.filter(query_efetivo).order_by('nome')[:15])
     
-    # 2. Busca no Funcionario (Local)
     query_func = Q(nome_completo__icontains=q) | Q(nome_guerra__icontains=q)
     if q_numeric:
         query_func |= Q(re__icontains=q_numeric)
         
-    funcs_locais = Funcionario.objects.filter(query_func).select_related('posto_graduacao').order_by('nome_completo')[:5]
+    funcs_locais = list(Funcionario.objects.filter(query_func).select_related('posto_graduacao').order_by('nome_completo')[:5])
     
-    # 3. Verifica disponibilidade para cada resultado
+    return render_busca_results(request, efetivo_real, funcs_locais, data_escala, q)
+
+def render_busca_results(request, efetivo_real, funcs_locais, data_escala, query):
+    """Função auxiliar para processar disponibilidade e renderizar o template."""
+    # Verifica disponibilidade para cada resultado
     for e in efetivo_real:
         ja_alocado = AlocacaoFuncionario.objects.filter(
             mapa__data=data_escala,
@@ -140,7 +158,7 @@ def buscar_funcionario_re(request):
     return render(request, 'mapa_forca/partials/lista_busca_funcionarios.html', {
         'efetivo_extra': efetivo_real,
         'funcionarios': funcs_locais,
-        'query': q
+        'query': query
     })
 
 @login_required
@@ -149,26 +167,30 @@ def adicionar_viatura_mapa(request, mapa_id):
     mapa = get_object_or_404(MapaDiario, id=mapa_id)
     viat = get_object_or_404(Viatura, prefixo=pref)
     
-    # Validação: Viatura única por dia em todo o sistema
-    ja_alocada = AlocacaoViatura.objects.filter(
-        mapa__data=mapa.data, 
-        viatura=viat
-    ).exclude(mapa=mapa).select_related('mapa__unidade').first()
-    
-    if ja_alocada:
-        msg = f"A viatura {viat.prefixo} já está escalada hoje na unidade: {ja_alocada.mapa.unidade.nome}"
-        return HttpResponse(f'<script>showToast("{msg}", "error");</script>')
+    # Validação: Viatura única por dia em todo o sistema (EXCETO TELEGRAFIA)
+    if viat.prefixo != 'TELEGRAFIA':
+        ja_alocada = AlocacaoViatura.objects.filter(
+            mapa__data=mapa.data, 
+            viatura=viat
+        ).exclude(mapa=mapa).select_related('mapa__unidade').first()
+        
+        if ja_alocada:
+            msg = f"A viatura {viat.prefixo} já está escalada hoje na unidade: {ja_alocada.mapa.unidade.nome}"
+            return HttpResponse(f'<script>showToast("{msg}", "error");</script>')
 
     status_op = Dictionary.objects.filter(tipo='STATUS_VIATURA', codigo='OPERANDO').first()
     aloc, created = AlocacaoViatura.objects.get_or_create(mapa=mapa, viatura=viat, defaults={'status_no_dia': status_op})
     
-    if created:
-        HistoricoAlteracao.objects.create(
-            mapa=mapa,
-            usuario=request.user,
-            tipo_acao='UPDATE',
-            descricao=f"Adicionou viatura {viat.prefixo} ao mapa."
-        )
+    if not created:
+        # Se já existe no mapa, apenas avisa e não retorna novo HTML para evitar duplicidade na tela
+        return HttpResponse(f'<script>showToast("Viatura {viat.prefixo} já está no mapa.", "info");</script>', status=200)
+
+    HistoricoAlteracao.objects.create(
+        mapa=mapa,
+        usuario=request.user,
+        tipo_acao='UPDATE',
+        descricao=f"Adicionou viatura {viat.prefixo} ao mapa."
+    )
         
     return render(request, 'mapa_forca/partials/card_viatura_alocada.html', {'alocacao': aloc, 'funcoes': Dictionary.objects.filter(tipo='FUNCAO_OPERACIONAL')})
 
@@ -339,10 +361,10 @@ def get_viaturas_por_unidade(request):
 def validar_mapa_final(request, mapa_id):
     mapa = get_object_or_404(MapaDiario, id=mapa_id)
     
-    # 1. Verifica se há viaturas sem guarnição (Excluindo o Telegrafista da obrigatoriedade)
+    # 1. Verifica se há viaturas sem guarnição (Excluindo a TELEGRAFIA da obrigatoriedade)
     vazias = [
         al.viatura.prefixo for al in mapa.alocacoes_viaturas.all() 
-        if al.equipe.count() == 0 and al.viatura.prefixo != 'TELEGRAFISTA'
+        if al.equipe.count() == 0 and al.viatura.prefixo != 'TELEGRAFIA'
     ]
     
     if vazias:

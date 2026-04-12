@@ -54,7 +54,13 @@
             <form hx-post="{% url 'alocar_funcionario_viatura' alocacao.id %}" 
                   hx-target="#equipe-viatura-{{ alocacao.id }}"
                   hx-swap="beforeend"
-                  hx-on::after-request="if(event.detail.successful) { this.reset(); document.getElementById('results-{{ alocacao.id }}').innerHTML = ''; }"
+                  hx-on::after-request="if(event.detail.successful && event.detail.requestConfig.verb === 'post') { 
+                      this.reset(); 
+                      this.querySelector('input[name=efetivo_id]').value = '';
+                      this.querySelector('input[name=nome_extra]').value = '';
+                      this.querySelector('input[name=funcionario_re]').classList.remove('border-emerald-500', 'text-emerald-600');
+                      document.getElementById('results-{{ alocacao.id }}').innerHTML = ''; 
+                  }"
                   class="space-y-4">
                 {% csrf_token %}
                 

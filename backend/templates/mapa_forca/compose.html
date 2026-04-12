@@ -233,6 +233,15 @@
             const res = await fetch(CONFIG.api);
             viaturas = await res.json();
             
+            // Injeção manual de LOCAL INTERNO conforme solicitado
+            viaturas.push({
+                VIATURAS: "TELEGRAFIA",
+                SGB: "INTERNO",
+                STATUS: "OPERANDO",
+                PLACA: "INTERNO",
+                Garagem: "BASE"
+            });
+
             // Ordenação: 1º SGB -> 2º Garagem -> 3º VIATURAS
             viaturas.sort((a, b) => {
                 const sgbA = (a.SGB || "").toString().toUpperCase();
