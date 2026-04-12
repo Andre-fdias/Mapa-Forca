@@ -14,6 +14,8 @@ urlpatterns = [
     path('profile/', views.profile_view, name='profile'),
     path('admin-dashboard/', views.admin_dashboard_view, name='admin_dashboard'),
     path('approve-user/<int:user_id>/', views.approve_user_view, name='approve_user'),
-    path('approve-link/<int:user_id>/', views.approve_link_view, name='approve_link'),
+    path('delete-user/<int:user_id>/', views.delete_user_view, name='delete_user'),
     path('inactive/', views.account_inactive_view, name='account_inactive'),
+    path('setup-profile/', views.setup_profile, name='setup_profile'),
+    path('get-postos-onboarding/', views.get_postos_unidade, name='get_postos_unidade'),
 ]

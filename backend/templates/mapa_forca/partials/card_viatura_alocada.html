@@ -54,6 +54,7 @@
             <form hx-post="{% url 'alocar_funcionario_viatura' alocacao.id %}" 
                   hx-target="#equipe-viatura-{{ alocacao.id }}"
                   hx-swap="beforeend"
+                  hx-on::after-request="if(event.detail.successful) { this.reset(); document.getElementById('results-{{ alocacao.id }}').innerHTML = ''; }"
                   class="space-y-4">
                 {% csrf_token %}
                 

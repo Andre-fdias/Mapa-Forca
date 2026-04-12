@@ -54,6 +54,14 @@ class Unidade(models.Model):
     def __str__(self):
         return self.nome
 
+    @property
+    def root_unit(self):
+        """Sobe na hierarquia até encontrar a unidade raiz (Grupamento)."""
+        curr = self
+        while curr.parent:
+            curr = curr.parent
+        return curr
+
     def clean(self):
         # Auto-determina o tipo de serviço através da descrição (lógica legada)
         if self.descricao and not self.tipo_servico_id:
