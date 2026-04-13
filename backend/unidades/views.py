@@ -27,43 +27,53 @@ def get_data_operacional():
     return agora.date()
 
 def format_militar_display(funcionario, efetivo_info):
-    """Garante o formato POSTO + NOME DE GUERRA limpo, removendo lixo da planilha."""
-    # Fallback inicial usando o que já temos no Funcionario (Graduação + Nome Guerra)
-    nome_display = funcionario.nome_curto
+    """Garante o formato POSTO + NOME DE GUERRA limpo, removendo duplicações e lixo."""
+    ranks = [
+        'CEL PM', 'TEN CEL PM', 'MAJ PM', 'CAP PM', '1º TEN PM', '2º TEN PM', 'ASP PM', 
+        'SUBTEN PM', '1º SGT PM', '2º SGT PM', '3º SGT PM', 'CB PM', 'SD PM'
+    ]
     
-    if efetivo_info:
-        # 1. Extração da Graduação (Campo B da planilha -> posto_secao)
-        p_original = (efetivo_info.posto_secao or "").upper()
-        p_limpo = ""
-        ranks = [
-            'CEL PM', 'TEN CEL PM', 'MAJ PM', 'CAP PM', '1º TEN PM', '2º TEN PM', 'ASP PM', 
-            'SUBTEN PM', '1º SGT PM', '2º SGT PM', '3º SGT PM', 'CB PM', 'SD PM'
-        ]
-        
-        # Procura a graduação dentro do campo sujo (ex: "7031... - 1º SGT PM")
+    # 1. Tenta obter o Posto/Graduação (Prioriza Planilha B, depois Banco Local)
+    p_limpo = ""
+    if efetivo_info and efetivo_info.posto_secao:
+        p_upper = efetivo_info.posto_secao.upper()
         for r in ranks:
-            if r in p_original:
+            if r in p_upper:
                 p_limpo = r
                 break
-        
-        # 2. Extração do Nome de Guerra (Campo H da planilha -> nome)
-        n_original = (efetivo_info.nome or "").upper()
-        # Remove RE (000000-0), parênteses (), códigos numéricos e caracteres de separação
-        n_limpo = re.sub(r'\d{6}-\d{1}', '', n_original)
-        n_limpo = re.sub(r'\(.*?\)', '', n_limpo)
-        n_limpo = re.sub(r'\d{4,}', '', n_limpo) # Remove números longos (códigos de seção)
-        n_limpo = re.sub(r'[.\-\/]', ' ', n_limpo)
-        n_limpo = n_limpo.strip()
-        
-        # 3. Montagem Final
-        if p_limpo and n_limpo:
-            nome_display = f"{p_limpo} {n_limpo}"
-        elif n_limpo:
-            # Se não achou posto na planilha, usa o posto do objeto Funcionario
-            pg = funcionario.posto_graduacao.nome if funcionario.posto_graduacao else ""
-            nome_display = f"{pg} {n_limpo}"
+    
+    if not p_limpo and funcionario and funcionario.posto_graduacao:
+        p_limpo = funcionario.posto_graduacao.nome.upper()
 
-    return nome_display.upper().strip()
+    # 2. Tenta obter o Nome de Guerra (Prioriza Planilha H, depois Banco Local)
+    n_limpo = ""
+    if efetivo_info and efetivo_info.nome:
+        n_upper = efetivo_info.nome.upper()
+        # Limpeza agressiva: RE, parênteses e códigos numéricos longos
+        n_upper = re.sub(r'\d{6}-\d{1}', '', n_upper)
+        n_upper = re.sub(r'\(.*?\)', '', n_upper)
+        n_upper = re.sub(r'\d{4,}', '', n_upper)
+        
+        # CRITICAL: Remove todas as graduações da string do nome para evitar duplicação
+        # (ex: remove '1º SGT PM' de '1º SGT PM MAURICIO')
+        for r in ranks:
+            n_upper = n_upper.replace(r, '')
+            
+        n_upper = re.sub(r'[.\-\/]', ' ', n_upper)
+        n_limpo = n_upper.strip()
+    
+    if not n_limpo and funcionario:
+        n_limpo = (funcionario.nome_guerra or "").upper().strip()
+
+    # 3. Montagem Final (Garante que nunca retorne vazio se o objeto existir)
+    if p_limpo and n_limpo:
+        return f"{p_limpo} {n_limpo}".strip().upper()
+    elif n_limpo:
+        return n_limpo.upper()
+    elif p_limpo:
+        return p_limpo.upper()
+    
+    return (funcionario.nome_curto if funcionario else "S/ NOME").upper()
 
 class UnidadeViewSet(viewsets.ModelViewSet):
     queryset = Unidade.objects.filter(ativo=True)
@@ -238,7 +248,6 @@ def dashboard_cobom(request):
                     esta_pronto = True
                     total_completos += 1
                     
-                    # Prefixos que identificam função de telegrafia
                     prefixos_tel = ['TELEGRAFISTA', 'TELEGRAFIA']
 
                     alocacoes_vtr = AlocacaoViatura.objects.filter(
@@ -248,7 +257,6 @@ def dashboard_cobom(request):
                     
                     stats['vtrs_total'] = alocacoes_vtr.count()
                     
-                    # Busca o Telegrafista (pode estar como prefixo TELEGRAFISTA ou TELEGRAFIA)
                     aloc_tel = AlocacaoViatura.objects.filter(mapa=mapa, viatura__prefixo__in=prefixos_tel).first()
                     if aloc_tel:
                         tel_func = AlocacaoFuncionario.objects.filter(alocacao_viatura=aloc_tel).select_related('funcionario__posto_graduacao').first()
