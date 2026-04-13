@@ -30,19 +30,27 @@ def format_militar_display(funcionario, efetivo_info):
     """Garante o formato POSTO + NOME DE GUERRA limpo, removendo lixo da planilha."""
     nome_display = funcionario.nome_curto
     if efetivo_info and efetivo_info.posto_secao and efetivo_info.nome:
-        # 1. Limpa Posto (remove códigos como 7031... e nomes de seção)
-        p_limpo = efetivo_info.posto_secao
+        # 1. Extrai estritamente o Posto/Graduação (ignora o que vem antes)
+        p_original = efetivo_info.posto_secao.upper()
+        p_limpo = ""
         ranks = ['CEL PM', 'TEN CEL PM', 'MAJ PM', 'CAP PM', '1º TEN PM', '2º TEN PM', 'ASP PM', 'SUBTEN PM', '1º SGT PM', '2º SGT PM', '3º SGT PM', 'CB PM', 'SD PM']
         for r in ranks:
-            if r in p_limpo:
+            if r in p_original:
                 p_limpo = r
                 break
         
-        # 2. Limpa Nome (remove RE 000000-0 se estiver grudado no nome)
-        n_limpo = re.sub(r'\d{6}-\d{1}', '', efetivo_info.nome).strip()
+        if not p_limpo: p_limpo = p_original # Fallback se não achar na lista
+        
+        # 2. Limpa Nome de Guerra (remove RE, parênteses e códigos numéricos)
+        n_limpo = efetivo_info.nome
+        n_limpo = re.sub(r'\(.*?\)', '', n_limpo) # Remove tudo entre parênteses ()
+        n_limpo = re.sub(r'\d+', '', n_limpo)      # Remove qualquer número
+        n_limpo = re.sub(r'[\-\/]', '', n_limpo)   # Remove traços e barras
+        n_limpo = n_limpo.strip()
+        
         nome_display = f"{p_limpo} {n_limpo}".strip()
     
-    return nome_display
+    return nome_display.upper()
 
 class UnidadeViewSet(viewsets.ModelViewSet):
     queryset = Unidade.objects.filter(ativo=True)
