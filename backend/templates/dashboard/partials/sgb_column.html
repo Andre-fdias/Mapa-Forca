@@ -167,16 +167,15 @@
                                     {% endif %}
                                 {% endfor %}
 
-                                {# Fallback se nada for encontrado #}
-                                {% if not item.telegrafista.nome or item.telegrafista.nome == 'AGUARDANDO...' %}
-                                    {% set found_tel = false %}
-                                    {% for vtr in item.viaturas %}{% if vtr.prefixo == 'TELEGRAFIA' %}{% set found_tel = true %}{% endif %}{% endfor %}
-                                    {% if not found_tel %}
-                                        <span class="text-[9px] font-black text-white/40 uppercase italic tracking-tighter">AGUARDANDO...</span>
-                                    {% endif %}
+                                {# Fallback: Se o card estiver no estado padrão e não houver prefixo TELEGRAFIA na lista #}
+                                {% if item.telegrafista.nome == 'AGUARDANDO...' %}
+                                    {# Nota: Como não podemos usar variáveis de estado complexas no template Django puro #}
+                                    {# A lógica acima já renderiza o nome se encontrar. Se o usuário ver o campo vazio, #}
+                                    {# é porque não há telegrafia. Para manter o 'AGUARDANDO...' visual quando realmente #}
+                                    {# não houver nada, podemos usar uma verificação simples. #}
+                                    <span class="hidden last:inline text-[9px] font-black text-white/40 uppercase italic tracking-tighter">AGUARDANDO...</span>
                                 {% endif %}
-
-                                {% endif %}
+                            {% endif %}
                         </div>
                     </div>
                 </div>
