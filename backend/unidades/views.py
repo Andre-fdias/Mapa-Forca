@@ -12,6 +12,7 @@ from .serializers import UnidadeSerializer, ViaturaSerializer
 from escalas.models import MapaDiario, AlocacaoViatura, AlocacaoFuncionario
 from django.db.models import Q, Count, Sum
 import datetime
+import re
 
 def get_data_operacional():
     """
@@ -25,6 +26,23 @@ def get_data_operacional():
         return (agora - datetime.timedelta(days=1)).date()
     return agora.date()
 
+def format_militar_display(funcionario, efetivo_info):
+    """Garante o formato POSTO + NOME DE GUERRA limpo, removendo lixo da planilha."""
+    nome_display = funcionario.nome_curto
+    if efetivo_info and efetivo_info.posto_secao and efetivo_info.nome:
+        # 1. Limpa Posto (remove códigos como 7031... e nomes de seção)
+        p_limpo = efetivo_info.posto_secao
+        ranks = ['CEL PM', 'TEN CEL PM', 'MAJ PM', 'CAP PM', '1º TEN PM', '2º TEN PM', 'ASP PM', 'SUBTEN PM', '1º SGT PM', '2º SGT PM', '3º SGT PM', 'CB PM', 'SD PM']
+        for r in ranks:
+            if r in p_limpo:
+                p_limpo = r
+                break
+        
+        # 2. Limpa Nome (remove RE 000000-0 se estiver grudado no nome)
+        n_limpo = re.sub(r'\d{6}-\d{1}', '', efetivo_info.nome).strip()
+        nome_display = f"{p_limpo} {n_limpo}".strip()
+    
+    return nome_display
 
 class UnidadeViewSet(viewsets.ModelViewSet):
     queryset = Unidade.objects.filter(ativo=True)
@@ -43,17 +61,13 @@ class ViaturaViewSet(viewsets.ModelViewSet):
 @login_required
 def dashboard_batalhao(request):
     """Dashboard principal. Redireciona para o COBOM (Geral) por padrão para ver tudo."""
-    # Se o usuário explicitamente pedir a visão de batalhão/unidade via parâmetro, 
-    # ou se for mantida a lógica anterior, mas o pedido é "ver tudo por completo".
     if request.GET.get('view') == 'batalhao':
         unidade_usuario = request.user.unidade
         hoje = get_data_operacional()
         
-        # Busca as unidades (Postos) baseadas no vínculo, mas permite ver todos se não houver vínculo
         if unidade_usuario and unidade_usuario.tipo_unidade and unidade_usuario.tipo_unidade.codigo == 'BATALHAO':
             unidades = Unidade.objects.filter(parent=unidade_usuario, tipo_unidade__codigo='POSTO').order_by('nome')
         else:
-            # Se não houver unidade ou não for batalhão, mostra todos os postos (ver tudo)
             unidades = Unidade.objects.filter(tipo_unidade__codigo='POSTO').order_by('nome')
             
         data_postos = []
@@ -92,7 +106,6 @@ def dashboard_batalhao(request):
             'mapa_completo': mapa_completo
         })
     
-    # PADRÃO: Mostrar Visão Geral (COBOM) para todos verem tudo
     return dashboard_cobom(request)
 
 @login_required
@@ -156,7 +169,6 @@ def dashboard_cobom(request):
     for sgb_nome, postos_nomes in OPCOES_POR_SGB.items():
         postos_result = []
         for p_nome in postos_nomes:
-            # ... (manter lógica de busca de unidade)
             unidade = None
             posto_obj_real = None
             if " - " in p_nome:
@@ -182,7 +194,6 @@ def dashboard_cobom(request):
             esta_pronto = False
             mapa_existe = False
             
-            # Dados do Telegrafista
             telegrafista_info = {
                 'nome': "AGUARDANDO...",
                 'is_dejem': False,
@@ -206,24 +217,27 @@ def dashboard_cobom(request):
                     esta_pronto = True
                     total_completos += 1
                     
+                    # Prefixos que identificam função de telegrafia
+                    prefixos_tel = ['TELEGRAFISTA', 'TELEGRAFIA']
+
                     alocacoes_vtr = AlocacaoViatura.objects.filter(
                         mapa=mapa, 
                         status_no_dia__codigo__in=['OPERANDO', 'RESERVA']
-                    ).select_related('viatura', 'status_no_dia').exclude(viatura__prefixo='TELEGRAFISTA')
+                    ).select_related('viatura', 'status_no_dia').exclude(viatura__prefixo__in=prefixos_tel)
                     
                     stats['vtrs_total'] = alocacoes_vtr.count()
                     
-                    # Busca o Telegrafista especificamente
-                    aloc_tel = AlocacaoViatura.objects.filter(mapa=mapa, viatura__prefixo='TELEGRAFISTA').first()
+                    # Busca o Telegrafista (pode estar como prefixo TELEGRAFISTA ou TELEGRAFIA)
+                    aloc_tel = AlocacaoViatura.objects.filter(mapa=mapa, viatura__prefixo__in=prefixos_tel).first()
                     if aloc_tel:
                         tel_func = AlocacaoFuncionario.objects.filter(alocacao_viatura=aloc_tel).select_related('funcionario__posto_graduacao').first()
                         if tel_func:
-                            telegrafista_info['nome'] = tel_func.funcionario.nome_curto
+                            ef_tel = Efetivo.objects.filter(Q(re=tel_func.funcionario.re) | Q(nome__icontains=tel_func.funcionario.nome_guerra)).first()
+                            telegrafista_info['nome'] = format_militar_display(tel_func.funcionario, ef_tel)
                             telegrafista_info['is_dejem'] = tel_func.dejem
                             if tel_func.dejem and tel_func.inicio_dejem:
                                 telegrafista_info['horario'] = f"{tel_func.inicio_dejem.strftime('%H:%M')} > {tel_func.termino_dejem.strftime('%H:%M')}"
                             
-                            # Acumula telegrafista se estiver escalado
                             global_stats['militares_escalados'] += 1
                             if tel_func.dejem:
                                 global_stats['dejem'] += 1
@@ -255,13 +269,8 @@ def dashboard_cobom(request):
 
                             efetivo_info = Efetivo.objects.filter(Q(re=m.funcionario.re) | Q(nome__icontains=m.funcionario.nome_guerra)).first()
                             
-                            # Formatação do Nome: POSTO (B) + Espaço + NOME DE GUERRA (H)
-                            nome_display = m.funcionario.nome_curto
-                            if efetivo_info and efetivo_info.posto_secao and efetivo_info.nome:
-                                nome_display = f"{efetivo_info.posto_secao} {efetivo_info.nome}".strip()
-
                             membros.append({
-                                'nome': nome_display,
+                                'nome': format_militar_display(m.funcionario, efetivo_info),
                                 'funcao': m.funcao.nome if m.funcao else 'AUX',
                                 'mergulhador': 'SIM' in str(efetivo_info.mergulho).upper() if efetivo_info else False,
                                 'ovb': efetivo_info.ovb if efetivo_info else None,
@@ -279,15 +288,10 @@ def dashboard_cobom(request):
                             stats['efetivo_total'] += 1
                             global_stats['militares_escalados'] += 1
 
-                        # Identificação do Encarregado para exibição na VTR
                         encarregado_vtr = 'S/ CMT'
                         if cmt:
-                            # Busca no Efetivo (planilha) para formatar o nome do encarregado: POSTO (B) + NOME DE GUERRA (H)
                             ef_cmt = Efetivo.objects.filter(Q(re=cmt.funcionario.re) | Q(nome__icontains=cmt.funcionario.nome_guerra)).first()
-                            if ef_cmt and ef_cmt.posto_secao and ef_cmt.nome:
-                                encarregado_vtr = f"{ef_cmt.posto_secao} {ef_cmt.nome}".strip()
-                            else:
-                                encarregado_vtr = cmt.funcionario.nome_curto
+                            encarregado_vtr = format_militar_display(cmt.funcionario, ef_cmt)
 
                         viaturas_data.append({
                             'prefixo': aloc.viatura.prefixo, 
@@ -330,7 +334,6 @@ def dashboard_cobom(request):
 
 @login_required
 def cadastro_viaturas_view(request):
-    """Lista todas as viaturas com filtros e suporte a sincronização."""
     query = request.GET.get('q', '')
     status_filter = request.GET.get('status', '')
     sgb_filter = request.GET.get('sgb', '')
