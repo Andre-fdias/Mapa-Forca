@@ -27,53 +27,58 @@ def get_data_operacional():
     return agora.date()
 
 def format_militar_display(funcionario, efetivo_info):
-    """Garante o formato GRADUAÇÃO + NOME DE GUERRA limpo em todos os casos."""
+    """Garante o formato GRADUAÇÃO + NOME DE GUERRA limpo, sem duplicidade ou quebras de linha."""
     ranks = [
         'CEL PM', 'TEN CEL PM', 'MAJ PM', 'CAP PM', '1º TEN PM', '2º TEN PM', 'ASP PM', 
-        'SUBTEN PM', '1º SGT PM', '2º SGT PM', '3º SGT PM', 'CB PM', 'SD PM'
+        'SUBTEN PM', '1º SGT PM', '2º SGT PM', '3º SGT PM', 'CB PM', 'SD PM',
+        '1 SGT PM', '2 SGT PM', '3 SGT PM', '1 TEN PM', '2 TEN PM'
     ]
     
-    # 1. Identifica a Graduação (Prioriza Planilha campo 'posto_secao', depois Banco Local)
-    posto = ""
+    # 1. Determina a Graduação
+    p_limpo = ""
     if efetivo_info and efetivo_info.posto_secao:
-        p_txt = efetivo_info.posto_secao.upper()
+        p_txt = str(efetivo_info.posto_secao).upper()
         for r in ranks:
             if r in p_txt:
-                posto = r
+                p_limpo = r
                 break
     
-    if not posto and funcionario and funcionario.posto_graduacao:
-        posto = funcionario.posto_graduacao.nome.upper()
+    if not p_limpo and funcionario and funcionario.posto_graduacao:
+        p_limpo = funcionario.posto_graduacao.nome.upper()
+    
+    # Normalização de graduação (ex: 1 SGT PM -> 1º SGT PM)
+    if p_limpo:
+        p_limpo = p_limpo.replace('1 SGT', '1º SGT').replace('2 SGT', '2º SGT').replace('3 SGT', '3º SGT')
+        p_limpo = p_limpo.replace('1 TEN', '1º TEN').replace('2 TEN', '2º TEN')
 
-    # 2. Identifica o Nome de Guerra (Prioriza Planilha campo 'nome', depois Banco Local)
-    nome = ""
+    # 2. Determina o Nome de Guerra
+    n_limpo = ""
     if efetivo_info and efetivo_info.nome:
-        n_txt = efetivo_info.nome.upper()
+        n_txt = str(efetivo_info.nome).upper()
         
-        # Limpeza agressiva do nome para evitar duplicação e lixo
-        n_txt = re.sub(r'\d{6}-\d{1}', '', n_txt) # Remove RE
-        n_txt = re.sub(r'\(.*?\)', '', n_txt)      # Remove parênteses e conteúdo
-        n_txt = re.sub(r'\d{4,}', '', n_txt)      # Remove códigos de seção longos
+        # Limpeza de códigos, REs e parênteses
+        n_txt = re.sub(r'\d{6}-\d{1}', '', n_txt)
+        n_txt = re.sub(r'\(.*?\)', '', n_txt)
+        n_txt = re.sub(r'\d{4,}', '', n_txt)
         
-        # REMOVE GRADUAÇÕES EXISTENTES NO NOME para evitar duplicação (ex: "1º SGT PM 1º SGT PM")
+        # REMOVE GRADUAÇÕES DO NOME para evitar duplicação (1º SGT PM 1º SGT PM)
         for r in ranks:
-            n_txt = n_txt.replace(r, '')
+            n_txt = n_txt.replace(r, '').replace(r.replace('º', ''), '')
             
-        n_txt = re.sub(r'[.\-\/]', ' ', n_txt)    # Remove caracteres de separação
-        nome = n_txt.strip()
+        n_txt = re.sub(r'[.\-\/_]', ' ', n_txt)
+        n_limpo = n_txt.strip()
     
-    if not nome and funcionario:
-        nome = (funcionario.nome_guerra or "").upper().strip()
+    if not n_limpo and funcionario:
+        n_limpo = (funcionario.nome_guerra or "").upper().strip()
 
-    # 3. Retorno Formatado
-    if posto and nome:
-        return f"{posto} {nome}".strip().upper()
-    elif nome:
-        return nome.upper()
-    elif posto:
-        return posto.upper()
+    # 3. Resultado Final (Garante linha única e espaços simples)
+    final = f"{p_limpo} {n_limpo}".strip().upper()
+    final = " ".join(final.split()) # Remove newlines e espaços duplos
     
-    return (funcionario.nome_curto if funcionario else "S/ NOME").upper()
+    if not final and funcionario:
+        return funcionario.nome_curto.upper()
+    
+    return final or "S/ NOME"
 
 class UnidadeViewSet(viewsets.ModelViewSet):
     queryset = Unidade.objects.filter(ativo=True)
@@ -114,7 +119,6 @@ def dashboard_batalhao(request):
                 total_completos += 1
                 alocacoes = AlocacaoViatura.objects.filter(mapa=mapa).select_related('viatura', 'status_no_dia')
                 for aloc in alocacoes:
-                    # Aplica formatação padrão em todos os nomes da visão de batalhão também
                     equipe = AlocacaoFuncionario.objects.filter(alocacao_viatura=aloc).select_related('funcionario__posto_graduacao')
                     cmt = equipe.filter(funcao__codigo='COMANDANTE').first()
                     if not cmt: cmt = equipe.first()
