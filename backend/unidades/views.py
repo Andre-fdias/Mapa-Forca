@@ -123,10 +123,12 @@ def dashboard_batalhao(request):
                     cmt = equipe.filter(funcao__codigo='COMANDANTE').first()
                     if not cmt: cmt = equipe.first()
                     
-                    nome_enc = "S/ CMT"
+                    nome_enc = {'nome_padrao': 'S/ CMT'}
                     if cmt:
                         ef_info = Efetivo.objects.filter(Q(re=cmt.funcionario.re) | Q(nome__icontains=cmt.funcionario.nome_guerra)).first()
-                        nome_enc = format_militar_display(cmt.funcionario, ef_info)
+                        nome_enc = {
+                            'nome_padrao': ef_info.nome if ef_info else format_militar_display(cmt.funcionario, ef_info)
+                        }
 
                     alocacoes_vtr.append({
                         'prefixo': aloc.viatura.prefixo, 
@@ -240,6 +242,7 @@ def dashboard_cobom(request):
             
             telegrafista_info = {
                 'nome': "AGUARDANDO...",
+                'nome_padrao': "AGUARDANDO...",
                 'is_dejem': False,
                 'horario': ""
             }
@@ -275,7 +278,8 @@ def dashboard_cobom(request):
                         tel_func = AlocacaoFuncionario.objects.filter(alocacao_viatura=aloc_tel).select_related('funcionario__posto_graduacao').first()
                         if tel_func:
                             ef_tel = Efetivo.objects.filter(Q(re=tel_func.funcionario.re) | Q(nome__icontains=tel_func.funcionario.nome_guerra)).first()
-                            telegrafista_info['nome'] = format_militar_display(tel_func.funcionario, ef_tel)
+                            telegrafista_info['nome_padrao'] = ef_tel.nome if ef_tel else format_militar_display(tel_func.funcionario, ef_tel)
+                            telegrafista_info['nome'] = telegrafista_info['nome_padrao']
                             telegrafista_info['is_dejem'] = tel_func.dejem
                             if tel_func.dejem and tel_func.inicio_dejem:
                                 telegrafista_info['horario'] = f"{tel_func.inicio_dejem.strftime('%H:%M')} > {tel_func.termino_dejem.strftime('%H:%M')}"
@@ -312,7 +316,8 @@ def dashboard_cobom(request):
                             efetivo_info = Efetivo.objects.filter(Q(re=m.funcionario.re) | Q(nome__icontains=m.funcionario.nome_guerra)).first()
                             
                             membros.append({
-                                'nome': format_militar_display(m.funcionario, efetivo_info),
+                                'nome': m.funcionario.nome_curto,
+                                'nome_padrao': efetivo_info.nome if efetivo_info else m.funcionario.nome_curto.upper(),
                                 'funcao': m.funcao.nome if m.funcao else 'AUX',
                                 'mergulhador': 'SIM' in str(efetivo_info.mergulho).upper() if efetivo_info else False,
                                 'ovb': efetivo_info.ovb if efetivo_info else None,
@@ -330,10 +335,12 @@ def dashboard_cobom(request):
                             stats['efetivo_total'] += 1
                             global_stats['militares_escalados'] += 1
 
-                        encarregado_vtr = 'S/ CMT'
+                        enc_nome_sheets = 'S/ CMT'
                         if cmt:
                             ef_cmt = Efetivo.objects.filter(Q(re=cmt.funcionario.re) | Q(nome__icontains=cmt.funcionario.nome_guerra)).first()
-                            encarregado_vtr = format_militar_display(cmt.funcionario, ef_cmt)
+                            enc_nome_sheets = ef_cmt.nome if ef_cmt else format_militar_display(cmt.funcionario, ef_cmt)
+                        
+                        encarregado_vtr = {'nome_padrao': enc_nome_sheets}
 
                         viaturas_data.append({
                             'prefixo': aloc.viatura.prefixo, 

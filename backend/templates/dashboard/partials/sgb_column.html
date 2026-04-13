@@ -53,7 +53,7 @@
                             <td class="border border-slate-200 dark:border-slate-800 text-center py-2 text-slate-500">{{ vtr.num_pm }}</td>
                             <td class="border border-slate-200 dark:border-slate-800 text-left pl-3 py-2 relative">
                                 <div class="flex items-center justify-between">
-                                    <span class="text-slate-800 dark:text-slate-200 uppercase italic text-[9px] truncate max-w-[120px]">{{ vtr.encarregado }}</span>
+                                    <span class="text-slate-800 dark:text-slate-200 uppercase italic text-[9px] truncate max-w-[120px]">{{ vtr.encarregado.nome_padrao|default:"-" }}</span>
                                     <!-- Lupa para Detalhes -->
                                     <button @click="showDetails = '{{ vtr.prefixo }}'" class="p-1 text-slate-400 hover:text-red-600 dark:hover:text-red-500 transition-all opacity-0 group-hover:opacity-100 focus:opacity-100">
                                         <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
@@ -92,7 +92,7 @@
                             {% for m in vtr.equipe_completa %}
                             <div class="flex items-center justify-between text-[9px] bg-slate-50 dark:bg-slate-800/50 p-1.5 rounded-lg border border-slate-100 dark:border-slate-800">
                                 <div class="flex flex-col">
-                                    <span class="font-black text-slate-900 dark:text-white uppercase">{{ m.nome }}</span>
+                                    <span class="font-black text-slate-900 dark:text-white uppercase">{{ m.nome_padrao|default:"-" }}</span>
                                     <span class="text-[7px] text-slate-400 font-bold uppercase">{{ m.funcao }}</span>
                                 </div>
                                 <div class="flex items-center space-x-1.5">
@@ -139,8 +139,8 @@
                     <div class="flex items-center space-x-2">
                         <span class="text-[8px] text-slate-500 font-bold tracking-widest">TELEGRAFISTA:</span>
                         <div class="flex items-center space-x-2">
-                            <span class="text-[9px] font-black {% if item.telegrafista.nome != 'AGUARDANDO...' %}text-emerald-400{% else %}text-white/40{% endif %} uppercase italic tracking-tighter">
-                                {{ item.telegrafista.nome }}
+                            <span class="text-[9px] font-black {% if item.telegrafista.nome_padrao %}text-emerald-400{% else %}text-white/40{% endif %} uppercase italic tracking-tighter">
+                                {{ item.telegrafista.nome_padrao|default:"AGUARDANDO..." }}
                             </span>
                             {% if item.telegrafista.is_dejem %}
                                 <div class="flex items-center space-x-1.5 bg-amber-500/10 px-1.5 py-0.5 rounded border border-amber-500/20">
