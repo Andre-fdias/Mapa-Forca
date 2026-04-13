@@ -41,6 +41,7 @@
                     </thead>
                     <tbody class="font-bold">
                         {% for vtr in item.viaturas %}
+                        {% if vtr.prefixo != 'TELEGRAFIA' and vtr.prefixo != 'TELEGRAFISTA' %}
                         <tr class="{% if vtr.status_codigo == 'OPERANDO' %}bg-emerald-50/30 dark:bg-emerald-950/10{% elif vtr.status_codigo == 'RESERVA' %}bg-slate-50/50 dark:bg-slate-800/10{% endif %} transition-colors hover:bg-slate-100 dark:hover:bg-slate-800/30 group">
                             <td class="border border-slate-200 dark:border-slate-800 text-center py-2 text-slate-900 dark:text-white font-black">{{ vtr.prefixo }}</td>
                             <td class="border border-slate-200 dark:border-slate-800 text-center py-2">
@@ -60,9 +61,10 @@
                                 </div>
                             </td>
                         </tr>
+                        {% endif %}
                         {% endfor %}
 
-                        <!-- Linhas vazias -->
+                        <!-- Linhas vazias para manter altura -->
                         {% if item.viaturas|length == 0 %}
                             <tr><td class="border border-slate-200 dark:border-slate-800 py-2.5">&nbsp;</td><td class="border border-slate-200 dark:border-slate-800">&nbsp;</td><td class="border border-slate-200 dark:border-slate-800">&nbsp;</td><td class="border border-slate-200 dark:border-slate-800">&nbsp;</td></tr>
                             <tr><td class="border border-slate-200 dark:border-slate-800 py-2.5">&nbsp;</td><td class="border border-slate-200 dark:border-slate-800">&nbsp;</td><td class="border border-slate-200 dark:border-slate-800">&nbsp;</td><td class="border border-slate-200 dark:border-slate-800">&nbsp;</td></tr>
@@ -146,6 +148,8 @@
                                     <span class="text-[7px] font-black text-amber-200 font-mono">{{ item.telegrafista.horario }}</span>
                                 </div>
                             {% endif %}
+
+
 
                         </div>
                     </div>
