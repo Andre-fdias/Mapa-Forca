@@ -166,6 +166,15 @@
                                         {% endfor %}
                                     {% endif %}
                                 {% endfor %}
+
+                                {# Fallback se nada for encontrado #}
+                                {% if not item.telegrafista.nome or item.telegrafista.nome == 'AGUARDANDO...' %}
+                                    {% set found_tel = false %}
+                                    {% for vtr in item.viaturas %}{% if vtr.prefixo == 'TELEGRAFIA' %}{% set found_tel = true %}{% endif %}{% endfor %}
+                                    {% if not found_tel %}
+                                        <span class="text-[9px] font-black text-white/40 uppercase italic tracking-tighter">AGUARDANDO...</span>
+                                    {% endif %}
+                                {% endif %}
                             {% endif %}
                         </div>
                     </div>

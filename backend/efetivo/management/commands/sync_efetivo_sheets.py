@@ -28,12 +28,12 @@ class Command(BaseCommand):
                 self.stdout.write(self.style.WARNING("Planilha vazia ou aba não encontrada."))
                 return
 
-            # Mapeamento de índices das colunas (A=0, B=1, ..., E=4, G=6, I=8, K=10, L=11, Mergulho=56, OVB=57)
-            idx_re = 4
-            idx_nome_do_pm = 6
-            idx_nome_padrao = 8
-            idx_sgb = 10
-            idx_posto_secao = 11
+            # Mapeamento de índices das colunas (B=1, E=4, G=6, H=7, I=8, K=10, L=11)
+            idx_posto_secao = 1 # Coluna B (POSTO)
+            idx_re = 4 # Coluna E
+            idx_nome_do_pm = 6 # Coluna G
+            idx_nome_padrao = 7 # Coluna H (NOME DE GUERRA)
+            idx_sgb = 10 # Coluna K
             idx_mergulho = 56
             idx_ovb = 57
             
@@ -46,18 +46,17 @@ class Command(BaseCommand):
 
             for index, row in df.iterrows():
                 try:
-                    # O nome padrão é obrigatório para identificação
+                    # O nome padrão (Nome de Guerra - Coluna H) é obrigatório para identificação
                     nome = clean_val(row.iloc[idx_nome_padrao])
                     
-                    # Ignora se não houver nome ou se for muito curto
                     if not nome or len(nome) < 3:
                         continue
                     
-                    # Extrai os demais campos com segurança
+                    # Extrai os demais campos com os índices corrigidos
+                    posto_secao = clean_val(row.iloc[idx_posto_secao]) if len(row) > idx_posto_secao else None
                     re = clean_val(row.iloc[idx_re]) if len(row) > idx_re else None
                     nome_do_pm = clean_val(row.iloc[idx_nome_do_pm]) if len(row) > idx_nome_do_pm else None
                     sgb = clean_val(row.iloc[idx_sgb]) if len(row) > idx_sgb else None
-                    posto_secao = clean_val(row.iloc[idx_posto_secao]) if len(row) > idx_posto_secao else None
                     mergulho = clean_val(row.iloc[idx_mergulho]) if len(row) > idx_mergulho else None
                     ovb = clean_val(row.iloc[idx_ovb]) if len(row) > idx_ovb else None
 
