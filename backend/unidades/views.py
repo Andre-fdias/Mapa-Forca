@@ -241,6 +241,8 @@ def dashboard_cobom(request):
 
                         equipe = AlocacaoFuncionario.objects.filter(alocacao_viatura=aloc).select_related('funcionario__posto_graduacao', 'funcao')
                         cmt = equipe.filter(funcao__codigo='COMANDANTE').first()
+                        if not cmt:
+                            cmt = equipe.first()
                         
                         membros = []
                         for m in equipe:
@@ -253,8 +255,13 @@ def dashboard_cobom(request):
 
                             efetivo_info = Efetivo.objects.filter(Q(re=m.funcionario.re) | Q(nome__icontains=m.funcionario.nome_guerra)).first()
                             
+                            # Formatação do Nome: POSTO (B) + Espaço + NOME DE GUERRA (H)
+                            nome_display = m.funcionario.nome_curto
+                            if efetivo_info and efetivo_info.posto_secao and efetivo_info.nome:
+                                nome_display = f"{efetivo_info.posto_secao} {efetivo_info.nome}".strip()
+
                             membros.append({
-                                'nome': m.funcionario.nome_curto,
+                                'nome': nome_display,
                                 'funcao': m.funcao.nome if m.funcao else 'AUX',
                                 'mergulhador': 'SIM' in str(efetivo_info.mergulho).upper() if efetivo_info else False,
                                 'ovb': efetivo_info.ovb if efetivo_info else None,
@@ -272,12 +279,22 @@ def dashboard_cobom(request):
                             stats['efetivo_total'] += 1
                             global_stats['militares_escalados'] += 1
 
+                        # Identificação do Encarregado para exibição na VTR
+                        encarregado_vtr = 'S/ CMT'
+                        if cmt:
+                            # Busca no Efetivo (planilha) para formatar o nome do encarregado: POSTO (B) + NOME DE GUERRA (H)
+                            ef_cmt = Efetivo.objects.filter(Q(re=cmt.funcionario.re) | Q(nome__icontains=cmt.funcionario.nome_guerra)).first()
+                            if ef_cmt and ef_cmt.posto_secao and ef_cmt.nome:
+                                encarregado_vtr = f"{ef_cmt.posto_secao} {ef_cmt.nome}".strip()
+                            else:
+                                encarregado_vtr = cmt.funcionario.nome_curto
+
                         viaturas_data.append({
                             'prefixo': aloc.viatura.prefixo, 
                             'status': aloc.status_no_dia.nome,
                             'status_codigo': aloc.status_no_dia.codigo,
                             'num_pm': equipe.count(),
-                            'encarregado': cmt.funcionario.nome_curto if cmt else 'S/ CMT',
+                            'encarregado': encarregado_vtr,
                             'equipe_completa': membros
                         })
             
