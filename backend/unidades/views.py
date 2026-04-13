@@ -28,29 +28,42 @@ def get_data_operacional():
 
 def format_militar_display(funcionario, efetivo_info):
     """Garante o formato POSTO + NOME DE GUERRA limpo, removendo lixo da planilha."""
+    # Fallback inicial usando o que já temos no Funcionario (Graduação + Nome Guerra)
     nome_display = funcionario.nome_curto
-    if efetivo_info and efetivo_info.posto_secao and efetivo_info.nome:
-        # 1. Extrai estritamente o Posto/Graduação (ignora o que vem antes)
-        p_original = efetivo_info.posto_secao.upper()
+    
+    if efetivo_info:
+        # 1. Extração da Graduação (Campo B da planilha -> posto_secao)
+        p_original = (efetivo_info.posto_secao or "").upper()
         p_limpo = ""
-        ranks = ['CEL PM', 'TEN CEL PM', 'MAJ PM', 'CAP PM', '1º TEN PM', '2º TEN PM', 'ASP PM', 'SUBTEN PM', '1º SGT PM', '2º SGT PM', '3º SGT PM', 'CB PM', 'SD PM']
+        ranks = [
+            'CEL PM', 'TEN CEL PM', 'MAJ PM', 'CAP PM', '1º TEN PM', '2º TEN PM', 'ASP PM', 
+            'SUBTEN PM', '1º SGT PM', '2º SGT PM', '3º SGT PM', 'CB PM', 'SD PM'
+        ]
+        
+        # Procura a graduação dentro do campo sujo (ex: "7031... - 1º SGT PM")
         for r in ranks:
             if r in p_original:
                 p_limpo = r
                 break
         
-        if not p_limpo: p_limpo = p_original # Fallback se não achar na lista
-        
-        # 2. Limpa Nome de Guerra (remove RE, parênteses e códigos numéricos)
-        n_limpo = efetivo_info.nome
-        n_limpo = re.sub(r'\(.*?\)', '', n_limpo) # Remove tudo entre parênteses ()
-        n_limpo = re.sub(r'\d+', '', n_limpo)      # Remove qualquer número
-        n_limpo = re.sub(r'[\-\/]', '', n_limpo)   # Remove traços e barras
+        # 2. Extração do Nome de Guerra (Campo H da planilha -> nome)
+        n_original = (efetivo_info.nome or "").upper()
+        # Remove RE (000000-0), parênteses (), códigos numéricos e caracteres de separação
+        n_limpo = re.sub(r'\d{6}-\d{1}', '', n_original)
+        n_limpo = re.sub(r'\(.*?\)', '', n_limpo)
+        n_limpo = re.sub(r'\d{4,}', '', n_limpo) # Remove números longos (códigos de seção)
+        n_limpo = re.sub(r'[.\-\/]', ' ', n_limpo)
         n_limpo = n_limpo.strip()
         
-        nome_display = f"{p_limpo} {n_limpo}".strip()
-    
-    return nome_display.upper()
+        # 3. Montagem Final
+        if p_limpo and n_limpo:
+            nome_display = f"{p_limpo} {n_limpo}"
+        elif n_limpo:
+            # Se não achou posto na planilha, usa o posto do objeto Funcionario
+            pg = funcionario.posto_graduacao.nome if funcionario.posto_graduacao else ""
+            nome_display = f"{pg} {n_limpo}"
+
+    return nome_display.upper().strip()
 
 class UnidadeViewSet(viewsets.ModelViewSet):
     queryset = Unidade.objects.filter(ativo=True)
