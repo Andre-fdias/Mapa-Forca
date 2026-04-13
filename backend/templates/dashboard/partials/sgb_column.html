@@ -41,6 +41,7 @@
                     </thead>
                     <tbody class="font-bold">
                         {% for vtr in item.viaturas %}
+                        {% if vtr.prefixo != 'TELEGRAFIA' %}
                         <tr class="{% if vtr.status_codigo == 'OPERANDO' %}bg-emerald-50/30 dark:bg-emerald-950/10{% elif vtr.status_codigo == 'RESERVA' %}bg-slate-50/50 dark:bg-slate-800/10{% endif %} transition-colors hover:bg-slate-100 dark:hover:bg-slate-800/30 group">
                             <td class="border border-slate-200 dark:border-slate-800 text-center py-2 text-slate-900 dark:text-white font-black">{{ vtr.prefixo }}</td>
                             <td class="border border-slate-200 dark:border-slate-800 text-center py-2">
@@ -60,6 +61,7 @@
                                 </div>
                             </td>
                         </tr>
+                        {% endif %}
                         {% endfor %}
 
                         <!-- Linhas vazias -->
@@ -137,14 +139,33 @@
                     <div class="flex items-center space-x-2">
                         <span class="text-[8px] text-slate-500 font-bold tracking-widest">TELEGRAFISTA:</span>
                         <div class="flex items-center space-x-2">
-                            <span class="text-[9px] font-black {% if item.telegrafista.nome != 'AGUARDANDO...' %}text-emerald-400{% else %}text-white/40{% endif %} uppercase italic tracking-tighter">
-                                {{ item.telegrafista.nome }}
-                            </span>
-                            {% if item.telegrafista.is_dejem %}
-                                <div class="flex items-center space-x-1.5 bg-amber-500/10 px-1.5 py-0.5 rounded border border-amber-500/20">
-                                    <span class="text-[7px] font-black text-amber-500">DEJEM</span>
-                                    <span class="text-[7px] font-black text-amber-200 font-mono">{{ item.telegrafista.horario }}</span>
-                                </div>
+                            {% if item.telegrafista.nome != 'AGUARDANDO...' %}
+                                <span class="text-[9px] font-black text-emerald-400 uppercase italic tracking-tighter">
+                                    {{ item.telegrafista.nome }}
+                                </span>
+                                {% if item.telegrafista.is_dejem %}
+                                    <div class="flex items-center space-x-1.5 bg-amber-500/10 px-1.5 py-0.5 rounded border border-amber-500/20">
+                                        <span class="text-[7px] font-black text-amber-500">DEJEM</span>
+                                        <span class="text-[7px] font-black text-amber-200 font-mono">{{ item.telegrafista.horario }}</span>
+                                    </div>
+                                {% endif %}
+                            {% else %}
+                                {# Busca nos dados de viaturas se a TELEGRAFIA foi alocada #}
+                                {% for vtr in item.viaturas %}
+                                    {% if vtr.prefixo == 'TELEGRAFIA' %}
+                                        <span class="text-[9px] font-black text-emerald-400 uppercase italic tracking-tighter">
+                                            {{ vtr.encarregado }}
+                                        </span>
+                                        {% for m in vtr.equipe_completa %}
+                                            {% if m.dejem %}
+                                                <div class="flex items-center space-x-1.5 bg-amber-500/10 px-1.5 py-0.5 rounded border border-amber-500/20">
+                                                    <span class="text-[7px] font-black text-amber-500">DEJEM</span>
+                                                    <span class="text-[7px] font-black text-amber-200 font-mono">{{ m.horario }}</span>
+                                                </div>
+                                            {% endif %}
+                                        {% endfor %}
+                                    {% endif %}
+                                {% endfor %}
                             {% endif %}
                         </div>
                     </div>
@@ -181,4 +202,3 @@
         border-radius: 4px;
     }
 </style>
-
