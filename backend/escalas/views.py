@@ -10,7 +10,7 @@ from rest_framework.response import Response
 from django_filters.rest_framework import DjangoFilterBackend
 
 from .models import MapaDiario, AlocacaoViatura, AlocacaoFuncionario, HistoricoAlteracao
-from unidades.models import Unidade, Viatura
+from unidades.models import Unidade, Viatura, Posto
 from efetivo.models import Funcionario, Efetivo
 from dictionaries.models import Dictionary
 from .serializers import (
@@ -34,64 +34,55 @@ def get_data_operacional():
 def compor_mapa_view(request):
     hoje = get_data_operacional()
     u_id = request.GET.get('unidade_id')
-    categoria = request.GET.get('categoria', '15GB')
+    categoria = request.GET.get('categoria')
     mapa = None
     
-    # Se não houver unidade_id, tenta pegar a unidade do usuário se ela for do tipo POSTO
-    unidade = None
-    if u_id:
-        unidade = get_object_or_404(Unidade, id=u_id)
-    elif request.user.unidade and request.user.unidade.tipo_unidade and request.user.unidade.tipo_unidade.codigo == 'POSTO':
-        unidade = request.user.unidade
+    # 1. Busca as Unidades (Grupamentos) disponíveis na planilha
+    lista_opm = list(Posto.objects.exclude(unidade__isnull=True).exclude(unidade='').values_list('unidade', flat=True).distinct().order_by('unidade'))
+    
+    # 2. Define a categoria padrão se nenhuma for selecionada
+    if not categoria:
+        if lista_opm:
+            categoria = lista_opm[0]
+        else:
+            categoria = '15º GB'
 
-    # Se ainda não houver unidade, redirecionamos ou mostramos uma tela de seleção
-    if not unidade and not request.headers.get('HX-Request'):
-        # Caso inicial sem unidade selecionada
-        pass
-    elif unidade:
-        mapa, created = MapaDiario.objects.get_or_create(data=hoje, unidade=unidade, defaults={'criado_por': request.user})
+    # 3. Gerencia a seleção do Posto específico
+    unidade_obj = None
+    if u_id:
+        unidade_obj = get_object_or_404(Unidade, id=u_id)
+    elif request.user.unidade and request.user.unidade.tipo_unidade and request.user.unidade.tipo_unidade.codigo == 'POSTO':
+        unidade_obj = request.user.unidade
+
+    if unidade_obj:
+        mapa, created = MapaDiario.objects.get_or_create(data=hoje, unidade=unidade_obj, defaults={'criado_por': request.user})
         if created:
             HistoricoAlteracao.objects.create(
                 mapa=mapa, usuario=request.user, tipo_acao='CREATE',
                 descricao="Iniciou a composição do mapa força do dia."
             )
-    else:
-        mapa = None
 
-    # Filtragem de Unidades Principal (Categorias)
-    categorias = [
-        {'id': '15GB', 'nome': '15º Grupamento de Bombeiros'},
-        {'id': '07GB', 'nome': '07º Grupamento'},
-        {'id': '16GB', 'nome': '16º Grupamento'},
-        {'id': '19GB', 'nome': '19º Grupamento'},
-        {'id': 'CBI1', 'nome': 'CBI-1'},
-        {'id': 'COBOM', 'nome': 'COBOM'},
-    ]
-
-    # Filtragem dos Postos Operacionais (EB) baseado na categoria
-    # Nota: Por enquanto, todos os postos EB estão sob o 15GB no seu banco.
-    # Se categoria for diferente, a lista virá vazia até que novos dados sejam inseridos.
-    filtro_unidade = Q(nome__icontains='EB') | Q(codigo_secao__icontains='EB')
+    # 4. FILTRAGEM DINÂMICA: Busca no model Unidade os postos que pertencem à Categoria (Grupamento)
+    # Pegamos os códigos de seção que a planilha diz pertencer a este GB
+    codigos_secao = list(Posto.objects.filter(unidade=categoria).values_list('cod_secao', flat=True))
     
-    # Se a categoria for 15GB, filtramos os postos que pertencem a ele
-    if categoria == '15GB':
-        todas_unidades = Unidade.objects.filter(filtro_unidade).order_by('parent__nome', 'nome')
-    else:
-        # Futuramente, filtrar por outras categorias
-        todas_unidades = Unidade.objects.filter(filtro_unidade).order_by('nome')
+    # Buscamos as Unidades que batem com esses códigos ou nomes específicos daquela categoria
+    todas_unidades = Unidade.objects.filter(
+        Q(codigo_secao__in=codigos_secao) | 
+        Q(parent__nome__icontains=categoria.replace('º', '').replace('°', '').strip())
+    ).distinct().order_by('nome')
 
     context = {
         'mapa': mapa, 
         'todas_unidades': todas_unidades,
-        'unidade_selecionada': unidade, 
-        'categorias': categorias,
+        'unidade_selecionada': unidade_obj, 
+        'categorias_opm': lista_opm,
         'categoria_selecionada': categoria,
         'funcoes': Dictionary.objects.filter(tipo='FUNCAO_OPERACIONAL'),
         'base_template': 'base/partial.html' if request.headers.get('HX-Request') else 'base/base.html'
     }
 
     if request.headers.get('HX-Request') and not u_id:
-        # Se for troca de categoria via HTMX, recarrega apenas o select de unidades
         return render(request, 'mapa_forca/partials/select_postos.html', context)
 
     return render(request, 'mapa_forca/compose.html', context)
@@ -100,6 +91,8 @@ def compor_mapa_view(request):
 def buscar_funcionario_re(request):
     q = request.GET.get('funcionario_re', '').strip()
     mapa_id = request.GET.get('mapa_id')
+    categoria = request.GET.get('categoria') # Captura a categoria (GB) selecionada
+    
     if len(q) < 2: return HttpResponse('')
     
     # Limpa o Q para busca numérica se parecer um RE
@@ -111,25 +104,20 @@ def buscar_funcionario_re(request):
     efetivo_real = []
     funcs_locais = []
 
-    # 1. TENTATIVA POR RE EXATO (Prioridade Máxima)
-    if q_numeric and len(q_numeric) >= 4:
-        # Busca exata no Efetivo (Sheets)
-        efetivo_real = list(Efetivo.objects.filter(re=q_numeric))
-        # Busca exata no Local
-        funcs_locais = list(Funcionario.objects.filter(re=q_numeric))
-        
-        # Se achou RE exato, retornamos imediatamente apenas ele
-        if efetivo_real or funcs_locais:
-            return render_busca_results(request, efetivo_real, funcs_locais, data_escala, q)
-
-    # 2. BUSCA POR NOME OU RE PARCIAL (Aproximação)
-    # Usamos icontains para ser case-insensitive
+    # 1. BUSCA NO EFETIVO (DADOS DA PLANILHA)
     query_efetivo = Q(nome__icontains=q) | Q(nome_do_pm__icontains=q)
     if q_numeric:
         query_efetivo |= Q(re__icontains=q_numeric)
     
-    efetivo_real = list(Efetivo.objects.filter(query_efetivo).order_by('nome')[:15])
+    ef_queryset = Efetivo.objects.filter(query_efetivo)
     
+    # Aplica filtro de unidade se a categoria for informada
+    if categoria:
+        ef_queryset = ef_queryset.filter(unidade__icontains=categoria.strip())
+    
+    efetivo_real = list(ef_queryset.order_by('nome')[:15])
+    
+    # 2. BUSCA NO LOCAL (FUNCIONARIOS JÁ CADASTRADOS)
     query_func = Q(nome_completo__icontains=q) | Q(nome_guerra__icontains=q)
     if q_numeric:
         query_func |= Q(re__icontains=q_numeric)
@@ -165,7 +153,22 @@ def render_busca_results(request, efetivo_real, funcs_locais, data_escala, query
 def adicionar_viatura_mapa(request, mapa_id):
     pref = request.POST.get('prefixo')
     mapa = get_object_or_404(MapaDiario, id=mapa_id)
-    viat = get_object_or_404(Viatura, prefixo=pref)
+    
+    # Busca a viatura. Se for TELEGRAFIA e não existir, cria.
+    if pref == 'TELEGRAFIA':
+        status_op = Dictionary.objects.filter(tipo='STATUS_VIATURA', codigo='OPERANDO').first()
+        tipo_vtr = Dictionary.objects.filter(tipo='TIPO_VIATURA', codigo='OUTROS').first()
+        viat, _ = Viatura.objects.get_or_create(
+            prefixo='TELEGRAFIA',
+            defaults={
+                'placa': 'INTERNO',
+                'status_base': status_op,
+                'tipo': tipo_vtr,
+                'fonte': 'Sistema (Virtual)'
+            }
+        )
+    else:
+        viat = get_object_or_404(Viatura, prefixo=pref)
     
     # Validação: Viatura única por dia em todo o sistema (EXCETO TELEGRAFIA)
     if viat.prefixo != 'TELEGRAFIA':
@@ -331,30 +334,40 @@ def remover_funcionario_viatura(request, aloc_func_id):
 
 @login_required
 def get_viaturas_por_unidade(request):
-    u_id = request.GET.get('unidade_id')
+    gb_nome = request.GET.get('categoria') # Ex: "15º GB"
     
-    # 1. Tenta filtrar viaturas da unidade específica ou globais
-    viats = Viatura.objects.filter(Q(unidade_base_id=u_id) | Q(unidade_base__isnull=True)).order_by('prefixo')
-    
-    # 2. Se não encontrou nada específico para a unidade além das globais (ou se u_id está vazio),
-    # pegamos todas para não deixar o select vazio e permitir flexibilidade
-    if not viats.filter(unidade_base_id=u_id).exists():
-        viats = Viatura.objects.all().order_by('prefixo')
-    
-    opts = ['<option value="">Selecione a viatura...</option>']
-    opts.append('<option value="" disabled>Viatura | SGB | Status | Vol. Água | Garagem</option>')
-
-    for v in viats:
-        sgb = escape(v.sgb or '—')
-        status = escape(v.status_base.nome if v.status_base else 'SEM STATUS')
-        vol_agua = escape(v.vol_agua or '—')
-        garagem = escape(v.garagem or '—')
-        prefixo = escape(v.prefixo)
-        opts.append(
-            f'<option value="{prefixo}">{prefixo} | {sgb} | {status} | {vol_agua} | {garagem}</option>'
-        )
-    
-    return HttpResponse("".join(opts))
+    try:
+        # Filtra viaturas da OPM selecionada (opmcb na planilha)
+        query = Q()
+        if gb_nome:
+            # Busca exata ou parcial pelo nome normalizado
+            query = Q(opmcb__icontains=gb_nome.strip())
+        
+        viats = Viatura.objects.filter(query).exclude(prefixo='TELEGRAFIA').order_by('sgb', 'garagem', 'prefixo')
+        
+        data = []
+        
+        # Injeta TELEGRAFIA (Sempre disponível)
+        data.append({
+            'VIATURAS': 'TELEGRAFIA',
+            'SGB': 'INTERNO',
+            'STATUS': 'OPERANDO',
+            'PLACA': 'INTERNO',
+            'Garagem': 'BASE'
+        })
+        
+        for v in viats:
+            data.append({
+                'VIATURAS': v.prefixo,
+                'SGB': v.sgb or 'N/D',
+                'STATUS': v.status_base.nome if v.status_base else 'RESERVA',
+                'PLACA': v.placa or 'S/ PLACA',
+                'Garagem': v.garagem or '---'
+            })
+        
+        return JsonResponse(data, safe=False)
+    except Exception as e:
+        return JsonResponse({'error': str(e)}, status=500)
 
 
 @login_required

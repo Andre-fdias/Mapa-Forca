@@ -1,6 +1,7 @@
 import pandas as pd
 import requests
 import io
+import re
 from django.core.management.base import BaseCommand
 from unidades.models import Viatura, Unidade
 from dictionaries.models import Dictionary
@@ -34,6 +35,16 @@ class Command(BaseCommand):
                     return None
                 return str(val).strip()
 
+            def normalize_opm(opm_val):
+                """Normaliza variações como '15ºGB', '15°GB', '15 GB' -> '15º GB'"""
+                if not opm_val: return None
+                val = str(opm_val).upper().replace(' ', '')
+                match = re.search(r'(\d+)', val)
+                if match:
+                    num = match.group(1).zfill(2)
+                    return f"{num}º GB"
+                return val
+
             synced_prefixes = []
             count = 0
             
@@ -53,11 +64,12 @@ class Command(BaseCommand):
 
                     garagem = clean_val(row.get('Garagem'))
                     unidade = Unidade.objects.filter(nome__icontains=garagem).first() if garagem else None
+                    opm_norm = normalize_opm(clean_val(row.get('OPMCB')))
 
                     Viatura.objects.update_or_create(
                         prefixo=prefixo,
                         defaults={
-                            'opmcb': clean_val(row.get('OPMCB')),
+                            'opmcb': opm_norm,
                             'sgb': clean_val(row.get('SGB')),
                             'placa': str(row.get('PLACA')).upper() if pd.notna(row.get('PLACA')) else None,
                             'status_base': final_status,

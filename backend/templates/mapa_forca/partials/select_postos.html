@@ -3,6 +3,7 @@
         class="bg-white dark:bg-slate-950 border-none rounded-2xl px-5 py-3 text-xs font-bold text-slate-900 dark:text-white focus:ring-2 focus:ring-red-600 transition-all cursor-pointer shadow-sm"
         hx-get="{% url 'compor_mapa' %}" 
         hx-target="#main-section" 
+        hx-include="[name='categoria']"
         hx-push-url="true">
     <option value="">Selecione o Posto...</option>
     {% for u in todas_unidades %}

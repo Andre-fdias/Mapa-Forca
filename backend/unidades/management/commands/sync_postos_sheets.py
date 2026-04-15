@@ -28,6 +28,16 @@ class Command(BaseCommand):
                     return None
                 return str(val).strip()
 
+            def normalize_opm(opm_val):
+                """Normaliza '7º GB' para '07º GB'"""
+                if not opm_val: return None
+                val = str(opm_val).upper().replace(' ', '')
+                match = re.search(r'(\d+)', val)
+                if match:
+                    num = match.group(1).zfill(2)
+                    return f"{num}º GB"
+                return val
+
             def normalize_sgb(sgb_val):
                 """Transforma '1' ou '1 SGB' em '1º SGB'"""
                 if not sgb_val: return None
@@ -57,12 +67,13 @@ class Command(BaseCommand):
             for _, row in df.iterrows():
                 try:
                     m_nome = clean_val(row.get('MUNICÍPIO'))
-                    p_nome = clean_val(row.get('Postos'))
+                    p_raw_nome = clean_val(row.get('Postos'))
                     sgb_raw = clean_val(row.get('sgb'))
                     sgb_nome = normalize_sgb(sgb_raw)
-                    unidade_nome = clean_val(row.get('Unidade'))
+                    unidade_nome = normalize_opm(clean_val(row.get('Unidade')))
+                    chave_posto = clean_val(row.get('CHAVE_POSTO'))
                     
-                    if not m_nome or not p_nome:
+                    if not m_nome or not p_raw_nome:
                         continue
 
                     # 1. Município
@@ -90,42 +101,46 @@ class Command(BaseCommand):
                         )
                         synced_unidades.append(sgb_obj.nome)
 
-                    # 4. Posto (Hierarquia)
+                    # 4. Unidade Posto (Hierarquia)
+                    # Usamos a chave do posto para garantir que o objeto seja o mesmo
                     unidade_posto, _ = Unidade.objects.update_or_create(
-                        nome=p_nome,
+                        codigo_secao=chave_posto,
                         defaults={
+                            'nome': p_raw_nome,
                             'parent': sgb_obj or opm_obj,
-                            'tipo_unidade': tipo_posto,
-                            'codigo_secao': clean_val(row.get('CHAVE_POSTO'))
+                            'tipo_unidade': tipo_posto
                         }
                     )
                     synced_unidades.append(unidade_posto.nome)
 
                     # 5. Posto (Model Flat)
                     Posto.objects.update_or_create(
-                        nome=p_nome,
+                        nome=p_raw_nome,
                         defaults={
                             'unidade': unidade_nome,
                             'sgb': sgb_nome,
-                            'cod_secao': clean_val(row.get('CHAVE_POSTO')),
+                            'cod_secao': chave_posto,
                             'fonte': 'Google Sheets (MultiGB)'
                         }
                     )
-                    synced_postos.append(p_nome)
+                    synced_postos.append(p_raw_nome)
                     
                     # Município (Muitos para Muitos)
-                    p_obj = Posto.objects.get(nome=p_nome)
+                    p_obj = Posto.objects.get(nome=p_raw_nome)
                     p_obj.municipios.add(municipio)
 
                 except Exception as row_error:
-                    self.stdout.write(self.style.WARNING(f"Erro ao importar {p_nome}: {str(row_error)}"))
+                    self.stdout.write(self.style.WARNING(f"Erro ao importar {row.get('Postos')}: {str(row_error)}"))
 
             # LIMPEZA
-            del_p, _ = Posto.objects.exclude(nome__in=synced_postos).delete()
-            del_m, _ = Municipio.objects.exclude(nome__in=synced_municipios).delete()
-            del_u, _ = Unidade.objects.exclude(nome__in=synced_unidades).delete()
+            Posto.objects.exclude(nome__in=synced_postos).delete()
+            # Municipio.objects.exclude(nome__in=synced_municipios).delete()
+            # Unidade.objects.exclude(nome__in=synced_unidades).delete()
 
-            self.stdout.write(self.style.SUCCESS(f'Sincronização concluída. Postos: {len(synced_postos)}, Unidades: {len(synced_unidades)}.'))
+            self.stdout.write(self.style.SUCCESS(f'Sincronização concluída. Postos: {len(synced_postos)}.'))
+
+        except Exception as e:
+            self.stdout.write(self.style.ERROR(f'Falha na sincronização: {str(e)}'))
 
         except Exception as e:
             self.stdout.write(self.style.ERROR(f'Falha na sincronização: {str(e)}'))

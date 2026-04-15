@@ -3,20 +3,21 @@
 {% block title %}Compor Mapa Força - {{ unidade_selecionada.nome }}{% endblock %}
 
 {% block content %}
-<div class="flex flex-col space-y-10 animate-fade-in pb-20">
+<div class="flex flex-col space-y-10 animate-fade-in pb-20" 
+     hx-vals='{"categoria": "{{ categoria_selecionada }}"}'>
     <!-- Header Context -->
     <div class="flex flex-col md:flex-row items-end justify-between gap-6 px-4 bg-slate-100 dark:bg-slate-900/50 p-8 rounded-[3rem] border border-slate-200 dark:border-slate-800">
         <div class="grid grid-cols-1 md:grid-cols-2 gap-6 flex-1 w-full max-w-3xl">
             <div class="flex flex-col">
-                <label class="text-[9px] font-black text-slate-500 uppercase tracking-widest ml-4 mb-1">Unidade Principal</label>
+                <label class="text-[9px] font-black text-slate-500 uppercase tracking-widest ml-4 mb-1">Unidade</label>
                 <select name="categoria" 
                         class="bg-white dark:bg-slate-950 border-none rounded-2xl px-5 py-3 text-xs font-bold text-slate-900 dark:text-white focus:ring-2 focus:ring-red-600 transition-all cursor-pointer shadow-sm"
                         hx-get="{% url 'compor_mapa' %}" 
                         hx-target="#select-posto-container" 
                         hx-trigger="change">
-                    {% for cat in categorias %}
-                    <option value="{{ cat.id }}" {% if cat.id == categoria_selecionada %}selected{% endif %}>
-                        {{ cat.nome }}
+                    {% for cat in categorias_opm %}
+                    <option value="{{ cat }}" {% if cat == categoria_selecionada %}selected{% endif %}>
+                        {{ cat }}
                     </option>
                     {% endfor %}
                 </select>
@@ -229,21 +230,26 @@
     };
 
     async function loadData() {
+        console.log("Carregando viaturas...");
         try {
-            const res = await fetch(CONFIG.api);
-            viaturas = await res.json();
+            const categoriaSelect = document.querySelector('select[name="categoria"]');
+            const categoria = categoriaSelect?.value || '15º GB';
+            console.log("Categoria selecionada:", categoria);
             
-            // Injeção manual de LOCAL INTERNO conforme solicitado
-            viaturas.push({
-                VIATURAS: "TELEGRAFIA",
-                SGB: "INTERNO",
-                STATUS: "OPERANDO",
-                PLACA: "INTERNO",
-                Garagem: "BASE"
-            });
-
+            const url = `{% url 'get_viaturas_por_unidade' %}?categoria=${encodeURIComponent(categoria)}`;
+            console.log("Buscando de:", url);
+            
+            const res = await fetch(url);
+            if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
+            
+            viaturas = await res.json();
+            console.log("Viaturas recebidas:", viaturas.length);
+            
             // Ordenação: 1º SGB -> 2º Garagem -> 3º VIATURAS
             viaturas.sort((a, b) => {
+                if (a.VIATURAS === 'TELEGRAFIA') return -1;
+                if (b.VIATURAS === 'TELEGRAFIA') return 1;
+
                 const sgbA = (a.SGB || "").toString().toUpperCase();
                 const sgbB = (b.SGB || "").toString().toUpperCase();
                 if (sgbA !== sgbB) return sgbA.localeCompare(sgbB, 'pt-BR');
@@ -252,14 +258,13 @@
                 const garB = (b.Garagem || "").toString().toUpperCase();
                 if (garA !== garB) return garA.localeCompare(garB, 'pt-BR');
 
-                const vtrA = (a.VIATURAS || "").toString().toUpperCase();
-                const vtrB = (b.VIATURAS || "").toString().toUpperCase();
-                return vtrA.localeCompare(vtrB, 'pt-BR');
+                return a.VIATURAS.localeCompare(b.VIATURAS, 'pt-BR');
             });
 
             renderList(viaturas);
         } catch (e) {
-            console.error("Erro API:", e);
+            console.error("Erro ao carregar viaturas:", e);
+            if (els.list) els.list.innerHTML = `<div class="p-8 text-center text-red-500 text-xs font-black uppercase">Erro ao carregar: ${e.message}</div>`;
         }
     }
 
@@ -267,7 +272,7 @@
         if (!els.list) return;
 
         if (data.length === 0) {
-            els.list.innerHTML = '<div class="p-8 text-center text-slate-500 text-xs font-black uppercase">Nenhuma viatura encontrada</div>';
+            els.list.innerHTML = '<div class="p-8 text-center text-slate-500 text-xs font-black uppercase">Nenhuma viatura encontrada para esta unidade</div>';
             return;
         }
 
