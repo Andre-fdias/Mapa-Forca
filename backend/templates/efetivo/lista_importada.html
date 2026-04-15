@@ -14,17 +14,17 @@
             <div class="space-y-2">
                 <div class="flex items-center space-x-3 mb-2">
                     <span class="h-1.5 w-8 bg-red-600 rounded-full"></span>
-                    <span class="text-[10px] font-black text-red-600 dark:text-red-400 uppercase tracking-[0.3em]">Gestão de Pessoal</span>
+                    <span class="text-[10px] font-black text-red-600 dark:text-red-400 uppercase tracking-[0.3em]">Gestão de Pessoal Multi-GB</span>
                 </div>
                 <h1 class="text-5xl font-black text-slate-900 dark:text-white uppercase tracking-tighter leading-tight italic">
                     Efetivo <span class="text-red-600">Importado</span>
                 </h1>
-                <p class="text-slate-500 dark:text-slate-400 font-bold uppercase tracking-[0.2em] text-[10px] ml-1">Consulta de militares sincronizados com Google Sheets</p>
+                <p class="text-slate-500 dark:text-slate-400 font-bold uppercase tracking-[0.2em] text-[10px] ml-1">Consulta de militares (07, 15, 16, 19 GB)</p>
             </div>
 
             <div class="flex flex-col items-end space-y-4">
-                <div class="bg-white/50 dark:bg-slate-900/50 p-6 rounded-[2rem] border border-white/20 dark:border-slate-800 backdrop-blur-md shadow-xl transition-all">
-                    <span class="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest block mb-1">Total Geral</span>
+                <div class="bg-white/50 dark:bg-slate-900/50 p-6 rounded-[2rem] border border-white/20 dark:border-slate-800 backdrop-blur-md shadow-xl transition-all text-right">
+                    <span class="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest block mb-1">Total de Militares</span>
                     <span class="text-3xl font-black text-slate-900 dark:text-white tabular-nums">{{ efetivo|length }}</span>
                 </div>
 
@@ -37,15 +37,70 @@
                         <span>Sincronizar Agora</span>
                     </button>
                 </div>
-                
-                <form method="GET" class="relative group">
-                    <input type="text" name="q" value="{{ query }}" placeholder="Buscar militar..." 
-                           class="w-64 bg-white/50 dark:bg-slate-900/50 border border-white/20 dark:border-slate-800 rounded-2xl px-6 py-3 text-sm font-bold focus:outline-none focus:ring-2 focus:ring-red-500/50 transition-all">
-                    <button type="submit" class="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 group-hover:text-red-500 transition-colors">
-                        <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
-                    </button>
-                </form>
             </div>
+        </div>
+
+        <!-- Barra de Filtros Integrada -->
+        <div class="relative z-10 mt-10 pt-8 border-t border-white/10">
+            <form method="GET" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
+                <!-- Busca Texto -->
+                <div class="relative group lg:col-span-1">
+                    <span class="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-red-500 transition-colors">
+                        <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
+                    </span>
+                    <input type="text" name="q" value="{{ query }}" placeholder="Nome ou RE..." 
+                           class="w-full bg-white/40 dark:bg-slate-950/40 border border-white/20 dark:border-slate-800 rounded-2xl pl-12 pr-6 py-3 text-xs font-bold focus:outline-none focus:ring-2 focus:ring-red-500/50 transition-all placeholder:text-slate-500">
+                </div>
+
+                <!-- Filtro Unidade -->
+                <div class="relative">
+                    <select name="unidade" onchange="this.form.submit()"
+                            class="w-full bg-white/40 dark:bg-slate-950/40 border border-white/20 dark:border-slate-800 rounded-2xl px-6 py-3 text-xs font-bold focus:outline-none focus:ring-2 focus:ring-red-500/50 transition-all appearance-none cursor-pointer">
+                        <option value="">TODAS UNIDADES</option>
+                        {% for unit in lista_unidades %}
+                        <option value="{{ unit }}" {% if unidade_filter == unit %}selected{% endif %}>{{ unit }}</option>
+                        {% endfor %}
+                    </select>
+                    <div class="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none text-slate-400">
+                        <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M19 9l-7 7-7-7"/></svg>
+                    </div>
+                </div>
+
+                <!-- Filtro SGB -->
+                <div class="relative">
+                    <select name="sgb" onchange="this.form.submit()"
+                            class="w-full bg-white/40 dark:bg-slate-950/40 border border-white/20 dark:border-slate-800 rounded-2xl px-6 py-3 text-xs font-bold focus:outline-none focus:ring-2 focus:ring-red-500/50 transition-all appearance-none cursor-pointer">
+                        <option value="">TODOS OS SGBS</option>
+                        {% for sgb in lista_sgb %}
+                        <option value="{{ sgb }}" {% if sgb_filter == sgb %}selected{% endif %}>{{ sgb }}</option>
+                        {% endfor %}
+                    </select>
+                    <div class="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none text-slate-400">
+                        <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M19 9l-7 7-7-7"/></svg>
+                    </div>
+                </div>
+
+                <!-- Filtro Seção -->
+                <div class="relative">
+                    <select name="secao" onchange="this.form.submit()"
+                            class="w-full bg-white/40 dark:bg-slate-950/40 border border-white/20 dark:border-slate-800 rounded-2xl px-6 py-3 text-xs font-bold focus:outline-none focus:ring-2 focus:ring-red-500/50 transition-all appearance-none cursor-pointer">
+                        <option value="">TODAS AS SEÇÕES</option>
+                        {% for sec in lista_secoes %}
+                        <option value="{{ sec }}" {% if secao_filter == sec %}selected{% endif %}>{{ sec }}</option>
+                        {% endfor %}
+                    </select>
+                    <div class="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none text-slate-400">
+                        <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M19 9l-7 7-7-7"/></svg>
+                    </div>
+                </div>
+
+                <!-- Botão Limpar -->
+                <a href="{% url 'lista_efetivo_importado' %}" 
+                   class="flex items-center justify-center space-x-2 bg-slate-900/10 hover:bg-slate-900/20 dark:bg-white/5 dark:hover:bg-white/10 rounded-2xl px-6 py-3 text-[10px] font-black uppercase tracking-widest transition-all">
+                    <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M6 18L18 6M6 6l12 12"/></svg>
+                    <span>Limpar</span>
+                </a>
+            </form>
         </div>
     </div>
 
@@ -66,7 +121,12 @@
         <div class="p-6">
             <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
                 {% for militar in efetivo %}
-                <div class="p-4 bg-white dark:bg-[#0f172a] rounded-2xl border border-slate-200 dark:border-slate-800 transition-all hover:border-red-500/30 hover:shadow-md dark:hover:shadow-black/40 group">
+                <div class="p-4 bg-white dark:bg-[#0f172a] rounded-2xl border border-slate-200 dark:border-slate-800 transition-all hover:border-red-500/30 hover:shadow-md dark:hover:shadow-black/40 group relative">
+                    <!-- TAG UNIDADE -->
+                    <div class="absolute -top-2 -right-2 bg-slate-900 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 px-2 py-1 rounded-lg shadow-lg z-10 group-hover:bg-red-600 transition-colors">
+                        <span class="text-[8px] font-black text-white uppercase">{{ militar.unidade|default:"GB" }}</span>
+                    </div>
+
                     <div class="flex items-center justify-between mb-2">
                         <div class="flex items-center space-x-2">
                             <span class="text-[10px] font-black text-red-600 dark:text-red-500 uppercase tracking-widest">Ativo</span>
@@ -87,11 +147,19 @@
                     </p>
 
                     <div class="mt-3 space-y-1.5">
-                        <!-- SGB POSTO/SEÇÃO -->
+                        <!-- UNIDADE E SGB -->
                         <div class="flex items-center space-x-2">
-                            <div class="w-1 h-3 bg-red-600/30 rounded-full"></div>
-                            <p class="text-[10px] font-black text-slate-700 dark:text-slate-300 uppercase">
-                                {{ militar.sgb|default:"-" }} <span class="text-slate-400 mx-1">•</span> {{ militar.posto_secao|default:"-" }}
+                            <div class="w-1 h-3 bg-red-600 rounded-full"></div>
+                            <p class="text-[10px] font-black text-slate-900 dark:text-white uppercase">
+                                {{ militar.unidade|default:"-" }} <span class="text-red-600 mx-1">/</span> {{ militar.sgb|default:"-" }}
+                            </p>
+                        </div>
+
+                        <!-- POSTO/SEÇÃO -->
+                        <div class="flex items-center space-x-2">
+                            <div class="w-1 h-3 bg-slate-400/30 dark:bg-slate-600/30 rounded-full"></div>
+                            <p class="text-[10px] font-bold text-slate-600 dark:text-slate-400 uppercase">
+                                {{ militar.posto_secao|default:"-" }}
                             </p>
                         </div>
 
@@ -116,7 +184,7 @@
                     <svg class="h-12 w-12 text-slate-300 dark:text-slate-700 mx-auto mb-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
                     </svg>
-                    <p class="text-xs font-black text-slate-400 dark:text-slate-600 uppercase tracking-[0.2em]">Nenhum militar encontrado</p>
+                    <p class="text-xs font-black text-slate-400 dark:text-slate-600 uppercase tracking-[0.2em]">Nenhum militar encontrado para os filtros aplicados</p>
                 </div>
                 {% endfor %}
             </div>

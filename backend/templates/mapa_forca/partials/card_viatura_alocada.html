@@ -16,6 +16,17 @@
                     <span class="h-1 w-1 bg-slate-300 dark:bg-slate-700 rounded-full"></span>
                     <span class="text-[10px] font-bold text-slate-400 uppercase tracking-widest tabular-nums">{{ alocacao.viatura.placa|default:"S/ PLACA" }}</span>
                 </div>
+                <!-- NOVOS DADOS OPERACIONAIS -->
+                <div class="flex items-center space-x-3 mt-2">
+                    <div class="flex items-center space-x-1.5 bg-blue-50 dark:bg-blue-900/20 px-2 py-0.5 rounded-lg border border-blue-100 dark:border-blue-800/50">
+                        <svg class="h-2.5 w-2.5 text-blue-500" fill="currentColor" viewBox="0 0 24 24"><path d="M12 2.69l5.66 5.66a8 8 0 1 1-11.31 0z"/></svg>
+                        <span class="text-[9px] font-black text-blue-700 dark:text-blue-400 uppercase tabular-nums">{{ alocacao.viatura.vol_agua|default:"0 L" }}</span>
+                    </div>
+                    <div class="flex items-center space-x-1.5 bg-amber-50 dark:bg-amber-900/20 px-2 py-0.5 rounded-lg border border-amber-100 dark:border-amber-800/50">
+                        <svg class="h-2.5 w-2.5 text-amber-500" fill="currentColor" viewBox="0 0 24 24"><path d="M19.77 8.17l-4.97-5.01-4.97 5.01a6.99 6.99 0 0 0-1.97 4.96c0 3.87 3.13 7 7 7s7-3.13 7-7c0-1.92-.77-3.66-2.09-4.96z"/></svg>
+                        <span class="text-[9px] font-black text-amber-700 dark:text-amber-400 uppercase">{{ alocacao.viatura.combustivel|default:"-" }}</span>
+                    </div>
+                </div>
             </div>
         </div>
         <button hx-delete="{% url 'remover_viatura_mapa' alocacao.id %}"

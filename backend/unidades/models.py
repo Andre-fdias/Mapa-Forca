@@ -176,6 +176,7 @@ class Municipio(models.Model):
 
 class Posto(models.Model):
     nome = models.CharField(max_length=255, unique=True)
+    unidade = models.CharField(max_length=100, null=True, blank=True)
     sgb = models.CharField(max_length=100, null=True, blank=True)
     cod_secao = models.CharField(max_length=100, null=True, blank=True)
     cidade_posto = models.CharField(max_length=255, null=True, blank=True)

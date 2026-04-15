@@ -285,6 +285,7 @@ def dashboard_cobom(request):
                                 telegrafista_info['horario'] = f"{tel_func.inicio_dejem.strftime('%H:%M')} > {tel_func.termino_dejem.strftime('%H:%M')}"
                             
                             global_stats['militares_escalados'] += 1
+                            stats['efetivo_total'] += 1  # CONTA TELEGRAFISTA NO EFETIVO DO POSTO
                             if tel_func.dejem:
                                 global_stats['dejem'] += 1
 
@@ -348,7 +349,10 @@ def dashboard_cobom(request):
                             'status_codigo': aloc.status_no_dia.codigo,
                             'num_pm': equipe.count(),
                             'encarregado': encarregado_vtr,
-                            'equipe_completa': membros
+                            'equipe_completa': membros,
+                            'vol_agua': aloc.viatura.vol_agua,
+                            'combustivel': aloc.viatura.combustivel,
+                            'placa': aloc.viatura.placa
                         })
             
             postos_result.append({
@@ -387,7 +391,10 @@ def cadastro_viaturas_view(request):
     status_filter = request.GET.get('status', '')
     sgb_filter = request.GET.get('sgb', '')
     garagem_filter = request.GET.get('garagem', '')
+    unidade_filter = request.GET.get('unidade', '') # Filtro de OPMCB
+    
     viaturas = Viatura.objects.select_related('status_base', 'unidade_base').all()
+    
     if query:
         viaturas = viaturas.filter(Q(prefixo__icontains=query) | Q(placa__icontains=query))
     if status_filter:
@@ -396,17 +403,38 @@ def cadastro_viaturas_view(request):
         viaturas = viaturas.filter(sgb=sgb_filter)
     if garagem_filter:
         viaturas = viaturas.filter(garagem=garagem_filter)
-    lista_sgb = Viatura.objects.exclude(sgb__isnull=True).values_list('sgb', flat=True).distinct().order_by('sgb')
-    lista_garagem = Viatura.objects.exclude(garagem__isnull=True).values_list('garagem', flat=True).distinct().order_by('garagem')
+    if unidade_filter:
+        viaturas = viaturas.filter(opmcb__icontains=unidade_filter)
+
+    # --- LÓGICA DE FILTROS DEPENDENTES ---
+    # A lista de Unidades (GBs) é sempre a lista completa disponível no banco
+    lista_unidades = Viatura.objects.exclude(opmcb__isnull=True).values_list('opmcb', flat=True).distinct().order_by('opmcb')
+    
+    # Base de consulta para SGB e Garagem depende da Unidade selecionada
+    base_filtros = Viatura.objects.all()
+    if unidade_filter:
+        base_filtros = base_filtros.filter(opmcb__icontains=unidade_filter)
+    
+    # Se um SGB for selecionado, a lista de Garagens pode ser filtrada por ele também (Opcional, mas melhora a experiência)
+    base_garagens = base_filtros
+    if sgb_filter:
+        base_garagens = base_garagens.filter(sgb=sgb_filter)
+
+    lista_sgb = base_filtros.exclude(sgb__isnull=True).values_list('sgb', flat=True).distinct().order_by('sgb')
+    lista_garagem = base_garagens.exclude(garagem__isnull=True).values_list('garagem', flat=True).distinct().order_by('garagem')
+    
     status_options = Dictionary.objects.filter(tipo='STATUS_VIATURA').order_by('ordem')
+    
     return render(request, 'unidades/cadastro_viaturas.html', {
         'viaturas': viaturas,
         'query': query,
         'status_filter': status_filter,
         'sgb_filter': sgb_filter,
         'garagem_filter': garagem_filter,
+        'unidade_filter': unidade_filter,
         'lista_sgb': lista_sgb,
         'lista_garagem': lista_garagem,
+        'lista_unidades': lista_unidades,
         'status_options': status_options
     })
 
@@ -421,10 +449,36 @@ def sync_sheets_action(request):
 @login_required
 def lista_postos_view(request):
     query = request.GET.get('q', '')
-    postos = Posto.objects.prefetch_related('municipios').all()
+    unidade_filter = request.GET.get('unidade', '')
+    sgb_filter = request.GET.get('sgb', '')
+
+    postos = Posto.objects.prefetch_related('municipios').all().order_by('unidade', 'sgb', 'nome')
+    
     if query:
         postos = postos.filter(Q(nome__icontains=query) | Q(sgb__icontains=query) | Q(cidade_posto__icontains=query))
-    return render(request, 'unidades/lista_postos.html', {'postos': postos, 'query': query})
+    if unidade_filter:
+        postos = postos.filter(unidade=unidade_filter)
+    if sgb_filter:
+        postos = postos.filter(sgb=sgb_filter)
+
+    # --- LÓGICA DE FILTROS ---
+    # Unidades únicas
+    lista_unidades = Posto.objects.exclude(unidade__isnull=True).exclude(unidade='').values_list('unidade', flat=True).distinct().order_by('unidade')
+    
+    # SGBs únicos filtrados pela unidade
+    base_sgbs = Posto.objects.all()
+    if unidade_filter:
+        base_sgbs = base_sgbs.filter(unidade=unidade_filter)
+    lista_sgb = base_sgbs.exclude(sgb__isnull=True).exclude(sgb='').values_list('sgb', flat=True).distinct().order_by('sgb')
+
+    return render(request, 'unidades/lista_postos.html', {
+        'postos': postos, 
+        'query': query,
+        'unidade_filter': unidade_filter,
+        'sgb_filter': sgb_filter,
+        'lista_unidades': lista_unidades,
+        'lista_sgb': lista_sgb
+    })
 
 @login_required
 def sync_postos_sheets_action(request):

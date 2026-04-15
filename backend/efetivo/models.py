@@ -47,6 +47,7 @@ class Efetivo(models.Model):
     nome = models.CharField(max_length=255, unique=True)
     re = models.CharField(max_length=50, null=True, blank=True)
     nome_do_pm = models.CharField(max_length=255, null=True, blank=True)
+    unidade = models.CharField(max_length=100, null=True, blank=True)
     sgb = models.CharField(max_length=100, null=True, blank=True)
     posto_secao = models.CharField(max_length=100, null=True, blank=True)
     mergulho = models.CharField(max_length=100, null=True, blank=True)
