@@ -286,10 +286,26 @@
                 <svg class="h-6 w-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
             </div>
             <div>
-                <h1 class="text-xl font-black text-slate-900 dark:text-white uppercase tracking-tighter">COBOM <span class="text-red-600">15º GB</span></h1>
+                <h1 class="text-xl font-black text-slate-900 dark:text-white uppercase tracking-tighter">COBOM <span class="text-red-600">{{ batalhao_selecionado.nome|default:"15º GB" }}</span></h1>
                 <p class="text-[9px] font-bold text-slate-500 uppercase tracking-widest">Painel de Gerenciamento de Crise</p>
             </div>
         </div>
+
+        <!-- Seletor de Unidades (Admin Only) -->
+        {% if batalhoes %}
+        <div class="flex items-center bg-slate-100 dark:bg-slate-800 rounded-2xl p-1 border border-slate-200 dark:border-slate-700 min-w-[200px]">
+            <form method="GET" action="" class="flex items-center space-x-2 w-full">
+                <select name="batalhao_id" onchange="this.form.submit()" class="appearance-none bg-transparent border-none text-xs font-black uppercase text-slate-700 dark:text-white focus:ring-0 cursor-pointer py-1 pl-3 pr-2 flex-1">
+                    {% for bat in batalhoes %}
+                        <option value="{{ bat.id }}" class="bg-white dark:bg-slate-900 text-slate-900 dark:text-white text-xs" {% if bat.id == batalhao_selecionado.id %}selected{% endif %}>{{ bat.nome }}</option>
+                    {% endfor %}
+                </select>
+                <div class="pr-3 text-slate-500 dark:text-slate-400 pointer-events-none">
+                    <svg class="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M19 9l-7 7-7-7"/></svg>
+                </div>
+            </form>
+        </div>
+        {% endif %}
 
         <div class="flex flex-wrap items-center gap-2">
             {% for btn in botoes_atalho %}
@@ -340,7 +356,8 @@
     <!-- MAIN DASHBOARD AREA -->
     <div class="flex space-x-6 flex-1 overflow-hidden">
         <div class="flex-1 overflow-x-auto pb-4 custom-scrollbar">
-            <div class="war-room-grid h-full min-w-[1600px]">
+            <div class="h-full min-w-full" 
+                 style="display: grid; grid-template-columns: repeat({{ sgbs|length }}, minmax(320px, 1fr)); gap: 1.5rem;">
                 {% for sgb in sgbs %}
                     {% include "dashboard/partials/sgb_column.html" with sgb=sgb %}
                 {% endfor %}

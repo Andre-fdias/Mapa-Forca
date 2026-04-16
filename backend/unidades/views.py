@@ -156,8 +156,28 @@ def dashboard_batalhao(request):
 
 @login_required
 def dashboard_cobom(request):
-    """Dashboard Geral (COBOM/Grande Comando) com mapeamento fixo e dados REAIS."""
+    """Dashboard Geral (COBOM/Grande Comando) com mapeamento dinâmico e dados REAIS."""
     hoje = get_data_operacional()
+    
+    # Seletor de Unidades (Apenas Admin ou Superuser)
+    # Filtramos por BATALHAO para garantir que apenas os Grupamentos reais apareçam
+    batalhoes = []
+    if request.user.is_staff or request.user.is_superuser:
+        batalhoes = Unidade.objects.filter(tipo_unidade__codigo='BATALHAO').order_by('nome')
+    
+    batalhao_id = request.GET.get('batalhao_id')
+    if batalhao_id:
+        batalhao_selecionado = Unidade.objects.filter(id=batalhao_id).first()
+    else:
+        # Default: Unidade do usuário se for Batalhão, ou 15º GB
+        if request.user.unidade and request.user.unidade.tipo_unidade and request.user.unidade.tipo_unidade.codigo == 'BATALHAO':
+            batalhao_selecionado = request.user.unidade
+        else:
+            batalhao_selecionado = Unidade.objects.filter(nome__icontains='15', tipo_unidade__codigo='BATALHAO').first()
+
+    if not batalhao_selecionado:
+        batalhao_selecionado = Unidade.objects.filter(tipo_unidade__codigo='BATALHAO').first()
+
     total_unidades = 0
     total_completos = 0
     
@@ -169,95 +189,56 @@ def dashboard_cobom(request):
         'motoristas': 0
     }
     
-    OPCOES_POR_SGB = {
-      "2 - 1ºSGB": [
-        "703151000 - CMT 1ºSGB", "703151100 - ADM PB CERRADO",
-        "703151101 - EB CERRADO", "703151102 - EB ZONA NORTE",
-        "703151200 - ADM PB SANTA ROSÁLIA", "703151201 - EB SANTA ROSÁLIA",
-        "703151201-1 - TELEGRAFIA -EB SANTA ROSÁLIA", "703151202 - EB ÉDEN",
-        "703151300 - ADM PB VOTORANTIM", "703151301 - EB VOTORANTIM",
-        "703151302 - EB PIEDADE", "703151800 - ADM 1ºSGB"
-      ],
-      "3 - 2ºSGB": [
-        "703152000 - CMT 2ºSGB", "703152100 - ADM PB ITU",
-        "703152101 - EB ITU", "703152102 - EB PORTO FELIZ",
-        "703152200 - ADM PB SALTO", "703152201 - EB SALTO",
-        "703152300 - ADM PB SÃO ROQUE", "703152301 - EB SÃO ROQUE",
-        "703152302 - EB IBIÚNA", "703152800 - ADM 2ºSGB",
-        "703152900 - NUCL ATIV TEC 2ºSGB"
-      ],
-      "4 - 3ºSGB": [
-        "703153000 - CMT 3ºSGB", "703153100 - ADM PB ITAPEVA",
-        "703153101 - EB ITAPEVA", "703153102 - EB APIAÍ",
-        "703153103 - EB ITARARÉ", "703153104 - EB CAPÃO BONITO",
-        "703153800 - ADM 3ºSGB", "703153900 - NUCL ATIV TEC 3ºSGB"
-      ],
-      "5 - 4ºSGB": [
-        "703154000 - CMT 4ºSGB", "703154100 - ADM PB ITAPETININGA",
-        "703154101 - EB ITAPETININGA", "703154102 - EB BOITUVA",
-        "703154103 - EB ANGATUBA", "703154200 - ADM PB TATUÍ",
-        "703154201 - EB TATUÍ", "703154202 - EB TIETÊ",
-        "703154203 - EB LARANJAL PAULISTA", "703154800 - ADM 4ºSGB",
-        "703154900 - NUCL ATIV TEC 4ºSGB"
-      ],
-      "6 - 5ºSGB": [
-        "703155000 - CMT 5ºSGB", "703155100 - ADM PB BOTUCATU",
-        "703155101 - EB BOTUCATU", "703155102 - EB ITATINGA",
-        "703155200 - ADM PB AVARÉ", "703155201 - EB AVARÉ",
-        "703155202 - EB PIRAJU", "703155203 - EB ITAÍ",
-        "703155800 - ADM 5ºSGB", "703155900 - NUCL ATIV TEC 5ºSGB"
-      ],
-    }
-    
     sgbs_data = []
     vtrs_reserva_global = []
     
-    for sgb_nome, postos_nomes in OPCOES_POR_SGB.items():
-        postos_result = []
-        for p_nome in postos_nomes:
-            unidade = None
-            posto_obj_real = None
-            if " - " in p_nome:
-                partes = p_nome.split(" - ")
-                codigo = partes[0].strip()
-                nome_limpo = partes[1].strip()
-                unidade = Unidade.objects.filter(Q(codigo_secao=codigo) | Q(nome=nome_limpo)).first()
-                posto_obj_real = Posto.objects.filter(Q(cod_secao=codigo) | Q(nome__icontains=nome_limpo)).first()
-            else:
-                unidade = Unidade.objects.filter(nome=p_nome).first()
-                posto_obj_real = Posto.objects.filter(nome__icontains=p_nome).first()
+    if batalhao_selecionado:
+        # SGBs são subunidades do Batalhão
+        sgbs = batalhao_selecionado.subunidades.all().order_by('nome')
+        
+        for sgb in sgbs:
+            postos_result = []
+            # Postos são subunidades do SGB
+            # Tentamos buscar tanto por subunidades quanto por Posto real da planilha
+            postos_unidades = sgb.subunidades.all().order_by('nome')
+            
+            for unidade in postos_unidades:
+                # Filtro Operacional (Vem da Planilha via modelo Posto)
+                posto_obj_real = Posto.objects.filter(Q(cod_secao=unidade.codigo_secao) | Q(nome=unidade.nome)).first()
+                
+                # Se não houver informação no Posto ou se estiver como OPERACIONAL (ou vazio), mostramos.
+                # Só ocultamos se estiver explicitamente como ADM e não contiver OPERACIONAL.
+                is_operacional = True
+                if posto_obj_real and posto_obj_real.operacional_adm:
+                    status_op = str(posto_obj_real.operacional_adm).upper()
+                    if "ADM" in status_op and "OPERACIONAL" not in status_op:
+                        is_operacional = False
+                
+                if not is_operacional:
+                    continue
 
-            is_operacional = False
-            if posto_obj_real and posto_obj_real.operacional_adm:
-                if "OPERACIONAL" in str(posto_obj_real.operacional_adm).upper():
-                    is_operacional = True
-            
-            if not is_operacional:
-                continue
-
-            total_unidades += 1
-            viaturas_data = []
-            esta_pronto = False
-            mapa_existe = False
-            
-            telegrafista_info = {
-                'nome': "AGUARDANDO...",
-                'nome_padrao': "AGUARDANDO...",
-                'is_dejem': False,
-                'horario': ""
-            }
-            
-            stats = {
-                'mergulhadores': 0,
-                'dejem': 0,
-                'ovb_leve': 0,
-                'ovb_pesado': 0,
-                'efetivo_total': 0,
-                'vtrs_total': 0,
-                'vtrs_operando': 0
-            }
-            
-            if unidade:
+                total_unidades += 1
+                viaturas_data = []
+                esta_pronto = False
+                mapa_existe = False
+                
+                telegrafista_info = {
+                    'nome': "AGUARDANDO...",
+                    'nome_padrao': "AGUARDANDO...",
+                    'is_dejem': False,
+                    'horario': ""
+                }
+                
+                stats = {
+                    'mergulhadores': 0,
+                    'dejem': 0,
+                    'ovb_leve': 0,
+                    'ovb_pesado': 0,
+                    'efetivo_total': 0,
+                    'vtrs_total': 0,
+                    'vtrs_operando': 0
+                }
+                
                 mapa = MapaDiario.objects.filter(data=hoje, unidade=unidade).first()
                 if mapa:
                     mapa_existe = True
@@ -285,7 +266,7 @@ def dashboard_cobom(request):
                                 telegrafista_info['horario'] = f"{tel_func.inicio_dejem.strftime('%H:%M')} > {tel_func.termino_dejem.strftime('%H:%M')}"
                             
                             global_stats['militares_escalados'] += 1
-                            stats['efetivo_total'] += 1  # CONTA TELEGRAFISTA NO EFETIVO DO POSTO
+                            stats['efetivo_total'] += 1
                             if tel_func.dejem:
                                 global_stats['dejem'] += 1
 
@@ -297,7 +278,7 @@ def dashboard_cobom(request):
                             vtrs_reserva_global.append({
                                 'prefixo': aloc.viatura.prefixo,
                                 'unidade': unidade.nome,
-                                'sgb': sgb_nome
+                                'sgb': sgb.nome
                             })
 
                         equipe = AlocacaoFuncionario.objects.filter(alocacao_viatura=aloc).select_related('funcionario__posto_graduacao', 'funcao')
@@ -354,20 +335,21 @@ def dashboard_cobom(request):
                             'combustivel': aloc.viatura.combustivel,
                             'placa': aloc.viatura.placa
                         })
+                
+                postos_result.append({
+                    'unidade': unidade, 
+                    'viaturas': viaturas_data, 
+                    'mapa_existe': mapa_existe,
+                    'esta_pronto': esta_pronto,
+                    'telegrafista': telegrafista_info,
+                    'stats': stats
+                })
             
-            postos_result.append({
-                'unidade': unidade if unidade else {'nome': p_nome, 'id': None}, 
-                'viaturas': viaturas_data, 
-                'mapa_existe': mapa_existe,
-                'esta_pronto': esta_pronto,
-                'telegrafista': telegrafista_info,
-                'stats': stats
-            })
-            
-        sgbs_data.append({
-            'nome': sgb_nome,
-            'postos': postos_result
-        })
+            if postos_result:
+                sgbs_data.append({
+                    'nome': sgb.nome,
+                    'postos': postos_result
+                })
     
     mapa_completo = (total_completos == total_unidades) if total_unidades > 0 else False
     
@@ -377,6 +359,8 @@ def dashboard_cobom(request):
         'mapa_completo': mapa_completo,
         'global_stats': global_stats,
         'vtrs_reserva_global': vtrs_reserva_global,
+        'batalhoes': batalhoes,
+        'batalhao_selecionado': batalhao_selecionado,
         'botoes_atalho': ['Aeroportos', 'Alarmes / Cód OPM', 'VTR Reserva', 'Normas do CB', 'Links / Intranet', 'Bairros', 'Pesquisa'],
         'oficiais': [
             {'cargo': 'Supervisor de Serviço', 'nome': 'CAP PM RODRIGUES', 'tipo': 'DIA'}, 

@@ -76,16 +76,12 @@
                         {% endif %}
                         {% endfor %}
 
-                        <!-- Linhas vazias para manter altura -->
-                        {% if item.viaturas|length == 0 %}
-                            <tr><td class="border border-slate-200 dark:border-slate-800 py-2.5">&nbsp;</td><td class="border border-slate-200 dark:border-slate-800">&nbsp;</td><td class="border border-slate-200 dark:border-slate-800">&nbsp;</td><td class="border border-slate-200 dark:border-slate-800">&nbsp;</td></tr>
-                            <tr><td class="border border-slate-200 dark:border-slate-800 py-2.5">&nbsp;</td><td class="border border-slate-200 dark:border-slate-800">&nbsp;</td><td class="border border-slate-200 dark:border-slate-800">&nbsp;</td><td class="border border-slate-200 dark:border-slate-800">&nbsp;</td></tr>
-                            <tr><td class="border border-slate-200 dark:border-slate-800 py-2.5">&nbsp;</td><td class="border border-slate-200 dark:border-slate-800">&nbsp;</td><td class="border border-slate-200 dark:border-slate-800">&nbsp;</td><td class="border border-slate-200 dark:border-slate-800">&nbsp;</td></tr>
-                        {% elif item.viaturas|length == 1 %}
-                            <tr><td class="border border-slate-200 dark:border-slate-800 py-2.5">&nbsp;</td><td class="border border-slate-200 dark:border-slate-800">&nbsp;</td><td class="border border-slate-200 dark:border-slate-800">&nbsp;</td><td class="border border-slate-200 dark:border-slate-800">&nbsp;</td></tr>
-                            <tr><td class="border border-slate-200 dark:border-slate-800 py-2.5">&nbsp;</td><td class="border border-slate-200 dark:border-slate-800">&nbsp;</td><td class="border border-slate-200 dark:border-slate-800">&nbsp;</td><td class="border border-slate-200 dark:border-slate-800">&nbsp;</td></tr>
-                        {% elif item.viaturas|length == 2 %}
-                            <tr><td class="border border-slate-200 dark:border-slate-800 py-2.5">&nbsp;</td><td class="border border-slate-200 dark:border-slate-800">&nbsp;</td><td class="border border-slate-200 dark:border-slate-800">&nbsp;</td><td class="border border-slate-200 dark:border-slate-800">&nbsp;</td></tr>
+                        {% if not item.viaturas %}
+                        <tr>
+                            <td colspan="4" class="border border-slate-200 dark:border-slate-800 py-4 text-center text-[8px] text-slate-400 uppercase italic">
+                                Nenhuma viatura operacional alocada
+                            </td>
+                        </tr>
                         {% endif %}
                     </tbody>
                 </table>
