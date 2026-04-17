@@ -35,6 +35,16 @@
                 <span class="text-sm font-black uppercase tracking-tight">Visão Geral</span>
             </a>
 
+            <a href="{% url 'visao_cobom_efetivo' %}" class="flex items-center space-x-4 px-4 py-3.5 rounded-2xl transition-all duration-300 group {% if '/unidades/visao-cobom/' in request.path %}bg-slate-900 text-white shadow-lg border border-slate-800{% else %}text-slate-500 hover:bg-slate-900/50 hover:text-slate-300{% endif %}">
+                <div class="p-2 rounded-xl {% if '/unidades/visao-cobom/' in request.path %}bg-red-600 text-white{% else %}bg-slate-900 text-slate-600 group-hover:text-slate-400{% endif %} transition-colors shadow-sm">
+                    <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                    </svg>
+                </div>
+                <span class="text-sm font-black uppercase tracking-tight">Visão COBOM</span>
+            </a>
+
             {% if user.is_authenticated %}
                 <p class="text-[10px] font-black text-slate-600 uppercase tracking-[0.2em] mt-10 mb-4 ml-2">Operacional</p>
                 

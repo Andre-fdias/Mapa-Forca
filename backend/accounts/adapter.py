@@ -4,26 +4,23 @@ from django.urls import reverse
 
 class ApprovalSocialAccountAdapter(DefaultSocialAccountAdapter):
     def save_user(self, request, sociallogin, form=None):
-        # Verifica se o usuário já existe no banco antes de salvar
-        user_exists = sociallogin.is_existing
         user = super().save_user(request, sociallogin, form)
-        
-        if not user_exists:
-            # Se é um novo usuário social, BLOQUEIA IMEDIATAMENTE
-            user.is_active = False
-            user.save()
+        # O model User já define status='pending' por default.
         return user
 
     def get_login_redirect_url(self, request):
         user = request.user
         
-        # 1. Se ainda está inativo, vai para a página de "Aguarde aprovação"
-        if not user.is_active:
-            return reverse('account_inactive')
-        
-        # 2. Se já foi aprovado mas NÃO TEM unidade vinculada, vai para o "Escolha sua Unidade"
-        if not user.unidade:
-            return reverse('setup_profile')
+        # 1. Se o status é pending e o usuário ainda não escolheu sua unidade, vai para o Form de Setup
+        if user.status == 'pending' and not user.unidade:
+            return reverse('request_access')
             
-        # 3. Se está tudo ok, vai para a home
-        return reverse('index')
+        # 2. Se já escolheu a unidade mas continua pending, vai para a tela de aviso de aprovação
+        if user.status == 'pending':
+            return reverse('waiting_approval')
+            
+        # 3. Se foi aprovado, vai para a rota padrão operacional
+        if user.status == 'approved':
+            return reverse('index')
+            
+        return reverse('waiting_approval')

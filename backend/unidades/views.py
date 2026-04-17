@@ -159,10 +159,10 @@ def dashboard_cobom(request):
     """Dashboard Geral (COBOM/Grande Comando) com mapeamento dinâmico e dados REAIS."""
     hoje = get_data_operacional()
     
-    # Seletor de Unidades (Apenas Admin ou Superuser)
+    # Seletor de Unidades (Apenas Admin, Superuser ou COBOM)
     # Filtramos por BATALHAO para garantir que apenas os Grupamentos reais apareçam
     batalhoes = []
-    if request.user.is_staff or request.user.is_superuser:
+    if request.user.is_superuser or request.user.role in ['ADMIN', 'COBOM']:
         batalhoes = Unidade.objects.filter(tipo_unidade__codigo='BATALHAO').order_by('nome')
     
     batalhao_id = request.GET.get('batalhao_id')
@@ -471,3 +471,103 @@ def sync_postos_sheets_action(request):
         return HttpResponse('<div class="p-4 bg-emerald-500/20 text-emerald-400 rounded-2xl text-xs font-black uppercase tracking-widest animate-pulse">Postos sincronizados! Recarregando...<script>setTimeout(() => location.reload(), 2000)</script></div>')
     except Exception as e:
         return HttpResponse(f'<div class="p-4 bg-red-500/20 text-red-400 rounded-2xl text-xs font-bold">Erro: {str(e)}</div>')
+
+@login_required
+def visao_cobom_efetivo_view(request):
+    """Nova Visão Tática COBOM focada em Efetivo (Design Dark Mode)"""
+    agora = timezone.localtime(timezone.now())
+    hoje = get_data_operacional()
+    
+    # Try to find today's COBOM map
+    mapa = MapaDiario.objects.filter(data=hoje, unidade__nome='CBI-1').first()
+    if not mapa:
+        # Fallback in case ADMIN created the map under a different unit by mistake
+        mapa = MapaDiario.objects.filter(data=hoje, alocacoes_funcionarios__funcao__nome__in=['Oficial de Operações DEJEM', 'Supervisor Despacho', 'Chefe de Equipe']).first()
+    
+    pessoas = []
+    
+    FUNCOES_FIXAS = [
+        ('COBOM CBI1', 'text-blue-500', 'Oficial de Operações DEJEM'),
+        ('COBOM CBI1', 'text-blue-500', 'Chefe de Equipe'),
+        ('COBOM CBI1', 'text-blue-500', 'Supervisor Despacho'),
+        ('COBOM CBI1', 'text-blue-500', 'Supervisor 193'),
+        ('COBOM CBI1', 'text-blue-500', 'Atendente 193'),
+        ('7º GB', 'text-red-500', 'Supervisor 7º GB'),
+        ('7º GB', 'text-red-500', 'Cabine 7º GB'),
+        ('19º GB', 'text-red-500', 'Supervisor 19º GB'),
+        ('19º GB', 'text-red-500', 'Cabine 19º GB'),
+        ('15º GB', 'text-red-500', 'Supervisor 15º GB'),
+        ('15º GB', 'text-red-500', 'Cabine 15º GB'),
+        ('16º GB', 'text-red-500', 'Supervisor 16º GB'),
+        ('16º GB', 'text-red-500', 'Cabine 16º GB'),
+        ('APOIO', 'text-slate-400', 'Apoio Cabine 7º, 19º e 15º GB'),
+        ('APOIO', 'text-slate-400', 'Apoio Cabine 16º GB'),
+        ('TRIAGEM', 'text-emerald-500', 'Enfermeiro de Triagem'),
+        ('SISTEMA', 'text-purple-500', 'Inclusor'),
+        ('SISTEMA', 'text-purple-500', 'Supervisor COE Autoban'),
+    ]
+    
+    if mapa:
+        alocs = mapa.alocacoes_funcionarios.select_related('funcionario__posto_graduacao', 'funcao')
+        aloc_dict = {a.funcao.nome.upper(): a for a in alocs if a.funcao}
+        
+        for setor, cor, fn_nome in FUNCOES_FIXAS:
+            fn_upper = fn_nome.upper()
+            if fn_upper in aloc_dict:
+                aloc = aloc_dict[fn_upper]
+                ef_info = Efetivo.objects.filter(Q(re=aloc.funcionario.re) | Q(nome__icontains=aloc.funcionario.nome_guerra)).first()
+                nome_display = format_militar_display(aloc.funcionario, ef_info)
+                
+                obs = []
+                if ef_info:
+                    if 'SIM' in str(ef_info.mergulho).upper(): obs.append('MERG')
+                    if ef_info.ovb: obs.append(ef_info.ovb)
+                if aloc.dejem: obs.append('DEJEM')
+                    
+                pessoas.append({
+                    'setor': setor,
+                    'funcao': fn_nome.upper(),
+                    're': aloc.funcionario.re or '-',
+                    'nome': nome_display,
+                    'obs': ' '.join(obs) if obs else '-',
+                    'tel': ef_info.telefone if ef_info and hasattr(ef_info, 'telefone') else '-',
+                    'cor_setor': cor,
+                })
+            else:
+                pessoas.append({
+                    'setor': setor,
+                    'funcao': fn_nome.upper(),
+                    're': '-',
+                    'nome': '-',
+                    'obs': '-',
+                    'tel': '-',
+                    'cor_setor': cor,
+                })
+            
+        prontidao = mapa.prontidao or 'INDEFINIDA'
+        equipe = mapa.equipe or '-'
+    else:
+        prontidao = 'NÃO INICIADO'
+        equipe = '-'
+        
+    color_map = {
+        'AZUL': ('bg-blue-600/10', 'border-blue-500', 'text-blue-500', 'bg-blue-500'),
+        'VERDE': ('bg-emerald-600/10', 'border-emerald-500', 'text-emerald-500', 'bg-emerald-500'),
+        'AMARELA': ('bg-amber-600/10', 'border-amber-500', 'text-amber-500', 'bg-amber-500')
+    }
+    bg_class, border_class, text_class, icon_class = color_map.get(prontidao.upper(), ('bg-slate-600/10', 'border-slate-500', 'text-slate-500', 'bg-slate-500'))
+    
+    context = {
+        'hoje': agora,
+        'aba_ativa': 'CBI-1',
+        'is_editor': request.user.role in ['ADMIN', 'COBOM'] or request.user.is_superuser,
+        'pessoas': pessoas,
+        'prontidao': prontidao,
+        'equipe': equipe,
+        'bg_class': bg_class,
+        'border_class': border_class,
+        'text_class': text_class,
+        'icon_class': icon_class,
+    }
+    
+    return render(request, 'dashboard/visao_cobom_efetivo.html', context)

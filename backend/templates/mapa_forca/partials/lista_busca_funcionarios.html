@@ -65,11 +65,16 @@
 
 <script>
 function selectFuncionario(re, nomeCompleto, efetivoId) {
-    const container = event.target.closest('[id^="results-"]');
-    const viaturaId = container.id.split('-')[1];
-    const card = document.getElementById('viatura-card-' + viaturaId);
-    const form = card.querySelector('form');
+    const container = event.target.closest('[id^="results-"]') || event.target.closest('[id^="search-results-"]');
+    if (!container) return;
+
+    let is_cobom = container.id.startsWith('search-results-');
+    let cid = is_cobom ? container.id.split('-')[2] : container.id.split('-')[1];
+
+    let form = is_cobom ? document.getElementById('form-alocacao-' + cid) : document.getElementById('viatura-card-' + cid).querySelector('form');
     
+    if (!form) return;
+
     const inputBusca = form.querySelector('input[name="funcionario_re"]');
     let inputExtra = form.querySelector('input[name="nome_extra"]');
     let inputEfetivoId = form.querySelector('input[name="efetivo_id"]');
@@ -94,7 +99,11 @@ function selectFuncionario(re, nomeCompleto, efetivoId) {
     // Feedback visual da seleção
     inputBusca.classList.add('border-emerald-500', 'text-emerald-600');
     
+    let btnSubmit = form.querySelector('button[type="submit"]');
+    if(btnSubmit && is_cobom) {
+        btnSubmit.classList.remove('hidden');
+    }
+
     container.innerHTML = '';
-    // htmx.trigger(form, 'submit'); // REMOVIDO PARA PERMITIR SELECIONAR FUNÇÃO/DEJEM
 }
 </script>

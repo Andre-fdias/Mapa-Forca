@@ -21,13 +21,22 @@ class UserManager(BaseUserManager):
 class User(AbstractUser):
     ROLE_CHOICES = (
         ('ADMIN', 'Administrador'),
+        ('COBOM', 'Central (COBOM)'),
         ('BATALHAO', 'Batalhão (Total)'),
         ('SGB', 'SGB (Subgrupamento)'),
         ('POSTO', 'Posto Operacional'),
     )
+    
+    STATUS_CHOICES = (
+        ('pending', 'Pendente'),
+        ('approved', 'Aprovado'),
+        ('rejected', 'Rejeitado'),
+    )
 
     username = None
     email = models.EmailField(unique=True)
+    
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='pending')
     
     role = models.CharField(
         max_length=20, 
@@ -44,10 +53,7 @@ class User(AbstractUser):
         help_text='Unidade principal à qual este usuário pertence'
     )
 
-    # Novos campos para fluxo de aprovação de vínculo
-    requested_role = models.CharField(max_length=20, choices=ROLE_CHOICES, null=True, blank=True)
-    requested_unidades = models.ManyToManyField(Unidade, blank=True, related_name='solicitacoes_vinculo')
-    is_link_pending = models.BooleanField(default=False)
+    # Note: Campos legados is_link_pending e solicitacoes_vinculo foram removidos em favor do campo `status`.
     
     USERNAME_FIELD = 'email'
     REQUIRED_FIELDS = []

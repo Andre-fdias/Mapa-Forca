@@ -5,7 +5,7 @@ from django.contrib.auth.forms import PasswordChangeForm
 from django.contrib import messages
 from .models import User
 from escalas.models import MapaDiario, HistoricoAlteracao
-from unidades.models import Unidade, Viatura
+from unidades.models import Unidade, Viatura, Posto
 from django.db.models import Count, Q
 from allauth.socialaccount.models import SocialAccount
 from django.http import HttpResponse
@@ -47,11 +47,11 @@ def profile_view(request):
 @login_required
 @user_passes_test(lambda u: u.is_superuser or u.role == 'ADMIN')
 def admin_dashboard_view(request):
-    total_usuarios = User.objects.count()
+    total_usuarios = User.objects.exclude(status='rejected').count()
     total_mapas_hoje = MapaDiario.objects.count()
     total_viaturas = Viatura.objects.count()
     all_users = User.objects.all().order_by('-date_joined')
-    pending_users = User.objects.filter(is_active=False).order_by('-date_joined')
+    pending_users = User.objects.filter(status='pending').order_by('-date_joined')
     recent_activities = HistoricoAlteracao.objects.select_related('usuario', 'mapa__unidade').order_by('-data_hora')[:10]
 
     context = {
@@ -68,6 +68,7 @@ def admin_dashboard_view(request):
 @user_passes_test(lambda u: u.is_superuser or u.role == 'ADMIN')
 def approve_user_view(request, user_id):
     user_to_approve = get_object_or_404(User, id=user_id)
+    user_to_approve.status = 'approved'
     user_to_approve.is_active = True
     user_to_approve.save()
     messages.success(request, f"Usuário {user_to_approve.email} aprovado com sucesso!")
@@ -75,75 +76,107 @@ def approve_user_view(request, user_id):
 
 @login_required
 @user_passes_test(lambda u: u.is_superuser or u.role == 'ADMIN')
-def delete_user_view(request, user_id):
+def reject_user_view(request, user_id):
     u = get_object_or_404(User, id=user_id)
     if not u.is_superuser:
-        u.delete()
-        messages.success(request, "Usuário removido.")
+        u.status = 'rejected'
+        u.save()
+        messages.success(request, "Usuário rejeitado.")
     return redirect('admin_dashboard')
 
-def account_inactive_view(request):
-    if request.user.is_authenticated and request.user.is_active:
-        return redirect('setup_profile')
-    return render(request, 'account/account_inactive.html')
+@login_required
+def waiting_approval_view(request):
+    """Estágio 3: Aguardando aprovação."""
+    if request.user.role == 'ADMIN' or request.user.is_superuser:
+        if request.user.status == 'pending':
+            request.user.status = 'approved'
+            request.user.save()
+        return redirect('admin_dashboard')
+
+    if request.user.status == 'approved':
+        return redirect('index')
+    return render(request, 'accounts/waiting_approval.html')
 
 @login_required
-def setup_profile(request):
-    """Estágio 2: Escolha de Unidade após aprovação."""
-    if request.user.unidade and not request.user.is_superuser:
-        return redirect('home')
+def request_access_view(request):
+    """Estágio 2: Formulário encadeado para escolher Batalhão > SGB > Posto."""
+    if request.user.role == 'ADMIN' or request.user.is_superuser:
+        if request.user.status == 'pending':
+            request.user.status = 'approved'
+            request.user.save()
+        return redirect('admin_dashboard')
+
+    if request.user.unidade and request.user.status != 'pending':
+        return redirect('index')
 
     if request.method == 'POST':
-        grupamento_nome = request.POST.get('grupamento_nome')
         posto_id = request.POST.get('posto_id')
+        sgb_id = request.POST.get('sgb_id')
+        batalhao_id = request.POST.get('batalhao_id')
+        role = 'POSTO' # Default for all new access requests
         
         unidade_final = None
-        if posto_id and posto_id != 'ROOT':
-            unidade_final = get_object_or_404(Unidade, id=posto_id)
-        else:
-            # Busca ou cria a unidade raiz para o vínculo
-            match = re.search(r'(\d+)', grupamento_nome)
-            g_num = match.group(1) if match else grupamento_nome
-            unidade_final, _ = Unidade.objects.get_or_create(nome__icontains=g_num, parent__isnull=True, defaults={'nome': grupamento_nome})
+        if posto_id:
+            # We fetch the exact Posto which has all text fields
+            posto_obj = get_object_or_404(Posto, id=posto_id)
+            
+            # Auto-build the Unidade tree if it doesn't exist
+            # Important: Unidade.nome is unique=True globally! We must construct unique names for SGBs.
+            gb_unidade, _ = Unidade.objects.get_or_create(nome=posto_obj.unidade, defaults={'parent': None})
+            
+            sgb_name = f"{posto_obj.sgb} - {posto_obj.unidade}" if posto_obj.sgb else f"SGB Padrão - {posto_obj.unidade}"
+            sgb_unidade, _ = Unidade.objects.get_or_create(nome=sgb_name, defaults={'parent': gb_unidade})
+            
+            posto_unidade, _ = Unidade.objects.get_or_create(nome=posto_obj.nome, defaults={'parent': sgb_unidade})
+            
+            unidade_final = posto_unidade
 
-        if unidade_final:
+        if unidade_final and role:
             request.user.unidade = unidade_final
-            # Define papel automático: CBI/COBOM = ADMIN, outros = POSTO
-            if 'CBI' in unidade_final.nome.upper() or 'COBOM' in unidade_final.nome.upper():
-                request.user.role = 'ADMIN'
-            else:
-                request.user.role = 'POSTO'
+            request.user.role = role
+            request.user.status = 'pending'
             request.user.save()
-            return redirect('home')
+            return redirect('waiting_approval')
 
-    opcoes_grupamentos = ['CBI-1', 'COBOM', '07 Grupamento de bombeiros', '15º Grupamento de bombeiros', '16º Grupamento de bombeiros', '19º Grupamento de bombeiros']
-    return render(request, 'accounts/setup_profile.html', {'grupamentos': opcoes_grupamentos})
+    batalhoes = Posto.objects.values_list('unidade', flat=True).exclude(unidade__isnull=True).exclude(unidade='').distinct().order_by('unidade')
+    return render(request, 'accounts/request_access.html', {
+        'batalhoes': batalhoes, 
+        'role_choices': User.ROLE_CHOICES
+    })
 
 @login_required
-def get_postos_unidade(request):
-    """Retorna os postos reais para o 15º GB ou opção de comando para outros."""
-    g_nome = request.GET.get('grupamento_nome')
-    if not g_nome:
-        return HttpResponse('<option value="">Selecione o Grupamento</option>')
-    
-    # Identifica se é o 15º GB
-    if "15" in g_nome:
-        unidade_raiz = Unidade.objects.filter(nome__icontains='15', parent__isnull=True).first()
-        if unidade_raiz:
-            sgbs = Unidade.objects.filter(parent=unidade_raiz).order_by('nome')
-            options = '<option value="">Selecione o Posto Operacional</option>'
-            
-            for sgb in sgbs:
-                options += f'<optgroup label="{sgb.nome}">'
-                # Busca postos (netos)
-                postos = Unidade.objects.filter(parent=sgb).order_by('nome')
-                for p in postos:
-                    options += f'<option value="{p.id}">{p.nome}</option>'
-                # Inclui o próprio SGB como opção
-                options += f'<option value="{sgb.id}">-- Comando do {sgb.nome} --</option>'
-                options += '</optgroup>'
-            return HttpResponse(options)
-    
-    # Para outras unidades (07, 16, 19, CBI, COBOM)
-    options = f'<option value="ROOT">Vincular ao Comando do {g_nome}</option>'
+def get_sgbs_htmx(request):
+    batalhao_nome = request.GET.get('batalhao_id')
+    if not batalhao_nome:
+        return HttpResponse('<option value="">Selecione o Batalhão primeiro</option>')
+        
+    sgbs = Posto.objects.filter(unidade=batalhao_nome).values_list('sgb', flat=True).exclude(sgb__isnull=True).exclude(sgb='').distinct().order_by('sgb')
+    options = '<option value="">(Opcional) Selecione o SGB</option>'
+    for sgb in sgbs:
+        options += f'<option value="{sgb}">{sgb}</option>'
     return HttpResponse(options)
+
+@login_required
+def get_postos_htmx(request):
+    batalhao_nome = request.GET.get('batalhao_id')
+    sgb_nome = request.GET.get('sgb_id')
+    if not sgb_nome or not batalhao_nome:
+        return HttpResponse('<option value="">Selecione o SGB primeiro</option>')
+        
+    postos = Posto.objects.filter(unidade=batalhao_nome, sgb=sgb_nome).order_by('nome')
+    options = '<option value="">(Opcional) Selecione o Posto</option>'
+    for posto in postos:
+        options += f'<option value="{posto.id}">{posto.nome}</option>'
+    return HttpResponse(options)
+
+@login_required
+@user_passes_test(lambda u: u.role == 'ADMIN' or u.is_superuser)
+def update_user_role_view(request, user_id):
+    if request.method == 'POST':
+        user = get_object_or_404(User, id=user_id)
+        new_role = request.POST.get('role')
+        if new_role in dict(User.ROLE_CHOICES).keys():
+            user.role = new_role
+            user.save()
+            return HttpResponse(f'<span class="text-emerald-600 font-bold text-xs uppercase">✓ Atualizado</span>')
+    return HttpResponse(status=400)

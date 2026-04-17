@@ -85,6 +85,23 @@ def compor_mapa_view(request):
     if request.headers.get('HX-Request') and not u_id:
         return render(request, 'mapa_forca/partials/select_postos.html', context)
 
+    # Se for COBOM (CBI-1 ou Admin se apresentando como COBOM)
+    if request.user.role == 'COBOM' or (request.user.role == 'ADMIN' and (request.GET.get('is_cobom') == 'true' or unidade_obj.nome == 'CBI-1')):
+        f_names = ['Oficial de Operações DEJEM', 'Chefe de Equipe', 'Supervisor Despacho', 'Supervisor 193', 'Supervisor 7º GB', 'Cabine 7º GB', 'Supervisor 19º GB', 'Cabine 19º GB', 'Supervisor 15º GB', 'Cabine 15º GB', 'Supervisor 16º GB', 'Cabine 16º GB', 'Apoio Cabine 7º, 19º e 15º GB', 'Apoio Cabine 16º GB', 'Enfermeiro de Triagem', 'Inclusor', 'Supervisor COE Autoban', 'Atendente 193']
+        funcoes = Dictionary.objects.filter(tipo='FUNCAO_OPERACIONAL', nome__in=f_names)
+        
+        funcs_com_alocacoes = []
+        for func in funcoes:
+            alocs = mapa.alocacoes_funcionarios.filter(funcao=func) if mapa else []
+            funcs_com_alocacoes.append({
+                'funcao': func,
+                'alocacoes': alocs
+            })
+            
+        context['funcs_com_alocacoes'] = funcs_com_alocacoes
+        context['hoje'] = hoje
+        return render(request, 'mapa_forca/compor_mapa_cobom.html', context)
+
     return render(request, 'mapa_forca/compose.html', context)
 
 @login_required
@@ -111,8 +128,8 @@ def buscar_funcionario_re(request):
     
     ef_queryset = Efetivo.objects.filter(query_efetivo)
     
-    # Aplica filtro de unidade se a categoria for informada
-    if categoria:
+    # Aplica filtro de unidade se a categoria for informada e não for CBI-1 (COBOM)
+    if categoria and categoria != 'CBI-1':
         ef_queryset = ef_queryset.filter(unidade__icontains=categoria.strip())
     
     efetivo_real = list(ef_queryset.order_by('nome')[:15])
@@ -208,10 +225,18 @@ def alocar_funcionario_viatura(request, alocacao_viatura_id):
     inicio_dejem = request.POST.get('inicio_dejem')
     termino_dejem = request.POST.get('termino_dejem')
     
-    aloc_v = get_object_or_404(AlocacaoViatura, id=alocacao_viatura_id)
-    funcao = get_object_or_404(Dictionary, id=f_id)
     
-    if aloc_v.equipe.count() >= 15: return HttpResponse('<script>showToast("Limite de 15 atingido!", "error");</script>')
+    if alocacao_viatura_id and int(alocacao_viatura_id) != 0:
+        aloc_v = get_object_or_404(AlocacaoViatura, id=alocacao_viatura_id)
+        mapa_aloc = aloc_v.mapa
+        if aloc_v.equipe.count() >= 15: return HttpResponse('<script>showToast("Limite de 15 atingido!", "error");</script>')
+    else:
+        aloc_v = None
+        # Precisamos do mapa_id do POST para alocações avulsas
+        mapa_id = request.POST.get('mapa_id')
+        mapa_aloc = get_object_or_404(MapaDiario, id=mapa_id)
+
+    funcao = get_object_or_404(Dictionary, id=f_id)
 
     # 1. Busca no Efetivo Real (Dados do Sheets)
     efetivo_real = None
@@ -272,16 +297,16 @@ def alocar_funcionario_viatura(request, alocacao_viatura_id):
     # 4. Finaliza a alocação
     if militar:
         ja_alocado = AlocacaoFuncionario.objects.filter(
-            mapa__data=aloc_v.mapa.data, 
+            mapa__data=mapa_aloc.data, 
             funcionario=militar
         ).exclude(alocacao_viatura=aloc_v).first()
         
         if ja_alocado:
             return HttpResponse(f'<script>showToast("Militar já escalado hoje!", "error");</script>')
 
-        AlocacaoFuncionario.objects.filter(mapa=aloc_v.mapa, funcionario=militar).delete()
+        AlocacaoFuncionario.objects.filter(mapa=mapa_aloc, funcionario=militar).delete()
         af = AlocacaoFuncionario.objects.create(
-            mapa=aloc_v.mapa, 
+            mapa=mapa_aloc, 
             alocacao_viatura=aloc_v, 
             funcionario=militar, 
             funcao=funcao,
@@ -290,14 +315,15 @@ def alocar_funcionario_viatura(request, alocacao_viatura_id):
             termino_dejem=termino_dejem if dejem_val and termino_dejem else None
         )
         
+        vtr_prefix = aloc_v.viatura.prefixo if aloc_v else "Avulso"
         HistoricoAlteracao.objects.create(
-            mapa=aloc_v.mapa,
+            mapa=mapa_aloc,
             usuario=request.user,
             tipo_acao='UPDATE',
-            descricao=f"Alocou {militar.nome_guerra} na viatura {aloc_v.viatura.prefixo} como {funcao.nome}."
+            descricao=f"Alocou {militar.nome_guerra} na viatura {vtr_prefix} como {funcao.nome}."
         )
         
-        return render(request, 'mapa_forca/partials/linha_funcionario_viatura.html', {'aloc_func': af})
+        return render(request, 'mapa_forca/partials/linha_funcionario_viatura.html', {'aloc_func': af, 'is_cobom': aloc_v is None})
     
     return HttpResponse('<script>showToast("Erro ao processar militar!", "error");</script>')
 
@@ -374,14 +400,26 @@ def get_viaturas_por_unidade(request):
 def validar_mapa_final(request, mapa_id):
     mapa = get_object_or_404(MapaDiario, id=mapa_id)
     
-    # 1. Verifica se há viaturas sem guarnição (Excluindo a TELEGRAFIA da obrigatoriedade)
-    vazias = [
-        al.viatura.prefixo for al in mapa.alocacoes_viaturas.all() 
-        if al.equipe.count() == 0 and al.viatura.prefixo != 'TELEGRAFIA'
-    ]
-    
-    if vazias:
-        return HttpResponse(f'<script>showToast("ERRO: Viaturas vazias: {", ".join(vazias)}", "error");</script>')
+    if request.user.role == 'COBOM' or mapa.unidade.nome == 'CBI-1':
+        f_names = ['Oficial de Operações DEJEM', 'Chefe de Equipe', 'Supervisor Despacho', 'Supervisor 193', 'Supervisor 7º GB', 'Cabine 7º GB', 'Supervisor 19º GB', 'Cabine 19º GB', 'Supervisor 15º GB', 'Cabine 15º GB', 'Supervisor 16º GB', 'Cabine 16º GB', 'Apoio Cabine 7º, 19º e 15º GB', 'Apoio Cabine 16º GB', 'Enfermeiro de Triagem', 'Inclusor', 'Supervisor COE Autoban', 'Atendente 193']
+        funcoes = Dictionary.objects.filter(tipo='FUNCAO_OPERACIONAL', nome__in=f_names)
+        faltantes = []
+        for f in funcoes:
+            if not mapa.alocacoes_funcionarios.filter(funcao=f).exists():
+                faltantes.append(f.nome)
+        
+        if faltantes:
+            msg = "Falta preencher: " + ", ".join(faltantes)
+            return HttpResponse(f'<script>showToast("{msg}", "error");</script>')
+    else:
+        # 1. Verifica se há viaturas sem guarnição (Excluindo a TELEGRAFIA da obrigatoriedade)
+        vazias = [
+            al.viatura.prefixo for al in mapa.alocacoes_viaturas.all() 
+            if al.equipe.count() == 0 and al.viatura.prefixo != 'TELEGRAFIA'
+        ]
+        
+        if vazias:
+            return HttpResponse(f'<script>showToast("ERRO: Viaturas vazias: {", ".join(vazias)}", "error");</script>')
     
     # 2. Marca o mapa como finalizado
     mapa.finalizado = True
@@ -398,7 +436,7 @@ def validar_mapa_final(request, mapa_id):
     return HttpResponse('''
         <script>
             showToast("MAPA FORÇA SALVO COM SUCESSO!", "success");
-            setTimeout(() => { window.location.href = "/"; }, 2000);
+            setTimeout(() => { window.location.href = "/unidades/visao-cobom/"; }, 2000);
         </script>
     ''')
 
@@ -521,3 +559,16 @@ class AlocacaoFuncionarioViewSet(viewsets.ModelViewSet):
 class AlocacaoViaturaViewSet(viewsets.ModelViewSet):
     queryset = AlocacaoViatura.objects.all()
     serializer_class = AlocacaoViaturaSerializer
+
+@login_required
+def update_mapa_cobom(request, mapa_id):
+    mapa = get_object_or_404(MapaDiario, id=mapa_id)
+    if 'prontidao' in request.POST:
+        mapa.prontidao = request.POST.get('prontidao')
+    if 'equipe' in request.POST:
+        mapa.equipe = request.POST.get('equipe')
+    mapa.save()
+    # Retorna vazio para o HTMX não substituir nada (out-of-band updates se necessário, 
+    # mas aqui queremos apenas trigger silent)
+    return HttpResponse("")
+

@@ -17,6 +17,12 @@ class MapaDiario(models.Model):
     
     finalizado = models.BooleanField(default=False)
     
+    PRONTIDAO_CHOICES = (('AZUL', 'Azul'), ('VERDE', 'Verde'), ('AMARELA', 'Amarela'))
+    EQUIPE_CHOICES = (('A', 'Equipe A'), ('B', 'Equipe B'), ('C', 'Equipe C'), ('D', 'Equipe D'), ('E', 'Equipe E'))
+    
+    prontidao = models.CharField(max_length=10, choices=PRONTIDAO_CHOICES, null=True, blank=True)
+    equipe = models.CharField(max_length=5, choices=EQUIPE_CHOICES, null=True, blank=True)
+    
     criado_por = models.ForeignKey(
         settings.AUTH_USER_MODEL, 
         on_delete=models.SET_NULL, 
