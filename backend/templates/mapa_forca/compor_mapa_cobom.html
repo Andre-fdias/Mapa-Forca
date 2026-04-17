@@ -4,7 +4,25 @@
 <div id="escalas-app" class="max-w-[1600px] mx-auto uppercase" x-data="{
     searchQuery: '',
     selectedCategoria: 'CBI-1',
-}">
+    filledCards: 0,
+    totalCards: {{ funcs_com_alocacoes|length }},
+    canFinalize: false,
+    updateFinalizeStatus() {
+        // Aguarda o DOM atualizar antes de contar
+        this.$nextTick(() => {
+            const cards = document.querySelectorAll('.card-funcao');
+            let filled = 0;
+            cards.forEach(card => {
+                const alocados = card.querySelector('[id^=\'lista-alocados-\']');
+                if (alocados && alocados.children.length > 0) {
+                    filled++;
+                }
+            });
+            this.filledCards = filled;
+            this.canFinalize = (filled >= this.totalCards);
+        });
+    }
+}" x-init="setTimeout(() => updateFinalizeStatus(), 500)">
 
     <!-- Header Tático -->
     <div class="mb-8 flex flex-col md:flex-row justify-between items-start md:items-center bg-slate-900 border border-slate-800 p-6 rounded-3xl shadow-2xl relative overflow-hidden">
@@ -20,10 +38,10 @@
             </div>
             <div>
                 <div class="flex items-center space-x-3 mb-1">
-                    <span class="px-2.5 py-0.5 bg-red-500/20 text-red-500 border border-red-500/30 rounded text-[10px] font-black tracking-widest">NOVO MAPA FORÇA</span>
+                    <span class="px-2.5 py-0.5 bg-red-500/20 text-red-500 border border-red-500/30 rounded text-[10px] font-black tracking-widest">COBOM - CBI-1</span>
                     <span class="px-2.5 py-0.5 bg-emerald-500/20 text-emerald-500 border border-emerald-500/30 rounded text-[10px] font-black tracking-widest">{{ hoje|date:"d/m/Y" }}</span>
                 </div>
-                <h1 class="text-3xl font-black text-white tracking-tight">Composição COBOM / <span class="text-red-500">CBI-1</span></h1>
+                <h1 class="text-3xl font-black text-white tracking-tight">Composição de Serviço</h1>
                 <p class="text-xs text-slate-400 mt-1 font-bold tracking-widest">PAINEL DE PRONTIDÃO E ALOCAÇÃO TÁTICA</p>
             </div>
         </div>
@@ -69,10 +87,10 @@
     <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6 pb-20">
         {% for item in funcs_com_alocacoes %}
         <div x-data="{ isFilled: {% if item.alocacoes %}true{% else %}false{% endif %} }"
-             @htmx:after-swap.window="if($event.detail.target.id === 'lista-alocados-{{ item.funcao.id }}') { isFilled = true; }"
-             @htmx:after-settle.window="if(document.getElementById('lista-alocados-{{ item.funcao.id }}').children.length === 0) { isFilled = false; } else { isFilled = true; }"
+             @htmx:after-swap.window="if($event.detail.target.id === 'lista-alocados-{{ item.funcao.id }}') { isFilled = true; updateFinalizeStatus(); }"
+             @htmx:after-settle.window="if(document.getElementById('lista-alocados-{{ item.funcao.id }}').children.length === 0) { isFilled = false; } else { isFilled = true; } updateFinalizeStatus();"
              :class="isFilled ? 'border-emerald-500 shadow-[0_0_15px_rgba(16,185,129,0.15)]' : 'border-red-500 shadow-[0_0_15px_rgba(239,68,68,0.2)]'"
-             class="bg-slate-900 border-2 rounded-3xl overflow-hidden flex flex-col group transition-all duration-500">
+             class="card-funcao bg-slate-900 border-2 rounded-3xl overflow-hidden flex flex-col group transition-all duration-500">
             
             <!-- HEADER DA FUNÇÃO -->
             <div class="bg-[#0B1120] p-5 border-b border-slate-800/80 flex justify-between items-center relative overflow-hidden">
@@ -82,7 +100,7 @@
                 
                 <div class="relative z-10">
                     <div class="flex items-center space-x-3 mb-1">
-                        <div class="h-2 w-2 rounded-full bg-blue-500 shadow-[0_0_8px_rgba(59,130,246,0.8)]"></div>
+                        <div class="h-2 w-2 rounded-full" :class="isFilled ? 'bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.8)]' : 'bg-red-500 animate-pulse shadow-[0_0_8px_rgba(239,68,68,0.8)]'"></div>
                         <span class="text-[10px] font-black text-slate-500 tracking-widest uppercase">CARGO OPERACIONAL</span>
                     </div>
                     <h3 class="text-xl font-black text-white tracking-tight flex items-center">
@@ -138,7 +156,7 @@
                     <form hx-post="{% url 'alocar_funcionario_viatura' 0 %}"
                           hx-target="#lista-alocados-{{ item.funcao.id }}"
                           hx-swap="beforeend"
-                          @htmx:after-request="if($event.detail.successful) { $el.reset(); addMode = false; document.getElementById('search-results-{{ item.funcao.id }}').innerHTML=''; }"
+                          @htmx:after-request="if($event.detail.successful) { $el.reset(); addMode = false; document.getElementById('search-results-{{ item.funcao.id }}').innerHTML=''; updateFinalizeStatus(); }"
                           class="space-y-4" id="form-alocacao-{{ item.funcao.id }}">
                         
                         {% csrf_token %}
@@ -150,8 +168,27 @@
                         <input type="hidden" name="nome_extra" id="input_nome_{{ item.funcao.id }}">
                         <input type="hidden" name="efetivo_id" id="input_efetivo_{{ item.funcao.id }}">
 
-                        <div x-data="{ isDejem: false, inicio: '', get termino() { if(!this.inicio) return ''; let [h,m] = this.inicio.split(':'); h = (parseInt(h) + 8) % 24; return h.toString().padStart(2, '0') + ':' + m; } }" class="bg-black/20 p-4 rounded-xl border border-slate-800">
-                            <label class="flex items-center space-x-3 cursor-pointer group">
+                        <div x-data="{ 
+                            isDejem: false, 
+                            inicio_dejem: '', 
+                            get termino_dejem() { if(!this.inicio_dejem) return ''; let [h,m] = this.inicio_dejem.split(':'); h = (parseInt(h) + 8) % 24; return h.toString().padStart(2, '0') + ':' + m; },
+                            horario_ordinario: '24h',
+                            get h_inicio() {
+                                if(this.horario_ordinario === '24h') return '07:30';
+                                if(this.horario_ordinario === '12h-dia') return '06:45';
+                                if(this.horario_ordinario === '12h-noite') return '18:45';
+                                return '';
+                            },
+                            get h_fim() {
+                                if(this.horario_ordinario === '24h') return '07:30';
+                                if(this.horario_ordinario === '12h-dia') return '19:00';
+                                if(this.horario_ordinario === '12h-noite') return '07:00';
+                                return '';
+                            }
+                        }" class="bg-black/20 p-4 rounded-xl border border-slate-800">
+                            
+                            <!-- Toggle DEJEM -->
+                            <label class="flex items-center space-x-3 cursor-pointer group mb-4">
                                 <div class="relative">
                                     <input type="checkbox" name="dejem" value="true" x-model="isDejem" class="sr-only">
                                     <div class="w-10 h-6 bg-slate-800 rounded-full border border-slate-700 transition group-hover:border-slate-500"></div>
@@ -160,19 +197,40 @@
                                 <span class="text-xs font-black text-slate-300 tracking-widest uppercase">ESCALADO EM DEJEM?</span>
                             </label>
 
-                            <div x-show="isDejem" x-collapse class="mt-4 pt-4 border-t border-slate-700/50 flex space-x-4">
-                                <div class="flex-1">
-                                    <label class="text-[9px] font-black tracking-widest text-slate-500 mb-1 block">INÍCIO</label>
-                                    <input type="time" name="inicio_dejem" x-model="inicio" class="w-full bg-slate-900 border border-slate-700 text-white rounded-lg px-3 py-2 text-sm focus:border-amber-500 focus:outline-none">
+                            <!-- Horários DEJEM -->
+                            <div x-show="isDejem" x-collapse class="space-y-4">
+                                <div class="flex space-x-4">
+                                    <div class="flex-1">
+                                        <label class="text-[9px] font-black tracking-widest text-slate-500 mb-1 block">INÍCIO</label>
+                                        <input type="time" name="inicio_dejem" x-model="inicio_dejem" class="w-full bg-slate-900 border border-slate-700 text-white rounded-lg px-3 py-2 text-sm focus:border-amber-500 focus:outline-none">
+                                    </div>
+                                    <div class="flex-1 opacity-70 pointer-events-none">
+                                        <label class="text-[9px] font-black tracking-widest text-emerald-500 mb-1 block">TÉRMINO (+8h)</label>
+                                        <input type="time" name="termino_dejem" :value="termino_dejem" readonly class="w-full bg-slate-950 border border-emerald-900/50 text-emerald-400 rounded-lg px-3 py-2 text-sm focus:outline-none">
+                                    </div>
                                 </div>
-                                <div class="flex-1 opacity-70 pointer-events-none">
-                                    <label class="text-[9px] font-black tracking-widest text-emerald-500 mb-1 block">TÉRMINO (+8h)</label>
-                                    <input type="time" name="termino_dejem" :value="termino" readonly class="w-full bg-slate-950 border border-emerald-900/50 text-emerald-400 rounded-lg px-3 py-2 text-sm focus:outline-none">
+                            </div>
+
+                            <!-- Horários Ordinários (Apenas se não for DEJEM) -->
+                            <div x-show="!isDejem" x-collapse class="space-y-4">
+                                <label class="text-[9px] font-black tracking-widest text-slate-500 mb-2 block">HORÁRIO DE SERVIÇO (ORDINÁRIO)</label>
+                                <div class="grid grid-cols-3 gap-2">
+                                    <button type="button" @click="horario_ordinario = '24h'" :class="horario_ordinario === '24h' ? 'bg-blue-600 border-blue-400 text-white' : 'bg-slate-800 border-slate-700 text-slate-400'" class="py-2 text-[10px] font-black rounded-lg border transition uppercase">24hs<br>07:30</button>
+                                    <button type="button" @click="horario_ordinario = '12h-dia'" :class="horario_ordinario === '12h-dia' ? 'bg-blue-600 border-blue-400 text-white' : 'bg-slate-800 border-slate-700 text-slate-400'" class="py-2 text-[10px] font-black rounded-lg border transition uppercase">12hs<br>06:45</button>
+                                    <button type="button" @click="horario_ordinario = '12h-noite'" :class="horario_ordinario === '12h-noite' ? 'bg-blue-600 border-blue-400 text-white' : 'bg-slate-800 border-slate-700 text-slate-400'" class="py-2 text-[10px] font-black rounded-lg border transition uppercase">12hs<br>18:45</button>
+                                </div>
+                                
+                                <!-- Inputs ocultos para os horários selecionados -->
+                                <input type="hidden" name="inicio_servico" :value="h_inicio">
+                                <input type="hidden" name="termino_servico" :value="h_fim">
+                                
+                                <div class="text-[9px] font-bold text-slate-500 text-center mt-2 tracking-widest">
+                                    PERÍODO: <span x-text="h_inicio"></span> ÀS <span x-text="h_fim"></span>
                                 </div>
                             </div>
                         </div>
 
-                        <button type="submit" id="btn_submit_{{ item.funcao.id }}" class="hidden w-full py-3 bg-red-600 hover:bg-red-500 text-white font-bold rounded-xl shadow-lg transition text-xs tracking-widest uppercase">
+                        <button type="submit" id="btn_submit_{{ item.funcao.id }}" class="hidden w-full py-4 bg-red-600 hover:bg-red-500 text-white font-black rounded-xl shadow-lg transition text-xs tracking-widest uppercase">
                             Confirmar Alocação
                         </button>
                     </form>
@@ -186,8 +244,11 @@
     <div class="mt-8 mb-20 flex justify-center border-t border-slate-800 pt-10">
         <form hx-post="{% url 'validar_mapa_final' mapa.id %}" hx-target="body" hx-swap="beforeend">
             {% csrf_token %}
-            <button type="submit" class="bg-red-600 hover:bg-red-500 text-white font-black text-xl uppercase tracking-widest px-12 py-6 rounded-2xl shadow-[0_0_40px_rgba(220,38,38,0.6)] transition-all transform hover:scale-105 inline-flex items-center group">
-                <div class="bg-white/20 p-2 rounded-full mr-4 group-hover:bg-white group-hover:text-red-600 transition">
+            <button type="submit" 
+                    :disabled="!canFinalize"
+                    :class="canFinalize ? 'bg-red-600 hover:bg-red-500 shadow-[0_0_40px_rgba(220,38,38,0.6)] transform hover:scale-105' : 'bg-slate-800 text-slate-500 cursor-not-allowed grayscale shadow-none'"
+                    class="text-white font-black text-xl uppercase tracking-widest px-12 py-6 rounded-2xl transition-all inline-flex items-center group">
+                <div class="p-2 rounded-full mr-4 transition" :class="canFinalize ? 'bg-white/20 group-hover:bg-white group-hover:text-red-600' : 'bg-slate-700'">
                     <svg class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7"/></svg>
                 </div>
                 SALVAR E FINALIZAR O MAPA
@@ -198,57 +259,24 @@
 
 </div>
 
-<!-- Injetando Script para interagir com os cards de busca, o compor normal usa select_militar. Aqui adaptamos -->
+<!-- Injetando Script para interagir com os cards de busca -->
 <script>
 function selectMilitar(re, nome, efetivo_id, form_id) {
-    if(re === 'None') re = '';
-    
-    // Procura o input escondido dentro do respectivo form
-    // Sabemos o form aberto pelo x-data ou id. Mas a busca do partial renderiza sem ID.
-    // Solução simples: O form pai do resultado.
-    
-    let container = document.getElementById(form_id);
-    if(container) {
-        // Encontra os inputs dentro
-        let reInput = container.querySelector('input[name="funcionario_re"]');
-        let nomeInput = container.querySelector('input[name="nome_extra"]');
-        let efInput = container.querySelector('input[name="efetivo_id"]');
-        let btn = container.querySelector('button[type="submit"]');
-
-        if(reInput) reInput.value = re;
-        if(nomeInput) nomeInput.value = nome;
-        if(efInput) efInput.value = efetivo_id;
-
-        // Limpa visualização da busca
-        let cards = container.parentNode.querySelectorAll('div[onclick^="selectMilitar"]');
-        cards.forEach(c => {
-            c.classList.remove('border-red-500', 'bg-red-500/10');
-            c.classList.add('opacity-50');
-        });
-        
-        // Destaca o selecionado (Hack visual rápido)
-        btn.classList.remove('hidden');
-    }
+    // Implementado via delegação global abaixo
 }
 
-// Override global para a function do HTML parcial (já que o parcial chama selectMilitar(re, nome, id) sem form_id
-// Vamos capturar o click de forma delegada.
+// Delegated Click para os cards de resultado de busca
 document.body.addEventListener('click', function(e) {
     let card = e.target.closest('div[onclick^="selectMilitar"]');
     if(card) {
-        // Intercepta e pega os dados
         let onclick = card.getAttribute('onclick');
         let regex = /selectMilitar\('([^']*)',\s*'([^']*)',\s*'([^']*)'\)/;
-        let p = document.createElement('div');
-        p.innerHTML = onclick; // safe?
-        
         let match = onclick.match(regex);
         if(match) {
             let re = match[1];
             let n = match[2];
             let id = match[3];
             
-            // Acha o form irmão
             let form = card.closest('.mb-4').nextElementSibling;
             if(form && form.tagName === 'FORM') {
                 e.preventDefault();
@@ -258,7 +286,6 @@ document.body.addEventListener('click', function(e) {
                 form.querySelector('input[name="nome_extra"]').value = n;
                 form.querySelector('input[name="efetivo_id"]').value = id;
                 
-                // Visual
                 let siblings = card.parentNode.children;
                 for(let s of siblings) {
                     s.classList.remove('border-red-500', 'bg-red-500/10');
@@ -267,14 +294,27 @@ document.body.addEventListener('click', function(e) {
                 card.classList.remove('opacity-50');
                 card.classList.add('border-red-500', 'bg-red-500/10');
                 
-                // Mostra botão de enviar
                 let btn = form.querySelector('button[type="submit"]');
                 if(btn) btn.classList.remove('hidden');
             }
         }
     }
 });
+
+// Listener global para atualizar status do botão de finalizar quando houver mudanças nas alocações
+document.body.addEventListener('htmx:afterOnLoad', function(evt) {
+    // Se houve uma mudança bem sucedida em uma alocação, atualiza o status de finalização
+    if (evt.detail.xhr.status === 200) {
+        setTimeout(() => {
+            if(window.Alpine) {
+                const app = document.getElementById('escalas-app');
+                if(app && app.__x) app.__x.$data.updateFinalizeStatus();
+            }
+        }, 200);
+    }
+});
 </script>
+
 <!-- Toast System -->
 <div id="toast" class="fixed bottom-10 right-10 z-[100] transform translate-y-20 opacity-0 transition-all duration-500 pointer-events-none">
     <div id="toast-container" class="bg-slate-900 text-white px-8 py-5 rounded-2xl shadow-2xl border border-white/10 flex items-center space-x-4 min-w-[300px]">
@@ -295,10 +335,15 @@ document.body.addEventListener('click', function(e) {
         const msgSpan = document.getElementById('toast-message');
         if (!msgSpan) return;
         msgSpan.innerText = message;
-        if (type === "error") container.classList.replace('bg-slate-900', 'bg-red-600');
-        else container.classList.replace('bg-red-600', 'bg-slate-900');
+        if (type === "error") {
+            container.classList.replace('bg-slate-900', 'bg-red-600');
+            document.getElementById('toast-icon-bg').classList.replace('bg-emerald-500', 'bg-white/20');
+        } else {
+            container.classList.replace('bg-red-600', 'bg-slate-900');
+            document.getElementById('toast-icon-bg').classList.replace('bg-white/20', 'bg-emerald-500');
+        }
         toast.classList.remove('translate-y-20', 'opacity-0');
-        setTimeout(() => toast.classList.add('translate-y-20', 'opacity-0'), 3000);
+        setTimeout(() => toast.classList.add('translate-y-20', 'opacity-0'), 5000);
     };
 </script>
 

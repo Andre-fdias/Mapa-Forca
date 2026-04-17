@@ -6,6 +6,21 @@ from .serializers import FuncionarioSerializer
 from django.db.models import Q
 from django.core.management import call_command
 from django.http import HttpResponse
+import re
+
+def normalize_phone_for_whatsapp(telefone):
+    if not telefone:
+        return None
+    digits = re.sub(r'\D+', '', str(telefone))
+    if not digits:
+        return None
+    if digits.startswith('00'):
+        digits = digits[2:]
+    if digits.startswith('55'):
+        return digits
+    if digits.startswith('0'):
+        digits = digits.lstrip('0')
+    return f'55{digits}'
 
 class FuncionarioViewSet(viewsets.ModelViewSet):
     queryset = Funcionario.objects.all()
@@ -30,31 +45,31 @@ def lista_efetivo_importado(request):
     sgb_filter = request.GET.get('sgb', '')
     secao_filter = request.GET.get('secao', '')
     
-    efetivo = Efetivo.objects.all().order_by('nome')
-    
-    # Normalização em memória para exibição/fallback se necessário
-    # mas o ideal é filtrar no banco.
+    efetivo_qs = Efetivo.objects.all().order_by('nome')
     
     if query:
-        efetivo = efetivo.filter(Q(nome__icontains=query) | Q(re__icontains=query) | Q(nome_do_pm__icontains=query))
+        efetivo_qs = efetivo_qs.filter(Q(nome__icontains=query) | Q(re__icontains=query) | Q(nome_do_pm__icontains=query))
     if unidade_filter:
-        efetivo = efetivo.filter(unidade=unidade_filter)
+        efetivo_qs = efetivo_qs.filter(unidade=unidade_filter)
     if sgb_filter:
-        efetivo = efetivo.filter(sgb=sgb_filter)
+        efetivo_qs = efetivo_qs.filter(sgb=sgb_filter)
     if secao_filter:
-        efetivo = efetivo.filter(posto_secao=secao_filter)
+        efetivo_qs = efetivo_qs.filter(posto_secao=secao_filter)
+
+    # Processamento adicional (Telefone Link)
+    efetivo_list = list(efetivo_qs)
+    for m in efetivo_list:
+        if m.telefone:
+            m.tel_link = normalize_phone_for_whatsapp(m.telefone)
 
     # --- LÓGICA DE FILTROS ---
-    # Lista todas as Unidades disponíveis (removendo None e vazios)
     lista_unidades = Efetivo.objects.exclude(unidade__isnull=True).exclude(unidade='').values_list('unidade', flat=True).distinct().order_by('unidade')
     
-    # Lista todos os SGBs baseados na unidade selecionada
     base_sgbs = Efetivo.objects.all()
     if unidade_filter:
         base_sgbs = base_sgbs.filter(unidade=unidade_filter)
     lista_sgb = base_sgbs.exclude(sgb__isnull=True).exclude(sgb='').values_list('sgb', flat=True).distinct().order_by('sgb')
     
-    # Lista as Seções baseadas na unidade e no SGB selecionado
     base_secoes = Efetivo.objects.all()
     if unidade_filter:
         base_secoes = base_secoes.filter(unidade=unidade_filter)
@@ -64,7 +79,7 @@ def lista_efetivo_importado(request):
     lista_secoes = base_secoes.exclude(posto_secao__isnull=True).exclude(posto_secao='').values_list('posto_secao', flat=True).distinct().order_by('posto_secao')
         
     return render(request, 'efetivo/lista_importada.html', {
-        'efetivo': efetivo,
+        'efetivo': efetivo_list,
         'query': query,
         'unidade_filter': unidade_filter,
         'sgb_filter': sgb_filter,

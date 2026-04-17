@@ -97,6 +97,10 @@ class AlocacaoFuncionario(models.Model):
     dejem = models.BooleanField(default=False, verbose_name="DEJEM")
     inicio_dejem = models.TimeField(null=True, blank=True, verbose_name="Início DEJEM")
     termino_dejem = models.TimeField(null=True, blank=True, verbose_name="Término DEJEM")
+    
+    # Horário de serviço geral (Padrão: 07:30 - 07:30 para GB, variável para COBOM)
+    inicio_servico = models.TimeField(null=True, blank=True, verbose_name="Início Serviço")
+    termino_servico = models.TimeField(null=True, blank=True, verbose_name="Término Serviço")
 
     def __str__(self):
         viatura_str = self.alocacao_viatura.viatura.prefixo if self.alocacao_viatura else 'Avulso'

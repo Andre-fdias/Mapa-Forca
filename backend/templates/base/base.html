@@ -83,6 +83,8 @@
 
             <!-- Main Section -->
             <main id="main-section" class="p-4 md:p-8 lg:p-10">
+                {% include "components/notificacao_cobom.html" %}
+                
                 {% if messages %}
                 <div class="mb-6 space-y-2">
                     {% for message in messages %}

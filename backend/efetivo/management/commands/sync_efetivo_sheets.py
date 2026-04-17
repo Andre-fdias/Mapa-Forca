@@ -65,12 +65,18 @@ class Command(BaseCommand):
                         nome=nome_padrao,
                         defaults={
                             're': re_completo,
+                            'dig': dig,
                             'nome_do_pm': clean_val(row.get('NOME_DO_PM')),
+                            'nome_guerra': clean_val(row.get('NOME DE GUERRA')),
+                            'nome_padrao': nome_padrao,
                             'unidade': clean_val(row.get('UNIDADE')),
                             'sgb': clean_val(row.get('SGB')),
                             'posto_secao': clean_val(row.get('POSTO_SECAO')),
+                            'chave_posto': clean_val(row.get('CHAVE_POSTO')),
+                            'email': clean_val(row.get('EMAIL')),
                             'mergulho': clean_val(row.get('MERGULHO')),
                             'ovb': clean_val(row.get('OVB')),
+                            'telefone': clean_val(row.get('telefone')),
                             'fonte': 'Google Sheets (MultiGB)',
                             'data_importacao': timezone.now()
                         }

@@ -44,14 +44,20 @@ class Funcionario(models.Model):
         ordering = ['posto_graduacao__ordem', 'nome_completo']
 
 class Efetivo(models.Model):
-    nome = models.CharField(max_length=255, unique=True)
+    nome = models.CharField(max_length=255, unique=True) # Mapeado para NOME PADRAO
     re = models.CharField(max_length=50, null=True, blank=True)
+    dig = models.CharField(max_length=10, null=True, blank=True)
     nome_do_pm = models.CharField(max_length=255, null=True, blank=True)
+    nome_guerra = models.CharField(max_length=255, null=True, blank=True)
+    nome_padrao = models.CharField(max_length=255, null=True, blank=True)
     unidade = models.CharField(max_length=100, null=True, blank=True)
     sgb = models.CharField(max_length=100, null=True, blank=True)
     posto_secao = models.CharField(max_length=100, null=True, blank=True)
+    chave_posto = models.CharField(max_length=100, null=True, blank=True)
+    email = models.EmailField(max_length=255, null=True, blank=True)
     mergulho = models.CharField(max_length=100, null=True, blank=True)
     ovb = models.CharField(max_length=100, null=True, blank=True)
+    telefone = models.CharField(max_length=50, null=True, blank=True)
     
     fonte = models.CharField(max_length=100, default='Google Sheets')
     data_importacao = models.DateTimeField(auto_now=True)

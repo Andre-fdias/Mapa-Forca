@@ -30,8 +30,63 @@ def get_data_operacional():
         return (agora - datetime.timedelta(days=1)).date()
     return agora.date()
 
+def limpar_escalas_vencidas():
+    """Limpa alocações do COBOM que já expiraram conforme as regras de horário."""
+    agora = timezone.localtime(timezone.now())
+    hoje = agora.date()
+    ontem = hoje - datetime.timedelta(days=1)
+    hora_atual = agora.time()
+    
+    # 1. 12hs (06:45 - 19:00): Limpa às 18:55 do próprio dia
+    if hora_atual >= datetime.time(18, 55):
+        AlocacaoFuncionario.objects.filter(
+            mapa__unidade__nome='CBI-1',
+            mapa__data=hoje,
+            inicio_servico=datetime.time(6, 45),
+            termino_servico=datetime.time(19, 0)
+        ).delete()
+
+    # 2. 12hs (18:45 - 07:00): Limpa às 06:55 do dia seguinte (referente a ontem)
+    if hora_atual >= datetime.time(6, 55):
+        AlocacaoFuncionario.objects.filter(
+            mapa__unidade__nome='CBI-1',
+            mapa__data=ontem,
+            inicio_servico=datetime.time(18, 45),
+            termino_servico=datetime.time(7, 0)
+        ).delete()
+
+    # 3. 24hs (07:30 - 07:30): Limpa às 07:25 do dia do término (referente a ontem)
+    if hora_atual >= datetime.time(7, 25):
+        AlocacaoFuncionario.objects.filter(
+            mapa__data=ontem,
+            mapa__unidade__nome='CBI-1',
+            inicio_servico=datetime.time(7, 30),
+            termino_servico=datetime.time(7, 30)
+        ).delete()
+
+@login_required
+def atualizar_horario_alocacao(request, aloc_func_id):
+    af = get_object_or_404(AlocacaoFuncionario, id=aloc_func_id)
+    inicio = request.POST.get('inicio_servico')
+    termino = request.POST.get('termino_servico')
+    
+    if inicio and termino:
+        af.inicio_servico = inicio
+        af.termino_servico = termino
+        af.save()
+        
+        HistoricoAlteracao.objects.create(
+            mapa=af.mapa,
+            usuario=request.user,
+            tipo_acao='UPDATE',
+            descricao=f"Atualizou horário de {af.funcionario.nome_guerra} para {inicio}-{termino}."
+        )
+    
+    return render(request, 'mapa_forca/partials/linha_funcionario_viatura.html', {'aloc_func': af, 'is_cobom': af.alocacao_viatura is None})
+
 @login_required
 def compor_mapa_view(request):
+    limpar_escalas_vencidas()
     hoje = get_data_operacional()
     u_id = request.GET.get('unidade_id')
     categoria = request.GET.get('categoria')
@@ -86,7 +141,7 @@ def compor_mapa_view(request):
         return render(request, 'mapa_forca/partials/select_postos.html', context)
 
     # Se for COBOM (CBI-1 ou Admin se apresentando como COBOM)
-    if request.user.role == 'COBOM' or (request.user.role == 'ADMIN' and (request.GET.get('is_cobom') == 'true' or unidade_obj.nome == 'CBI-1')):
+    if request.user.role == 'COBOM' or (request.user.role == 'ADMIN' and (request.GET.get('is_cobom') == 'true' or (unidade_obj and unidade_obj.nome == 'CBI-1'))):
         f_names = ['Oficial de Operações DEJEM', 'Chefe de Equipe', 'Supervisor Despacho', 'Supervisor 193', 'Supervisor 7º GB', 'Cabine 7º GB', 'Supervisor 19º GB', 'Cabine 19º GB', 'Supervisor 15º GB', 'Cabine 15º GB', 'Supervisor 16º GB', 'Cabine 16º GB', 'Apoio Cabine 7º, 19º e 15º GB', 'Apoio Cabine 16º GB', 'Enfermeiro de Triagem', 'Inclusor', 'Supervisor COE Autoban', 'Atendente 193']
         funcoes = Dictionary.objects.filter(tipo='FUNCAO_OPERACIONAL', nome__in=f_names)
         
@@ -216,7 +271,6 @@ def adicionar_viatura_mapa(request, mapa_id):
 
 @login_required
 def alocar_funcionario_viatura(request, alocacao_viatura_id):
-    # ... (restante do código anterior de busca de militar) ...
     re_in = request.POST.get('funcionario_re', '').strip()
     nome_ex = request.POST.get('nome_extra', '').strip()
     efetivo_id = request.POST.get('efetivo_id')
@@ -225,6 +279,9 @@ def alocar_funcionario_viatura(request, alocacao_viatura_id):
     inicio_dejem = request.POST.get('inicio_dejem')
     termino_dejem = request.POST.get('termino_dejem')
     
+    # Horários COBOM
+    inicio_servico = request.POST.get('inicio_servico')
+    termino_servico = request.POST.get('termino_servico')
     
     if alocacao_viatura_id and int(alocacao_viatura_id) != 0:
         aloc_v = get_object_or_404(AlocacaoViatura, id=alocacao_viatura_id)
@@ -264,7 +321,6 @@ def alocar_funcionario_viatura(request, alocacao_viatura_id):
             import hashlib
             re_real = f"T-{hashlib.md5(nome_padrao.encode()).hexdigest()[:6]}"
 
-        # Mapeamento robusto de siglas para códigos do dicionário
         p_codigo = "SD_PM"
         if 'SUB' in nome_padrao: p_codigo = 'SUBTEN_PM'
         elif 'SGT' in nome_padrao: p_codigo = 'SGT_PM'
@@ -296,15 +352,21 @@ def alocar_funcionario_viatura(request, alocacao_viatura_id):
 
     # 4. Finaliza a alocação
     if militar:
-        ja_alocado = AlocacaoFuncionario.objects.filter(
+        # Trava: Militar só pode ser escalado uma vez por dia (Unicidade Diária)
+        ja_alocado_hoje = AlocacaoFuncionario.objects.filter(
             mapa__data=mapa_aloc.data, 
             funcionario=militar
-        ).exclude(alocacao_viatura=aloc_v).first()
+        ).first()
         
-        if ja_alocado:
-            return HttpResponse(f'<script>showToast("Militar já escalado hoje!", "error");</script>')
+        if ja_alocado_hoje:
+            msg = f"Militar já escalado hoje em {ja_alocado_hoje.mapa.unidade.nome}!"
+            return HttpResponse(f'<script>showToast("{msg}", "error");</script>')
 
-        AlocacaoFuncionario.objects.filter(mapa=mapa_aloc, funcionario=militar).delete()
+        # Define horários padrão se não informados (para GB é sempre 07:30 - 07:30)
+        if not inicio_servico:
+            inicio_servico = "07:30:00"
+            termino_servico = "07:30:00"
+
         af = AlocacaoFuncionario.objects.create(
             mapa=mapa_aloc, 
             alocacao_viatura=aloc_v, 
@@ -312,7 +374,9 @@ def alocar_funcionario_viatura(request, alocacao_viatura_id):
             funcao=funcao,
             dejem=(dejem_val == True),
             inicio_dejem=inicio_dejem if dejem_val and inicio_dejem else None,
-            termino_dejem=termino_dejem if dejem_val and termino_dejem else None
+            termino_dejem=termino_dejem if dejem_val and termino_dejem else None,
+            inicio_servico=inicio_servico,
+            termino_servico=termino_servico
         )
         
         vtr_prefix = aloc_v.viatura.prefixo if aloc_v else "Avulso"

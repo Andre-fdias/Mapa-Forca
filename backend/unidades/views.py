@@ -26,59 +26,66 @@ def get_data_operacional():
         return (agora - datetime.timedelta(days=1)).date()
     return agora.date()
 
-def format_militar_display(funcionario, efetivo_info):
-    """Garante o formato GRADUAÇÃO + NOME DE GUERRA limpo, sem duplicidade ou quebras de linha."""
+def format_militar_display(funcionario, efetivo_info, include_re=True):
+    """Garante o formato EXATO: POSTO + ' ' + RE + '-' + DIG + ' ' + NOME_DE_GUERRA."""
     ranks = [
         'CEL PM', 'TEN CEL PM', 'MAJ PM', 'CAP PM', '1º TEN PM', '2º TEN PM', 'ASP PM', 
-        'SUBTEN PM', '1º SGT PM', '2º SGT PM', '3º SGT PM', 'CB PM', 'SD PM',
-        '1 SGT PM', '2 SGT PM', '3 SGT PM', '1 TEN PM', '2 TEN PM'
+        'SUBTEN PM', '1º SGT PM', '2º SGT PM', '3º SGT PM', 'CB PM', 'SD PM'
     ]
     
-    # 1. Determina a Graduação
-    p_limpo = ""
+    # 1. Posto
+    p_final = ""
     if efetivo_info and efetivo_info.posto_secao:
         p_txt = str(efetivo_info.posto_secao).upper()
         for r in ranks:
-            if r in p_txt:
-                p_limpo = r
+            if r in p_txt or r.replace('º', '') in p_txt:
+                p_final = r
                 break
-    
-    if not p_limpo and funcionario and funcionario.posto_graduacao:
-        p_limpo = funcionario.posto_graduacao.nome.upper()
-    
-    # Normalização de graduação (ex: 1 SGT PM -> 1º SGT PM)
-    if p_limpo:
-        p_limpo = p_limpo.replace('1 SGT', '1º SGT').replace('2 SGT', '2º SGT').replace('3 SGT', '3º SGT')
-        p_limpo = p_limpo.replace('1 TEN', '1º TEN').replace('2 TEN', '2º TEN')
+    if not p_final and funcionario and funcionario.posto_graduacao:
+        p_final = funcionario.posto_graduacao.nome.upper()
 
-    # 2. Determina o Nome de Guerra
-    n_limpo = ""
-    if efetivo_info and efetivo_info.nome:
-        n_txt = str(efetivo_info.nome).upper()
+    # 2. RE e DIG
+    re_val = ""
+    dig_val = ""
+    raw_re = ""
+    if funcionario and funcionario.re:
+        raw_re = funcionario.re
+    elif efetivo_info and efetivo_info.re:
+        raw_re = efetivo_info.re
         
-        # Limpeza de códigos, REs e parênteses
+    if raw_re:
+        parts = str(raw_re).split('-')
+        re_val = parts[0].strip()
+        dig_val = parts[1].strip() if len(parts) > 1 else ""
+
+    if not dig_val and efetivo_info and efetivo_info.dig:
+        dig_val = str(efetivo_info.dig).strip()
+
+    # 3. Nome de Guerra
+    n_final = ""
+    if efetivo_info and efetivo_info.nome_guerra:
+        n_final = str(efetivo_info.nome_guerra).upper().strip()
+    elif efetivo_info and efetivo_info.nome:
+        n_txt = str(efetivo_info.nome).upper()
         n_txt = re.sub(r'\d{6}-\d{1}', '', n_txt)
         n_txt = re.sub(r'\(.*?\)', '', n_txt)
-        n_txt = re.sub(r'\d{4,}', '', n_txt)
-        
-        # REMOVE GRADUAÇÕES DO NOME para evitar duplicação (1º SGT PM 1º SGT PM)
         for r in ranks:
             n_txt = n_txt.replace(r, '').replace(r.replace('º', ''), '')
-            
-        n_txt = re.sub(r'[.\-\/_]', ' ', n_txt)
-        n_limpo = n_txt.strip()
+        n_final = n_txt.strip()
     
-    if not n_limpo and funcionario:
-        n_limpo = (funcionario.nome_guerra or "").upper().strip()
+    if not n_final and funcionario:
+        n_final = (funcionario.nome_guerra or "").upper().strip()
 
-    # 3. Resultado Final (Garante linha única e espaços simples)
-    final = f"{p_limpo} {n_limpo}".strip().upper()
-    final = " ".join(final.split()) # Remove newlines e espaços duplos
+    # 4. Montagem Final
+    res = p_final
+    if include_re and re_val:
+        re_str = f"{re_val}-{dig_val}" if dig_val else re_val
+        res = f"{res} {re_str}".strip()
     
-    if not final and funcionario:
-        return funcionario.nome_curto.upper()
-    
-    return final or "S/ NOME"
+    if n_final:
+        res = f"{res} {n_final}".strip()
+        
+    return res or "S/ NOME"
 
 class UnidadeViewSet(viewsets.ModelViewSet):
     queryset = Unidade.objects.filter(ativo=True)
@@ -472,6 +479,20 @@ def sync_postos_sheets_action(request):
     except Exception as e:
         return HttpResponse(f'<div class="p-4 bg-red-500/20 text-red-400 rounded-2xl text-xs font-bold">Erro: {str(e)}</div>')
 
+def normalize_phone_for_whatsapp(telefone):
+    if not telefone:
+        return None
+    digits = re.sub(r'\D+', '', str(telefone))
+    if not digits:
+        return None
+    if digits.startswith('00'):
+        digits = digits[2:]
+    if digits.startswith('55'):
+        return digits
+    if digits.startswith('0'):
+        digits = digits.lstrip('0')
+    return f'55{digits}'
+
 @login_required
 def visao_cobom_efetivo_view(request):
     """Nova Visão Tática COBOM focada em Efetivo (Design Dark Mode)"""
@@ -520,17 +541,28 @@ def visao_cobom_efetivo_view(request):
                 
                 obs = []
                 if ef_info:
-                    if 'SIM' in str(ef_info.mergulho).upper(): obs.append('MERG')
-                    if ef_info.ovb: obs.append(ef_info.ovb)
+                    if 'SIM' in str(ef_info.mergulho).upper(): obs.append('MERGULHADOR')
                 if aloc.dejem: obs.append('DEJEM')
-                    
+                
+                # Horário para o hover do DEJEM
+                horario_str = ""
+                h_ini = aloc.inicio_dejem or aloc.inicio_servico
+                h_fim = aloc.termino_dejem or aloc.termino_servico
+                if h_ini and h_fim:
+                    horario_str = f"{h_ini.strftime('%H:%M')} - {h_fim.strftime('%H:%M')}"
+                
+                tel_raw = ef_info.telefone if ef_info else '-'
+                tel_link = normalize_phone_for_whatsapp(tel_raw)
+                
                 pessoas.append({
                     'setor': setor,
                     'funcao': fn_nome.upper(),
                     're': aloc.funcionario.re or '-',
                     'nome': nome_display,
                     'obs': ' '.join(obs) if obs else '-',
-                    'tel': ef_info.telefone if ef_info and hasattr(ef_info, 'telefone') else '-',
+                    'dejem_horario': horario_str,
+                    'tel': tel_raw,
+                    'tel_link': f'https://wa.me/{tel_link}' if tel_link else None,
                     'cor_setor': cor,
                 })
             else:
@@ -540,15 +572,19 @@ def visao_cobom_efetivo_view(request):
                     're': '-',
                     'nome': '-',
                     'obs': '-',
+                    'dejem_horario': '',
                     'tel': '-',
+                    'tel_link': None,
                     'cor_setor': cor,
                 })
             
         prontidao = mapa.prontidao or 'INDEFINIDA'
         equipe = mapa.equipe or '-'
+        ultimo_atualizacao = mapa.atualizado_em
     else:
         prontidao = 'NÃO INICIADO'
         equipe = '-'
+        ultimo_atualizacao = agora
         
     color_map = {
         'AZUL': ('bg-blue-600/10', 'border-blue-500', 'text-blue-500', 'bg-blue-500'),
@@ -568,6 +604,18 @@ def visao_cobom_efetivo_view(request):
         'border_class': border_class,
         'text_class': text_class,
         'icon_class': icon_class,
+        'ultimo_atualizacao': ultimo_atualizacao,
+        'mapa': mapa,
+        'atualizacao_limite_padrao': '20:30',
+        'atualizacao_equipe_diurna': 'ATÉ 18h30',
+        'atualizacao_equipe_noturna': 'ATÉ 20h30',
+        'cobom_address': 'Avenida João Jorge, 499 - Campinas - SP',
+        'cobom_address_maps': 'https://www.google.com/maps/search/?api=1&query=Avenida+Jo%C3%A3o+Jorge%2C+499%2C+Campinas%2C+SP',
+        'suporte_telefone': '(11) 3396-2243',
+        'suporte_whatsapp': normalize_phone_for_whatsapp('(11) 3396-2243'),
+        'suporte_email': 'cbmqualidadeop@policiamilitar.sp.gov.br',
+        'editor_email_1': 'cb1icobom@policiamilitar.sp.gov.br',
+        'editor_email_2': 'cb1icobom.suporte@policiamilitar.sp.gov.br',
     }
     
     return render(request, 'dashboard/visao_cobom_efetivo.html', context)
