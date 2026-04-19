@@ -12,8 +12,11 @@ class GoogleLogin(SocialLoginView):
 urlpatterns = [
     path('api/auth/social/google/', GoogleLogin.as_view(), name='google_login'),
     path('profile/', views.profile_view, name='profile'),
+    path('profile/get-postos/', views.get_postos_profile_htmx, name='get_postos_profile_htmx'),
     path('admin-dashboard/', views.admin_dashboard_view, name='admin_dashboard'),
     path('approve-user/<int:user_id>/', views.approve_user_view, name='approve_user'),
+    path('approve-change/<int:user_id>/', views.approve_profile_change_view, name='approve_profile_change'),
+    path('reject-change/<int:user_id>/', views.reject_profile_change_view, name='reject_profile_change'),
     path('reject-user/<int:user_id>/', views.reject_user_view, name='reject_user'),
     path('request-access/', views.request_access_view, name='request_access'),
     path('waiting-approval/', views.waiting_approval_view, name='waiting_approval'),

@@ -58,13 +58,16 @@
             <div class="bg-white dark:bg-slate-900 rounded-2xl p-5 shadow-2xl border border-slate-100 dark:border-slate-800">
                 <div class="mb-4 border-b border-slate-100 dark:border-slate-800 pb-3 flex justify-between items-end">
                     <div>
-                        <h2 class="text-base font-black text-slate-900 dark:text-white uppercase tracking-tighter">Vínculo de Unidade</h2>
-                        <p class="text-slate-500 text-[8px] font-black uppercase tracking-widest mt-0.5 italic">Solicite acesso aos seus postos de atuação</p>
+                        <h2 class="text-base font-black text-slate-900 dark:text-white uppercase tracking-tighter">Vínculo & Acesso</h2>
+                        <p class="text-slate-500 text-[8px] font-black uppercase tracking-widest mt-0.5 italic">Gerencie sua unidade e nível de permissão</p>
                     </div>
-                    {% if user.is_link_pending %}
-                    <span class="px-2 py-1 bg-amber-500/10 text-amber-500 rounded-lg text-[7px] font-black uppercase tracking-widest border border-amber-500/20 animate-pulse">
-                        Aguardando
-                    </span>
+                    {% if user.is_change_pending %}
+                    <div class="flex flex-col items-end">
+                        <span class="px-2 py-1 bg-amber-500/10 text-amber-500 rounded-lg text-[7px] font-black uppercase tracking-widest border border-amber-500/20 animate-pulse">
+                            Alteração Pendente
+                        </span>
+                        <p class="text-[6px] text-slate-400 font-bold uppercase mt-1">Aguardando aprovação do Admin</p>
+                    </div>
                     {% endif %}
                 </div>
 
@@ -82,17 +85,27 @@
                             </select>
                         </div>
 
-                        <!-- Unidade Principal -->
+                        <!-- Unidade (Batalhão) -->
                         <div class="space-y-1.5">
-                            <label class="block text-[8px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-widest ml-1">Posto(s) de Atendimento</label>
-                            <div class="relative group">
-                                <select name="requested_unidades" multiple required class="w-full bg-slate-50 dark:bg-slate-950 border-2 border-slate-100 dark:border-slate-800 rounded-xl p-2.5 text-[10px] font-bold text-slate-900 dark:text-white focus:border-red-600 transition-all outline-none min-h-[100px]">
-                                    {% for u in unidades %}
-                                        <option value="{{ u.id }}">{{ u.nome }}</option>
-                                    {% endfor %}
-                                </select>
-                                <p class="text-[7px] text-slate-500 font-bold mt-1 ml-1 italic">Ctrl + clique para múltiplos</p>
-                            </div>
+                            <label class="block text-[8px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-widest ml-1">Unidade (Batalhão)</label>
+                            <select name="batalhao_nome" 
+                                    hx-get="{% url 'get_postos_profile_htmx' %}" 
+                                    hx-target="#posto-select" 
+                                    hx-trigger="change, load"
+                                    class="w-full bg-slate-50 dark:bg-slate-950 border-2 border-slate-100 dark:border-slate-800 rounded-xl p-2.5 text-[10px] font-bold text-slate-900 dark:text-white focus:border-red-600 transition-all outline-none">
+                                <option value="">Selecione a Unidade</option>
+                                {% for bat in batalhoes %}
+                                    <option value="{{ bat }}" {% if user.unidade.parent.parent.nome == bat or user.unidade.parent.nome == bat %}selected{% endif %}>{{ bat }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+
+                        <!-- Posto de Atendimento -->
+                        <div class="md:col-span-2 space-y-1.5">
+                            <label class="block text-[8px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-widest ml-1">Posto de Atendimento</label>
+                            <select id="posto-select" name="posto_id" required class="w-full bg-slate-50 dark:bg-slate-950 border-2 border-slate-100 dark:border-slate-800 rounded-xl p-2.5 text-[10px] font-bold text-slate-900 dark:text-white focus:border-red-600 transition-all outline-none">
+                                <option value="">Selecione a Unidade primeiro</option>
+                            </select>
                         </div>
                     </div>
 
@@ -100,8 +113,20 @@
                         <svg class="h-3.5 w-3.5 group-hover:rotate-12 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="3">
                             <path d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"/><path d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"/>
                         </svg>
-                        <span class="uppercase tracking-widest text-[9px]">Solicitar Vínculo</span>
+                        <span class="uppercase tracking-widest text-[9px]">
+                            {% if user.is_admin %}Atualizar Imediatamente{% else %}Solicitar Alteração{% endif %}
+                        </span>
                     </button>
+                    
+                    {% if user.is_change_pending %}
+                    <div class="bg-amber-500/5 border border-amber-500/20 p-3 rounded-xl">
+                        <h4 class="text-[8px] font-black text-amber-600 uppercase tracking-widest mb-1">Solicitação Pendente:</h4>
+                        <div class="text-[9px] font-bold text-amber-700/80">
+                            Nível: {{ user.get_requested_role_display|default:user.get_role_display }} <br>
+                            Posto: {{ user.requested_unidade.nome|default:user.unidade.nome }}
+                        </div>
+                    </div>
+                    {% endif %}
                 </form>
             </div>
 

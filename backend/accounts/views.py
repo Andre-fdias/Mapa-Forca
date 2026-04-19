@@ -14,7 +14,9 @@ import re
 @login_required
 def profile_view(request):
     is_social = SocialAccount.objects.filter(user=request.user).exists()
-    todas_unidades = Unidade.objects.all().order_by('nome')
+    
+    # Lista de Batalhões únicos dos Postos para o seletor
+    batalhoes = Posto.objects.values_list('unidade', flat=True).exclude(unidade__isnull=True).exclude(unidade='').distinct().order_by('unidade')
     
     if request.method == 'POST':
         if 'change_password' in request.POST and not is_social:
@@ -27,11 +29,36 @@ def profile_view(request):
             else:
                 messages.error(request, 'Erro ao alterar senha.')
         elif 'request_link' in request.POST:
-            unidades_ids = request.POST.getlist('requested_unidades')
-            request.user.is_link_pending = True
-            request.user.save()
-            request.user.requested_unidades.set(unidades_ids)
-            messages.info(request, 'Sua solicitação de vínculo foi enviada para auditoria.')
+            new_role = request.POST.get('requested_role')
+            posto_id = request.POST.get('posto_id')
+            
+            unidade_obj = None
+            if posto_id:
+                posto_obj = get_object_or_404(Posto, id=posto_id)
+                # Tenta encontrar a unidade correspondente ao posto
+                # Se não existir, a lógica de aprovação do admin terá que lidar com isso ou criamos aqui
+                # Usaremos a mesma lógica de criação automática para garantir que o objeto Unidade exista
+                gb_unidade, _ = Unidade.objects.get_or_create(nome=posto_obj.unidade, defaults={'parent': None})
+                sgb_name = f"{posto_obj.sgb} - {posto_obj.unidade}" if posto_obj.sgb else f"SGB Padrão - {posto_obj.unidade}"
+                sgb_unidade, _ = Unidade.objects.get_or_create(nome=sgb_name, defaults={'parent': gb_unidade})
+                posto_unidade, _ = Unidade.objects.get_or_create(nome=posto_obj.nome, defaults={'parent': sgb_unidade})
+                unidade_obj = posto_unidade
+
+            if request.user.is_admin:
+                # Ação imediata para Admin
+                if new_role: request.user.role = new_role
+                if unidade_obj: request.user.unidade = unidade_obj
+                request.user.is_change_pending = False
+                request.user.save()
+                messages.success(request, 'Perfil atualizado com sucesso (Ação de Administrador).')
+            else:
+                # Solicitação pendente para usuários comuns
+                request.user.requested_role = new_role
+                request.user.requested_unidade = unidade_obj
+                request.user.is_change_pending = True
+                request.user.save()
+                messages.info(request, 'Sua solicitação de alteração de perfil foi enviada para aprovação do administrador.')
+            
             return redirect('profile')
 
     form = PasswordChangeForm(request.user) if not is_social else None
@@ -39,10 +66,26 @@ def profile_view(request):
         'form': form,
         'user': request.user,
         'is_social': is_social,
-        'unidades': todas_unidades,
+        'batalhoes': batalhoes,
         'role_choices': User.ROLE_CHOICES,
     }
     return render(request, 'account/profile.html', context)
+
+@login_required
+def get_postos_profile_htmx(request):
+    batalhao_nome = request.GET.get('batalhao_nome')
+    if not batalhao_nome:
+        return HttpResponse('<option value="">Selecione a Unidade primeiro</option>')
+        
+    postos = Posto.objects.filter(unidade=batalhao_nome).order_by('nome')
+    options = '<option value="">Selecione o Posto de Atendimento</option>'
+    for posto in postos:
+        # Tenta marcar o posto atual do usuário como selecionado
+        selected = ""
+        if request.user.unidade and request.user.unidade.nome == posto.nome:
+            selected = "selected"
+        options += f'<option value="{posto.id}" {selected}>{posto.nome}</option>'
+    return HttpResponse(options)
 
 @login_required
 @user_passes_test(lambda u: u.is_superuser or u.role == 'ADMIN')
@@ -52,6 +95,10 @@ def admin_dashboard_view(request):
     total_viaturas = Viatura.objects.count()
     all_users = User.objects.all().order_by('-date_joined')
     pending_users = User.objects.filter(status='pending').order_by('-date_joined')
+    
+    # Usuários com alterações de perfil pendentes
+    pending_changes = User.objects.filter(is_change_pending=True).exclude(status='pending')
+    
     recent_activities = HistoricoAlteracao.objects.select_related('usuario', 'mapa__unidade').order_by('-data_hora')[:10]
 
     context = {
@@ -60,9 +107,39 @@ def admin_dashboard_view(request):
         'total_viaturas': total_viaturas,
         'all_users': all_users,
         'pending_users': pending_users,
+        'pending_changes': pending_changes,
         'recent_activities': recent_activities,
     }
     return render(request, 'accounts/admin_dashboard.html', context)
+
+@login_required
+@user_passes_test(lambda u: u.is_superuser or u.role == 'ADMIN')
+def approve_profile_change_view(request, user_id):
+    user = get_object_or_404(User, id=user_id)
+    if user.is_change_pending:
+        if user.requested_role:
+            user.role = user.requested_role
+        if user.requested_unidade:
+            user.unidade = user.requested_unidade
+        
+        user.requested_role = None
+        user.requested_unidade = None
+        user.is_change_pending = False
+        user.save()
+        messages.success(request, f"Alterações de perfil para {user.email} aprovadas!")
+    return redirect('admin_dashboard')
+
+@login_required
+@user_passes_test(lambda u: u.is_superuser or u.role == 'ADMIN')
+def reject_profile_change_view(request, user_id):
+    user = get_object_or_404(User, id=user_id)
+    if user.is_change_pending:
+        user.requested_role = None
+        user.requested_unidade = None
+        user.is_change_pending = False
+        user.save()
+        messages.warning(request, f"Alterações de perfil para {user.email} foram rejeitadas.")
+    return redirect('admin_dashboard')
 
 @login_required
 @user_passes_test(lambda u: u.is_superuser or u.role == 'ADMIN')

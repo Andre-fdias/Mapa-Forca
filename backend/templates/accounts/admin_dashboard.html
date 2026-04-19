@@ -105,6 +105,59 @@
     </div>
     {% endif %}
 
+    <!-- Alterações de Perfil Pendentes -->
+    {% if pending_changes %}
+    <div class="bg-blue-50 dark:bg-blue-950/20 rounded-2xl p-6 border border-blue-200 dark:border-blue-800/50">
+        <div class="mb-5">
+            <h2 class="text-xl font-black text-blue-700 dark:text-blue-400 uppercase tracking-tighter">Alterações de Perfil Pendentes</h2>
+            <p class="text-blue-600/70 text-[8px] font-black uppercase tracking-widest mt-0.5 italic">Usuários solicitando mudança de Unidade ou Nível de Acesso</p>
+        </div>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {% for u in pending_changes %}
+            <div class="bg-white dark:bg-slate-900 rounded-xl p-5 shadow-md border border-blue-100 dark:border-blue-900/30 flex flex-col space-y-3">
+                <div class="flex items-center justify-between border-b border-blue-50 dark:border-blue-800 pb-2">
+                    <div class="flex items-center space-x-3">
+                        <div class="h-8 w-8 bg-blue-600 rounded-lg flex items-center justify-center text-white font-black text-[11px]">
+                            {{ u.email|slice:":1"|upper }}
+                        </div>
+                        <span class="text-[11px] font-black text-slate-900 dark:text-white">{{ u.email }}</span>
+                    </div>
+                    <div class="flex items-center space-x-2">
+                        <a href="{% url 'approve_profile_change' u.id %}" class="p-2 bg-emerald-500 hover:bg-emerald-600 text-white rounded-lg transition-all shadow-md active:scale-90" title="Aprovar Alterações">
+                            <svg class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="3"><path d="M5 13l4 4L19 7"/></svg>
+                        </a>
+                        <a href="{% url 'reject_profile_change' u.id %}" class="p-2 bg-amber-500 hover:bg-amber-600 text-white rounded-lg transition-all shadow-md active:scale-90" title="Rejeitar Solicitação">
+                            <svg class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="3"><path d="M6 18L18 6M6 6l12 12"/></svg>
+                        </a>
+                    </div>
+                </div>
+                
+                <div class="grid grid-cols-2 gap-3">
+                    <div class="bg-slate-50 dark:bg-slate-800/50 p-2 rounded-lg border border-slate-100 dark:border-slate-800">
+                        <span class="text-[7px] font-black text-slate-400 uppercase block mb-1">Nível de Acesso</span>
+                        <div class="flex items-center justify-between text-[9px] font-bold">
+                            <span class="text-slate-400 line-through">{{ u.get_role_display }}</span>
+                            <svg class="h-2 w-2 text-blue-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path d="M13 7l5 5m0 0l-5 5m5-5H6"/></svg>
+                            <span class="text-blue-600">{{ u.get_requested_role_display }}</span>
+                        </div>
+                    </div>
+                    <div class="bg-slate-50 dark:bg-slate-800/50 p-2 rounded-lg border border-slate-100 dark:border-slate-800">
+                        <span class="text-[7px] font-black text-slate-400 uppercase block mb-1">Unidade / Posto</span>
+                        <div class="flex flex-col text-[8px] font-bold leading-tight">
+                            <span class="text-slate-400 line-through truncate">{{ u.unidade.nome|default:"S/ Vínculo" }}</span>
+                            <div class="flex items-center space-x-1 mt-0.5">
+                                <svg class="h-2 w-2 text-blue-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path d="M19 9l-7 7-7-7"/></svg>
+                                <span class="text-blue-600 truncate">{{ u.requested_unidade.nome }}</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+    {% endif %}
+
     <!-- Listagem Completa de Usuários -->
     <div class="bg-white dark:bg-slate-900 rounded-2xl p-6 shadow-xl border border-slate-100 dark:border-slate-800">
         <div class="mb-5 flex items-center justify-between">

@@ -53,7 +53,26 @@ class User(AbstractUser):
         help_text='Unidade principal à qual este usuário pertence'
     )
 
-    # Note: Campos legados is_link_pending e solicitacoes_vinculo foram removidos em favor do campo `status`.
+    # Campos para solicitações de alteração
+    requested_role = models.CharField(
+        max_length=20, 
+        choices=ROLE_CHOICES, 
+        null=True, 
+        blank=True,
+        help_text='Nova função solicitada'
+    )
+    requested_unidade = models.ForeignKey(
+        Unidade, 
+        on_delete=models.SET_NULL, 
+        null=True, 
+        blank=True,
+        related_name='solicitacoes_vinculo',
+        help_text='Nova unidade solicitada'
+    )
+    is_change_pending = models.BooleanField(
+        default=False,
+        help_text='Define se há uma alteração de perfil aguardando aprovação'
+    )
     
     USERNAME_FIELD = 'email'
     REQUIRED_FIELDS = []
