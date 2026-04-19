@@ -93,3 +93,24 @@ class User(AbstractUser):
     @property
     def is_admin(self):
         return self.role == 'ADMIN' or self.is_superuser
+
+class Notification(models.Model):
+    TYPE_CHOICES = (
+        ('success', 'Sucesso'),
+        ('warning', 'Alerta'),
+        ('info', 'Informação'),
+        ('danger', 'Crítico'),
+    )
+
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='notifications')
+    mensagem = models.TextField()
+    tipo = models.CharField(max_length=20, choices=TYPE_CHOICES, default='info')
+    lida = models.BooleanField(default=False)
+    exibida_em_modal = models.BooleanField(default=False)
+    criada_em = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['-criada_em']
+
+    def __str__(self):
+        return f"Notif for {self.user.email}: {self.mensagem[:20]}"

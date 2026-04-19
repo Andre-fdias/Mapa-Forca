@@ -3,13 +3,23 @@ from django.contrib.auth.decorators import login_required, user_passes_test
 from django.contrib.auth import update_session_auth_hash
 from django.contrib.auth.forms import PasswordChangeForm
 from django.contrib import messages
-from .models import User
+from .models import User, Notification
 from escalas.models import MapaDiario, HistoricoAlteracao
 from unidades.models import Unidade, Viatura, Posto
 from django.db.models import Count, Q
 from allauth.socialaccount.models import SocialAccount
 from django.http import HttpResponse
 import re
+
+def notify_admins(mensagem, tipo='info'):
+    """Envia uma notificação para todos os administradores."""
+    admins = User.objects.filter(Q(role='ADMIN') | Q(is_superuser=True))
+    for admin in admins:
+        Notification.objects.create(
+            user=admin,
+            mensagem=mensagem,
+            tipo=tipo
+        )
 
 @login_required
 def profile_view(request):
@@ -36,8 +46,6 @@ def profile_view(request):
             if posto_id:
                 posto_obj = get_object_or_404(Posto, id=posto_id)
                 # Tenta encontrar a unidade correspondente ao posto
-                # Se não existir, a lógica de aprovação do admin terá que lidar com isso ou criamos aqui
-                # Usaremos a mesma lógica de criação automática para garantir que o objeto Unidade exista
                 gb_unidade, _ = Unidade.objects.get_or_create(nome=posto_obj.unidade, defaults={'parent': None})
                 sgb_name = f"{posto_obj.sgb} - {posto_obj.unidade}" if posto_obj.sgb else f"SGB Padrão - {posto_obj.unidade}"
                 sgb_unidade, _ = Unidade.objects.get_or_create(nome=sgb_name, defaults={'parent': gb_unidade})
@@ -57,6 +65,13 @@ def profile_view(request):
                 request.user.requested_unidade = unidade_obj
                 request.user.is_change_pending = True
                 request.user.save()
+                
+                # NOTIFICA ADMINS
+                notify_admins(
+                    mensagem=f"O usuário {request.user.email} solicitou alteração de perfil para {request.user.get_requested_role_display()}.",
+                    tipo='warning'
+                )
+                
                 messages.info(request, 'Sua solicitação de alteração de perfil foi enviada para aprovação do administrador.')
             
             return redirect('profile')
@@ -80,7 +95,6 @@ def get_postos_profile_htmx(request):
     postos = Posto.objects.filter(unidade=batalhao_nome).order_by('nome')
     options = '<option value="">Selecione o Posto de Atendimento</option>'
     for posto in postos:
-        # Tenta marcar o posto atual do usuário como selecionado
         selected = ""
         if request.user.unidade and request.user.unidade.nome == posto.nome:
             selected = "selected"
@@ -117,6 +131,10 @@ def admin_dashboard_view(request):
 def approve_profile_change_view(request, user_id):
     user = get_object_or_404(User, id=user_id)
     if user.is_change_pending:
+        # Salva dados para a mensagem antes de atualizar
+        nova_role = user.get_requested_role_display()
+        nova_unidade = user.requested_unidade.nome if user.requested_unidade else "Sem Unidade"
+
         if user.requested_role:
             user.role = user.requested_role
         if user.requested_unidade:
@@ -126,6 +144,14 @@ def approve_profile_change_view(request, user_id):
         user.requested_unidade = None
         user.is_change_pending = False
         user.save()
+
+        # Cria Notificação para o usuário
+        Notification.objects.create(
+            user=user,
+            tipo='success',
+            mensagem=f"Sua solicitação de alteração de perfil foi APROVADA. Novo vínculo: {nova_unidade} - {nova_role}."
+        )
+
         messages.success(request, f"Alterações de perfil para {user.email} aprovadas!")
     return redirect('admin_dashboard')
 
@@ -138,8 +164,43 @@ def reject_profile_change_view(request, user_id):
         user.requested_unidade = None
         user.is_change_pending = False
         user.save()
+
+        # Cria Notificação de Rejeição
+        Notification.objects.create(
+            user=user,
+            tipo='warning',
+            mensagem="Sua solicitação de alteração de perfil foi REJEITADA pelo administrador."
+        )
+
         messages.warning(request, f"Alterações de perfil para {user.email} foram rejeitadas.")
     return redirect('admin_dashboard')
+
+@login_required
+def mark_notification_read_htmx(request, notif_id):
+    """Marca uma notificação como lida via HTMX. Pode ser o modal ou item de lista."""
+    notification = get_object_or_404(Notification, id=notif_id, user=request.user)
+    notification.lida = True
+    notification.exibida_em_modal = True
+    notification.save()
+    return HttpResponse("")
+
+@login_required
+def check_notifications_htmx(request):
+    """Endpoint para polling do HTMX. Retorna o modal se houver notificação pendente."""
+    if not request.user.is_authenticated:
+        return HttpResponse("")
+        
+    pending_modal_notifications = Notification.objects.filter(
+        user=request.user, 
+        exibida_em_modal=False
+    )
+    
+    if pending_modal_notifications.exists():
+        return render(request, 'accounts/partials/notification_modal.html', {
+            'pending_modal_notifications': pending_modal_notifications
+        })
+    
+    return HttpResponse("")
 
 @login_required
 @user_passes_test(lambda u: u.is_superuser or u.role == 'ADMIN')
@@ -148,6 +209,14 @@ def approve_user_view(request, user_id):
     user_to_approve.status = 'approved'
     user_to_approve.is_active = True
     user_to_approve.save()
+
+    # Cria Notificação de Aprovação
+    Notification.objects.create(
+        user=user_to_approve,
+        tipo='success',
+        mensagem=f"Sua solicitação de acesso foi APROVADA. Você já pode utilizar o sistema como {user_to_approve.get_role_display()} em {user_to_approve.unidade.nome if user_to_approve.unidade else 'sua unidade'}."
+    )
+
     messages.success(request, f"Usuário {user_to_approve.email} aprovado com sucesso!")
     return redirect('admin_dashboard')
 
@@ -158,6 +227,14 @@ def reject_user_view(request, user_id):
     if not u.is_superuser:
         u.status = 'rejected'
         u.save()
+
+        # Cria Notificação de Rejeição
+        Notification.objects.create(
+            user=u,
+            tipo='danger',
+            mensagem="Sua solicitação de acesso ao sistema foi REJEITADA pelo administrador."
+        )
+
         messages.success(request, "Usuário rejeitado.")
     return redirect('admin_dashboard')
 
@@ -188,24 +265,15 @@ def request_access_view(request):
 
     if request.method == 'POST':
         posto_id = request.POST.get('posto_id')
-        sgb_id = request.POST.get('sgb_id')
-        batalhao_id = request.POST.get('batalhao_id')
         role = 'POSTO' # Default for all new access requests
         
         unidade_final = None
         if posto_id:
-            # We fetch the exact Posto which has all text fields
             posto_obj = get_object_or_404(Posto, id=posto_id)
-            
-            # Auto-build the Unidade tree if it doesn't exist
-            # Important: Unidade.nome is unique=True globally! We must construct unique names for SGBs.
             gb_unidade, _ = Unidade.objects.get_or_create(nome=posto_obj.unidade, defaults={'parent': None})
-            
             sgb_name = f"{posto_obj.sgb} - {posto_obj.unidade}" if posto_obj.sgb else f"SGB Padrão - {posto_obj.unidade}"
             sgb_unidade, _ = Unidade.objects.get_or_create(nome=sgb_name, defaults={'parent': gb_unidade})
-            
             posto_unidade, _ = Unidade.objects.get_or_create(nome=posto_obj.nome, defaults={'parent': sgb_unidade})
-            
             unidade_final = posto_unidade
 
         if unidade_final and role:
@@ -213,6 +281,13 @@ def request_access_view(request):
             request.user.role = role
             request.user.status = 'pending'
             request.user.save()
+
+            # NOTIFICA ADMINS
+            notify_admins(
+                mensagem=f"Novo pedido de acesso pendente: {request.user.email}.",
+                tipo='info'
+            )
+
             return redirect('waiting_approval')
 
     batalhoes = Posto.objects.values_list('unidade', flat=True).exclude(unidade__isnull=True).exclude(unidade='').distinct().order_by('unidade')

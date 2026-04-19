@@ -21,6 +21,8 @@ urlpatterns = [
     path('request-access/', views.request_access_view, name='request_access'),
     path('waiting-approval/', views.waiting_approval_view, name='waiting_approval'),
     path('update-role/<int:user_id>/', views.update_user_role_view, name='update_user_role'),
+    path('mark-notification-read/<int:notif_id>/', views.mark_notification_read_htmx, name='mark_notification_read'),
+    path('check-notifications/', views.check_notifications_htmx, name='check_notifications'),
     path('api/htmx/sgbs/', views.get_sgbs_htmx, name='get_sgbs_htmx'),
     path('api/htmx/postos/', views.get_postos_htmx, name='get_postos_htmx'),
 ]
