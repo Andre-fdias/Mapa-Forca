@@ -13,6 +13,37 @@
             <div class="flex items-center space-x-3">
                 <span class="text-[10px] text-slate-400 font-black tracking-widest uppercase">{{ aloc_func.funcao.nome }}</span>
                 
+                <!-- Sub-função (Supervisor/Motorista) para GB -->
+                {% if "Supervisor" in aloc_func.funcao.nome and "GB" in aloc_func.funcao.nome %}
+                <div class="relative" x-data="{ 
+                    openSub: false,
+                    updateSubFuncao(val) {
+                        let formData = new FormData();
+                        formData.append('sub_funcao', val);
+                        formData.append('csrfmiddlewaretoken', '{{ csrf_token }}');
+                        
+                        htmx.ajax('POST', '{% url 'atualizar_horario_alocacao' aloc_func.id %}', {
+                            target: '#aloc-func-{{ aloc_func.id }}',
+                            swap: 'outerHTML',
+                            values: { sub_funcao: val }
+                        });
+                        this.openSub = false;
+                    }
+                }">
+                    <button @click="openSub = !openSub" 
+                            class="text-[10px] font-black {% if aloc_func.sub_funcao == 'supervisor' %}text-emerald-400 bg-emerald-500/10 border-emerald-500/20{% elif aloc_func.sub_funcao == 'motorista' %}text-blue-400 bg-blue-500/10 border-blue-500/20{% else %}text-slate-400 bg-slate-500/10 border-slate-500/20{% endif %} px-2 py-0.5 rounded border flex items-center transition-all">
+                        {{ aloc_func.get_sub_funcao_display|default:"DEFINIR FUNÇÃO"|upper }}
+                        <svg class="h-3 w-3 ml-1" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path d="M19 9l-7 7-7-7"/></svg>
+                    </button>
+                    
+                    <div x-show="openSub" @click.away="openSub = false" x-collapse
+                         class="absolute z-50 top-full left-0 mt-2 bg-slate-900 border border-slate-700 rounded-xl shadow-2xl p-2 min-w-[120px]">
+                        <button @click="updateSubFuncao('supervisor')" class="w-full text-left px-3 py-2 text-[10px] font-black text-white hover:bg-emerald-500/20 rounded-lg uppercase">SUPERVISOR</button>
+                        <button @click="updateSubFuncao('motorista')" class="w-full text-left px-3 py-2 text-[10px] font-black text-white hover:bg-blue-500/20 rounded-lg uppercase">MOTORISTA</button>
+                    </div>
+                </div>
+                {% endif %}
+                
                 {% if aloc_func.dejem %}
                 <div class="flex items-center space-x-2">
                     <span class="px-2 py-0.5 bg-amber-500 text-black rounded-md text-[8px] font-black uppercase shadow-sm">DEJEM</span>

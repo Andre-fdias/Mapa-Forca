@@ -529,43 +529,98 @@ def visao_cobom_efetivo_view(request):
     ]
     
     if mapa:
-        alocs = mapa.alocacoes_funcionarios.select_related('funcionario__posto_graduacao', 'funcao')
-        aloc_dict = {a.funcao.nome.upper(): a for a in alocs if a.funcao}
+        alocs_all = mapa.alocacoes_funcionarios.select_related('funcionario__posto_graduacao', 'funcao').all()
         
-        for setor, cor, fn_nome in FUNCOES_FIXAS:
-            fn_upper = fn_nome.upper()
-            if fn_upper in aloc_dict:
-                aloc = aloc_dict[fn_upper]
-                ef_info = Efetivo.objects.filter(Q(re=aloc.funcionario.re) | Q(nome__icontains=aloc.funcionario.nome_guerra)).first()
-                nome_display = format_militar_display(aloc.funcionario, ef_info)
-                
-                obs = []
-                if ef_info:
-                    if 'SIM' in str(ef_info.mergulho).upper(): obs.append('MERGULHADOR')
-                if aloc.dejem: obs.append('DEJEM')
-                
-                # Horário para o hover do DEJEM
-                horario_str = ""
-                h_ini = aloc.inicio_dejem or aloc.inicio_servico
-                h_fim = aloc.termino_dejem or aloc.termino_servico
-                if h_ini and h_fim:
-                    horario_str = f"{h_ini.strftime('%H:%M')} - {h_fim.strftime('%H:%M')}"
-                
-                tel_raw = ef_info.telefone if ef_info else '-'
-                tel_link = normalize_phone_for_whatsapp(tel_raw)
-                
-                pessoas.append({
-                    'setor': setor,
-                    'funcao': fn_nome.upper(),
-                    're': aloc.funcionario.re or '-',
-                    'nome': nome_display,
-                    'obs': ' '.join(obs) if obs else '-',
-                    'dejem_horario': horario_str,
-                    'tel': tel_raw,
-                    'tel_link': f'https://wa.me/{tel_link}' if tel_link else None,
-                    'cor_setor': cor,
-                })
+        # Mapeamento de cor por função
+        cor_map = {
+            'Oficial de Operações DEJEM': 'text-blue-500',
+            'Chefe de Equipe': 'text-blue-500',
+            'Supervisor Despacho': 'text-blue-500',
+            'Supervisor 193': 'text-blue-500',
+            'Atendente 193': 'text-blue-500',
+            'Supervisor 7º GB': 'text-red-500',
+            'Cabine 7º GB': 'text-red-500',
+            'Supervisor 19º GB': 'text-red-500',
+            'Cabine 19º GB': 'text-red-500',
+            'Supervisor 15º GB': 'text-red-500',
+            'Cabine 15º GB': 'text-red-500',
+            'Supervisor 16º GB': 'text-red-500',
+            'Cabine 16º GB': 'text-red-500',
+            'Enfermeiro de Triagem': 'text-emerald-500',
+            'Inclusor': 'text-purple-500',
+            'Supervisor COE Autoban': 'text-purple-500',
+        }
+
+        # Agrupar alocações por função para tratar múltiplos militares (como no 193)
+        from collections import defaultdict
+        aloc_grupos = defaultdict(list)
+        for a in alocs_all:
+            aloc_grupos[a.funcao.nome].append(a)
+
+        # Usar as funções fixas como ordem de exibição, mas processar todos os alocados
+        for setor_original, cor_original, fn_nome in FUNCOES_FIXAS:
+            alocs_da_funcao = aloc_grupos.get(fn_nome, [])
+            
+            # --- NOVA LÓGICA DE SETORES ---
+            setor = setor_original
+            if '193' in fn_nome:
+                setor = '193'
+            
+            # --- LÓGICA DE EXIBIÇÃO PARA SUPERVISORES DE GB ---
+            esconder_detalhes = False
+            if any(gb in fn_nome for gb in ['7º GB', '15º GB', '16º GB', '19º GB']) and 'Supervisor' in fn_nome:
+                esconder_detalhes = True
+
+            if alocs_da_funcao:
+                # Ordenar alocações para que 'supervisor' venha primeiro se for Supervisor de GB
+                if esconder_detalhes:
+                    alocs_da_funcao = sorted(alocs_da_funcao, key=lambda x: 0 if x.sub_funcao == 'supervisor' else 1)
+
+                for index, aloc in enumerate(alocs_da_funcao):
+                    ef_info = Efetivo.objects.filter(Q(re=aloc.funcionario.re) | Q(nome__icontains=aloc.funcionario.nome_guerra)).first()
+                    nome_display = format_militar_display(aloc.funcionario, ef_info)
+                    
+                    obs = []
+                    if ef_info and 'SIM' in str(ef_info.mergulho).upper(): obs.append('MERGULHADOR')
+                    if aloc.dejem: obs.append('DEJEM')
+                    
+                    horario_str = ""
+                    h_ini = aloc.inicio_dejem or aloc.inicio_servico
+                    h_fim = aloc.termino_dejem or aloc.termino_servico
+                    if h_ini and h_fim:
+                        horario_str = f"{h_ini.strftime('%H:%M')} - {h_fim.strftime('%H:%M')}"
+                    
+                    tel_raw = ef_info.telefone if ef_info else '-'
+                    tel_link = normalize_phone_for_whatsapp(tel_raw)
+                    
+                    pg_nome = aloc.funcionario.posto_graduacao.nome if aloc.funcionario.posto_graduacao else ''
+                    
+                    # --- AJUSTE DE NOMENCLATURA PARA MOTORISTA DE SUPERVISOR ---
+                    fn_display = fn_nome.upper()
+                    if esconder_detalhes and index > 0 and aloc.sub_funcao == 'motorista':
+                        # Extrai o número do GB (7, 15, 16 ou 19) do nome da função original
+                        gb_match = re.search(r'(\d+)', fn_nome)
+                        gb_num = gb_match.group(1) if gb_match else ""
+                        fn_display = f"MOTORISTA SUP {gb_num}º GB"
+
+                    pessoas.append({
+                        'setor': setor,
+                        'funcao': fn_display,
+                        're': aloc.funcionario.re or '-',
+                        'nome': nome_display,
+                        'obs': ' '.join(obs) if obs else '-',
+                        'dejem_horario': horario_str,
+                        'tel': tel_raw,
+                        'tel_link': f'https://wa.me/{tel_link}' if tel_link else None,
+                        'cor_setor': cor_original,
+                        'is_supervisor_gb': esconder_detalhes,
+                        'is_main_supervisor': esconder_detalhes and index == 0 and aloc.sub_funcao == 'supervisor',
+                        'is_subordinate': esconder_detalhes and index > 0,
+                        'has_subordinates': esconder_detalhes and len(alocs_da_funcao) > 1 and index == 0,
+                        'row_id': f"sup_{fn_nome.replace(' ', '_')}" if esconder_detalhes else None
+                    })
             else:
+                # Para funções vazias, mantemos a linha única
                 pessoas.append({
                     'setor': setor,
                     'funcao': fn_nome.upper(),
@@ -575,15 +630,17 @@ def visao_cobom_efetivo_view(request):
                     'dejem_horario': '',
                     'tel': '-',
                     'tel_link': None,
-                    'cor_setor': cor,
+                    'cor_setor': cor_original,
                 })
             
         prontidao = mapa.prontidao or 'INDEFINIDA'
         equipe = mapa.equipe or '-'
+        periodo = mapa.periodo or 'dia'
         ultimo_atualizacao = mapa.atualizado_em
     else:
         prontidao = 'NÃO INICIADO'
         equipe = '-'
+        periodo = 'dia'
         ultimo_atualizacao = agora
         
     color_map = {
@@ -600,6 +657,7 @@ def visao_cobom_efetivo_view(request):
         'pessoas': pessoas,
         'prontidao': prontidao,
         'equipe': equipe,
+        'periodo': periodo,
         'bg_class': bg_class,
         'border_class': border_class,
         'text_class': text_class,

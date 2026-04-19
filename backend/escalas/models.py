@@ -17,11 +17,16 @@ class MapaDiario(models.Model):
     
     finalizado = models.BooleanField(default=False)
     
-    PRONTIDAO_CHOICES = (('AZUL', 'Azul'), ('VERDE', 'Verde'), ('AMARELA', 'Amarela'))
+    PRONTIDÃO_CHOICES = (('AZUL', 'Azul'), ('VERDE', 'Verde'), ('AMARELA', 'Amarela'))
     EQUIPE_CHOICES = (('A', 'Equipe A'), ('B', 'Equipe B'), ('C', 'Equipe C'), ('D', 'Equipe D'), ('E', 'Equipe E'))
+    PERIODO_CHOICES = (
+        ('dia', '06:45 às 19:00'),
+        ('noite', '18:45 às 07:00'),
+    )
     
-    prontidao = models.CharField(max_length=10, choices=PRONTIDAO_CHOICES, null=True, blank=True)
+    prontidao = models.CharField(max_length=10, choices=PRONTIDÃO_CHOICES, null=True, blank=True)
     equipe = models.CharField(max_length=5, choices=EQUIPE_CHOICES, null=True, blank=True)
+    periodo = models.CharField(max_length=10, choices=PERIODO_CHOICES, null=True, blank=True)
     
     criado_por = models.ForeignKey(
         settings.AUTH_USER_MODEL, 
@@ -93,6 +98,12 @@ class AlocacaoFuncionario(models.Model):
         limit_choices_to={'tipo': 'FUNCAO_OPERACIONAL'},
         help_text='Comandante, Motorista, Auxiliar, Supervisor, etc.'
     )
+
+    SUB_FUNCAO_CHOICES = (
+        ('supervisor', 'Supervisor'),
+        ('motorista', 'Motorista'),
+    )
+    sub_funcao = models.CharField(max_length=20, choices=SUB_FUNCAO_CHOICES, null=True, blank=True)
 
     dejem = models.BooleanField(default=False, verbose_name="DEJEM")
     inicio_dejem = models.TimeField(null=True, blank=True, verbose_name="Início DEJEM")

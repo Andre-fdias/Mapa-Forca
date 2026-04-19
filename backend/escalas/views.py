@@ -69,18 +69,23 @@ def atualizar_horario_alocacao(request, aloc_func_id):
     af = get_object_or_404(AlocacaoFuncionario, id=aloc_func_id)
     inicio = request.POST.get('inicio_servico')
     termino = request.POST.get('termino_servico')
+    sub_funcao = request.POST.get('sub_funcao')
     
     if inicio and termino:
         af.inicio_servico = inicio
         af.termino_servico = termino
-        af.save()
+    
+    if sub_funcao is not None:
+        af.sub_funcao = sub_funcao
         
-        HistoricoAlteracao.objects.create(
-            mapa=af.mapa,
-            usuario=request.user,
-            tipo_acao='UPDATE',
-            descricao=f"Atualizou horário de {af.funcionario.nome_guerra} para {inicio}-{termino}."
-        )
+    af.save()
+        
+    HistoricoAlteracao.objects.create(
+        mapa=af.mapa,
+        usuario=request.user,
+        tipo_acao='UPDATE',
+        descricao=f"Atualizou dados de {af.funcionario.nome_guerra}."
+    )
     
     return render(request, 'mapa_forca/partials/linha_funcionario_viatura.html', {'aloc_func': af, 'is_cobom': af.alocacao_viatura is None})
 
@@ -631,6 +636,8 @@ def update_mapa_cobom(request, mapa_id):
         mapa.prontidao = request.POST.get('prontidao')
     if 'equipe' in request.POST:
         mapa.equipe = request.POST.get('equipe')
+    if 'periodo' in request.POST:
+        mapa.periodo = request.POST.get('periodo')
     mapa.save()
     # Retorna vazio para o HTMX não substituir nada (out-of-band updates se necessário, 
     # mas aqui queremos apenas trigger silent)
