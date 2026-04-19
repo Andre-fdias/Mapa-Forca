@@ -1,27 +1,27 @@
 {% extends "base/base.html" %}
 
 {% block content %}
-<div class="min-h-screen flex items-center justify-center bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
-  <div class="max-w-md w-full space-y-8 bg-white p-10 rounded-xl shadow-lg border border-gray-100">
+<div class="min-h-screen flex items-center justify-center bg-gray-50 py-8 px-3 sm:px-4 lg:px-6">
+  <div class="max-w-sm w-full space-y-5 bg-white p-6 rounded-lg shadow-md border border-gray-100">
     <div>
-      <h2 class="mt-2 text-center text-3xl font-extrabold text-gray-900">Solicitação de Acesso</h2>
-      <p class="mt-3 text-center text-sm text-gray-600">
+      <h2 class="mt-1 text-center text-2xl font-extrabold text-gray-900">Solicitação de Acesso</h2>
+      <p class="mt-2 text-center text-[11px] text-gray-600">
         Para prosseguir e acessar os módulos operacionais, defina abaixo sua lotação e o cargo. Sua conta será analisada pela Central.
       </p>
     </div>
     
-    <form class="mt-8 space-y-6" action="{% url 'request_access' %}" method="POST">
+    <form class="mt-5 space-y-4" action="{% url 'request_access' %}" method="POST">
       {% csrf_token %}
       
-      <div class="space-y-5">
+      <div class="space-y-3">
         <!-- Batalhão -->
-        <div class="pt-2">
-            <label for="batalhao" class="block text-sm font-semibold text-gray-700">1. Batalhão / Grande Comando</label>
+        <div class="pt-1">
+            <label for="batalhao" class="block text-[11px] font-semibold text-gray-700">1. Batalhão / Grande Comando</label>
             <select id="batalhao" name="batalhao_id" 
                     hx-get="{% url 'get_sgbs_htmx' %}" 
                     hx-target="#sgb" 
                     hx-indicator=".htmx-indicator"
-                    class="mt-1 block w-full pl-3 pr-10 py-2.5 text-base text-gray-700 bg-white border border-gray-300 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm rounded-lg shadow-sm transition-colors">
+                    class="mt-0.5 block w-full pl-2.5 pr-8 py-1.5 text-[11px] text-gray-700 bg-white border border-gray-300 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 rounded-md shadow-sm transition-all duration-200">
                 <option value="">Selecione o Batalhão</option>
                 {% for b in batalhoes %}
                     <option value="{{ b }}">{{ b }}</option>
@@ -31,37 +31,37 @@
 
         <!-- SGB -->
         <div>
-            <label for="sgb" class="block text-sm font-semibold text-gray-700">2. Subgrupamento (SGB)</label>
+            <label for="sgb" class="block text-[11px] font-semibold text-gray-700">2. Subgrupamento (SGB)</label>
             <select id="sgb" name="sgb_id" 
                     hx-get="{% url 'get_postos_htmx' %}" 
                     hx-target="#posto"
                     hx-include="#batalhao"
                     hx-indicator=".htmx-indicator"
-                    class="mt-1 block w-full pl-3 pr-10 py-2.5 text-base text-gray-700 bg-white border border-gray-300 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm rounded-lg shadow-sm transition-colors disabled:bg-gray-100">
+                    class="mt-0.5 block w-full pl-2.5 pr-8 py-1.5 text-[11px] text-gray-700 bg-white border border-gray-300 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 rounded-md shadow-sm transition-all duration-200 disabled:bg-gray-100">
                 <option value="">Aguardando Batalhão...</option>
             </select>
         </div>
 
         <!-- Posto -->
         <div>
-            <label for="posto" class="block text-sm font-semibold text-gray-700">3. Posto Operacional</label>
-            <select id="posto" name="posto_id" required class="mt-1 block w-full pl-3 pr-10 py-2.5 text-base text-gray-700 bg-white border border-gray-300 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm rounded-lg shadow-sm transition-colors disabled:bg-gray-100">
+            <label for="posto" class="block text-[11px] font-semibold text-gray-700">3. Posto Operacional</label>
+            <select id="posto" name="posto_id" required class="mt-0.5 block w-full pl-2.5 pr-8 py-1.5 text-[11px] text-gray-700 bg-white border border-gray-300 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 rounded-md shadow-sm transition-all duration-200 disabled:bg-gray-100">
                 <option value="">Aguardando SGB...</option>
             </select>
         </div>
       </div>
       
       <!-- Indicador HTMX de carregamento -->
-      <div class="htmx-indicator hidden text-sm text-indigo-600 items-center justify-center mt-2 py-2">
-          <svg class="animate-spin -ml-1 mr-2 h-4 w-4 text-indigo-600" fill="none" viewBox="0 0 24 24">
+      <div class="htmx-indicator hidden text-[11px] text-indigo-600 items-center justify-center mt-1 py-1.5">
+          <svg class="animate-spin -ml-1 mr-1.5 h-3 w-3 text-indigo-600" fill="none" viewBox="0 0 24 24">
             <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
             <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
           </svg>
           <span class="font-medium tracking-wide">Carregando unidades...</span>
       </div>
 
-      <div class="pt-4">
-        <button type="submit" class="group relative w-full flex justify-center py-3.5 px-4 border border-transparent text-sm font-bold rounded-lg text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-all shadow-md active:scale-[0.98]">
+      <div class="pt-2">
+        <button type="submit" class="group relative w-full flex justify-center py-2 px-3 border border-transparent text-[11px] font-bold rounded-md text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-all duration-200 shadow-md active:scale-[0.98]">
           Solicitar Acesso Seguro
         </button>
       </div>

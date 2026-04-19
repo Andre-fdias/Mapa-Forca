@@ -1,14 +1,14 @@
 <div class="flex flex-col space-y-4 h-full">
     <!-- SGB Header -->
-    <div class="bg-slate-900 rounded-2xl p-4 border-b-4 border-red-600 shadow-xl">
-        <h2 class="text-lg font-black text-white uppercase tracking-tighter italic">{{ sgb.nome }}</h2>
+    <div class="bg-slate-900 rounded-lg p-4 border-b-3 border-red-600 shadow-lg">
+        <h2 class="text-xl font-black text-white uppercase tracking-tighter italic">{{ sgb.nome }}</h2>
         <p class="text-[9px] font-bold text-slate-500 uppercase tracking-[0.2em] mt-1">Sessão de Grupamento Bombeiros</p>
     </div>
 
     <!-- Subunidades / Postos -->
-    <div class="space-y-6 overflow-y-auto pr-2 custom-scrollbar">
+    <div class="space-y-5 overflow-y-auto pr-2 custom-scrollbar">
         {% for item in sgb.postos %}
-        <div x-data="{ showDetails: null }" class="tactical-card flex flex-col bg-white dark:bg-slate-900 border-4 shadow-2xl overflow-hidden transition-all duration-300
+        <div x-data="{ showDetails: null }" class="tactical-card flex flex-col bg-white dark:bg-slate-900 border-2 shadow-xl overflow-hidden transition-all duration-250
             {% if item.esta_pronto %}border-emerald-500{% else %}border-red-600 animate-pulse-subtle{% endif %}">
 
             <!-- 1. HEADER SUPERIOR -->
@@ -18,7 +18,7 @@
                     <span class="text-[10px] font-black uppercase tracking-tight">PELOTÃO - {{ item.unidade.nome|default:"NÃO DEFINIDO" }}</span>
                 </div>
                 <div class="flex items-center space-x-3">
-                    <div class="flex items-center bg-white/10 px-2 py-0.5 rounded text-[9px] font-black">
+                    <div class="flex items-center bg-white/10 px-2 py-1 rounded text-[9px] font-black">
                         <span class="opacity-60 mr-1">VTRS:</span>
                         <span class="text-emerald-400">{{ item.stats.vtrs_operando }}</span>
                         <span class="mx-1">/</span>
@@ -42,11 +42,11 @@
                     <tbody class="font-bold">
                         {% for vtr in item.viaturas %}
                         {% if vtr.prefixo != 'TELEGRAFIA' and vtr.prefixo != 'TELEGRAFISTA' %}
-                        <tr class="{% if vtr.status_codigo == 'OPERANDO' %}bg-emerald-50/30 dark:bg-emerald-950/10{% elif vtr.status_codigo == 'RESERVA' %}bg-slate-50/50 dark:bg-slate-800/10{% endif %} transition-colors hover:bg-slate-100 dark:hover:bg-slate-800/30 group">
+                        <tr class="{% if vtr.status_codigo == 'OPERANDO' %}bg-emerald-50/30 dark:bg-emerald-950/10{% elif vtr.status_codigo == 'RESERVA' %}bg-slate-50/50 dark:bg-slate-800/10{% endif %} transition-colors duration-150 hover:bg-slate-100 dark:hover:bg-slate-800/30 group">
                             <td class="border border-slate-200 dark:border-slate-800 text-center py-2 text-slate-900 dark:text-white font-black">
                                 <div class="flex flex-col items-center">
-                                    <span>{{ vtr.prefixo }}</span>
-                                    <div class="flex items-center space-x-1 mt-0.5">
+                                    <span class="text-[11px]">{{ vtr.prefixo }}</span>
+                                    <div class="flex items-center space-x-1 mt-1">
                                         {% if vtr.vol_agua %}
                                         <div class="w-1.5 h-1.5 rounded-full bg-blue-500" title="Água: {{ vtr.vol_agua }}"></div>
                                         {% endif %}
@@ -62,16 +62,16 @@
                                     {{ vtr.status_codigo|slice:":3" }}
                                 </span>
                             </td>
-                            <td class="border border-slate-200 dark:border-slate-800 text-center py-2 text-slate-500">{{ vtr.num_pm }}</td>
+                            <td class="border border-slate-200 dark:border-slate-800 text-center py-2 text-slate-500 text-[11px]">{{ vtr.num_pm }}</td>
                             <td class="border border-slate-200 dark:border-slate-800 text-left pl-3 py-2 relative">
                                 <div class="flex items-center justify-between">
                                     <span class="text-slate-800 dark:text-slate-200 uppercase italic text-[9px] truncate max-w-[160px]">{{ vtr.encarregado.nome_padrao|default:"-" }}</span>
                                     <!-- Lupa para Detalhes -->
-                                    <button @click="showDetails = '{{ vtr.prefixo }}'" class="p-1 text-slate-400 hover:text-red-600 dark:hover:text-red-500 transition-all opacity-0 group-hover:opacity-100 focus:opacity-100">
+                                    <button @click="showDetails = '{{ vtr.prefixo }}'" class="p-1 text-slate-400 hover:text-red-600 dark:hover:text-red-500 transition-all duration-150 opacity-0 group-hover:opacity-100 focus:opacity-100">
                                         <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
                                     </button>
                                 </div>
-                            </td>
+                              </td>
                         </tr>
                         {% endif %}
                         {% endfor %}
@@ -89,7 +89,7 @@
                 <!-- Overlay de Detalhes do Efetivo -->
                 {% for vtr in item.viaturas %}
                 <template x-if="showDetails === '{{ vtr.prefixo }}'">
-                    <div class="absolute inset-0 bg-white dark:bg-slate-900 z-50 p-2 animate-fade-in flex flex-col border-b border-slate-200 dark:border-slate-800">
+                    <div class="absolute inset-0 bg-white dark:bg-slate-900 z-50 p-2 animate-fade-in flex flex-col border-b border-slate-200 dark:border-slate-800 rounded-lg">
                         <div class="flex justify-between items-center mb-2 border-b border-slate-200 dark:border-slate-700 pb-1">
                             <div class="flex flex-col">
                                 <span class="text-[9px] font-black text-red-600 uppercase">Equipe: {{ vtr.prefixo }}</span>
@@ -98,31 +98,31 @@
                             <div class="flex items-center space-x-3">
                                 <div class="flex items-center space-x-1">
                                     <div class="w-1.5 h-1.5 rounded-full bg-blue-500"></div>
-                                    <span class="text-[8px] font-black text-slate-500 uppercase">{{ vtr.vol_agua|default:"0L" }}</span>
+                                    <span class="text-[7px] font-black text-slate-500 uppercase">{{ vtr.vol_agua|default:"0L" }}</span>
                                 </div>
                                 <div class="flex items-center space-x-1 mr-2">
                                     <div class="w-1.5 h-1.5 rounded-full bg-amber-500"></div>
-                                    <span class="text-[8px] font-black text-slate-500 uppercase">{{ vtr.combustivel|default:"-" }}</span>
+                                    <span class="text-[7px] font-black text-slate-500 uppercase">{{ vtr.combustivel|default:"-" }}</span>
                                 </div>
                                 <button @click="showDetails = null" class="text-slate-400 hover:text-black dark:hover:text-white">
-                                    <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path d="M6 18L18 6M6 6l12 12"/></svg>
+                                    <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path d="M6 18L18 6M6 6l12 12"/></svg>
                                 </button>
                             </div>
                         </div>
-                        <div class="space-y-1 overflow-y-auto">
+                        <div class="space-y-1.5 overflow-y-auto">
                             {% for m in vtr.equipe_completa %}
-                            <div class="flex items-center justify-between text-[9px] bg-slate-50 dark:bg-slate-800/50 p-1.5 rounded-lg border border-slate-100 dark:border-slate-800">
+                            <div class="flex items-center justify-between text-[8px] bg-slate-50 dark:bg-slate-800/50 p-1.5 rounded-md border border-slate-100 dark:border-slate-800">
                                 <div class="flex flex-col">
-                                    <span class="font-black text-slate-900 dark:text-white uppercase">{{ m.nome_padrao|default:"-" }}</span>
-                                    <span class="text-[7px] text-slate-400 font-bold uppercase">{{ m.funcao }}</span>
+                                    <span class="font-black text-slate-900 dark:text-white uppercase text-[9px]">{{ m.nome_padrao|default:"-" }}</span>
+                                    <span class="text-[6px] text-slate-400 font-bold uppercase">{{ m.funcao }}</span>
                                 </div>
                                 <div class="flex items-center space-x-1.5">
-                                    {% if m.mergulhador %}<span class="px-1 bg-blue-500 text-white rounded-[2px] text-[7px] font-black" title="Mergulhador">MERG</span>{% endif %}
-                                    <span class="px-1 bg-slate-200 dark:bg-slate-700 text-slate-600 dark:text-slate-300 rounded-[2px] text-[7px] font-black">{{ m.ovb|default:"S/ OVB" }}</span>
+                                    {% if m.mergulhador %}<span class="px-1 bg-blue-500 text-white rounded-[2px] text-[6px] font-black" title="Mergulhador">MERG</span>{% endif %}
+                                    <span class="px-1 bg-slate-200 dark:bg-slate-700 text-slate-600 dark:text-slate-300 rounded-[2px] text-[6px] font-black">{{ m.ovb|default:"S/ OVB" }}</span>
                                     {% if m.dejem %}
                                         <div class="flex items-center space-x-1">
-                                            <span class="px-1 bg-amber-500 text-white rounded-[2px] text-[7px] font-black" title="Serviço Extra">DEJEM</span>
-                                            <span class="text-[7px] font-black text-amber-600 tabular-nums">{{ m.horario }}</span>
+                                            <span class="px-1 bg-amber-500 text-white rounded-[2px] text-[6px] font-black" title="Serviço Extra">DEJEM</span>
+                                            <span class="text-[6px] font-black text-amber-600 tabular-nums">{{ m.horario }}</span>
                                         </div>
                                     {% endif %}
                                 </div>
@@ -135,22 +135,22 @@
             </div>
 
             <!-- 3. DADOS ESTATÍSTICOS -->
-            <div class="px-3 py-2 bg-slate-50/50 dark:bg-slate-800/30 text-[9px] font-black uppercase tracking-tight grid grid-cols-2 gap-x-4 gap-y-1.5 border-b border-slate-200 dark:border-slate-800">
+            <div class="px-3 py-2 bg-slate-50/50 dark:bg-slate-800/30 text-[8px] font-black uppercase tracking-tight grid grid-cols-2 gap-x-4 gap-y-1.5 border-b border-slate-200 dark:border-slate-800">
                 <div class="flex justify-between items-center border-b border-slate-200 dark:border-slate-700/50 pb-1">
                     <span class="text-slate-400">MERGULHADOR:</span>
-                    <span class="{% if item.stats.mergulhadores > 0 %}text-blue-600{% else %}text-red-600{% endif %}">{{ item.stats.mergulhadores|stringformat:"02d" }}</span>
+                    <span class="text-[9px] {% if item.stats.mergulhadores > 0 %}text-blue-600{% else %}text-red-600{% endif %}">{{ item.stats.mergulhadores|stringformat:"02d" }}</span>
                 </div>
                 <div class="flex justify-between items-center border-b border-slate-200 dark:border-slate-700/50 pb-1">
                     <span class="text-slate-400">TOTAL DEJEM:</span>
-                    <span class="text-amber-600">{{ item.stats.dejem|stringformat:"02d" }}</span>
+                    <span class="text-[9px] text-amber-600">{{ item.stats.dejem|stringformat:"02d" }}</span>
                 </div>
                 <div class="flex justify-between items-center">
                     <span class="text-slate-400">OVB LEVE:</span>
-                    <span class="text-slate-900 dark:text-white">{{ item.stats.ovb_leve|stringformat:"02d" }}</span>
+                    <span class="text-[9px] text-slate-900 dark:text-white">{{ item.stats.ovb_leve|stringformat:"02d" }}</span>
                 </div>
                 <div class="flex justify-between items-center">
                     <span class="text-slate-400">OVB PESADO:</span>
-                    <span class="text-slate-900 dark:text-white">{{ item.stats.ovb_pesado|stringformat:"02d" }}</span>
+                    <span class="text-[9px] text-slate-900 dark:text-white">{{ item.stats.ovb_pesado|stringformat:"02d" }}</span>
                 </div>
             </div>
 
@@ -158,32 +158,29 @@
             <div class="bg-black text-white">
                 <div class="px-3 py-1.5 flex justify-between items-center border-b border-white/5">
                     <div class="flex items-center space-x-2">
-                        <span class="text-[8px] text-slate-500 font-bold tracking-widest">TELEGRAFISTA:</span>
+                        <span class="text-[7px] text-slate-500 font-bold tracking-widest">TELEGRAFISTA:</span>
                         <div class="flex items-center space-x-2">
-                            <span class="text-[9px] font-black {% if item.telegrafista.nome_padrao %}text-emerald-400{% else %}text-white/40{% endif %} uppercase italic tracking-tighter">
+                            <span class="text-[8px] font-black {% if item.telegrafista.nome_padrao %}text-emerald-400{% else %}text-white/40{% endif %} uppercase italic tracking-tighter">
                                 {{ item.telegrafista.nome_padrao|default:"AGUARDANDO..." }}
                             </span>
                             {% if item.telegrafista.is_dejem %}
                                 <div class="flex items-center space-x-1.5 bg-amber-500/10 px-1.5 py-0.5 rounded border border-amber-500/20">
-                                    <span class="text-[7px] font-black text-amber-500">DEJEM</span>
-                                    <span class="text-[7px] font-black text-amber-200 font-mono">{{ item.telegrafista.horario }}</span>
+                                    <span class="text-[6px] font-black text-amber-500">DEJEM</span>
+                                    <span class="text-[6px] font-black text-amber-200 font-mono">{{ item.telegrafista.horario }}</span>
                                 </div>
                             {% endif %}
-
-
-
                         </div>
                     </div>
                 </div>
                 <div class="px-3 py-1 bg-[#111] flex items-center justify-between">
                     <div class="flex items-center space-x-2">
-                        <span class="text-[8px] text-slate-600 font-black uppercase">Efetivo Total:</span>
+                        <span class="text-[7px] text-slate-600 font-black uppercase">Efetivo Total:</span>
                         <span class="text-[10px] font-black text-emerald-500 tabular-nums">{{ item.stats.efetivo_total|stringformat:"02d" }}</span>
                     </div>
 
                     {% if item.unidade.id %}
                     <a href="{% url 'compor_mapa' %}?unidade_id={{ item.unidade.id }}" 
-                       class="bg-red-600 hover:bg-red-500 text-white text-[8px] font-black px-3 py-1 rounded uppercase tracking-widest transition-all active:scale-95 flex items-center space-x-1">
+                       class="bg-red-600 hover:bg-red-500 text-white text-[7px] font-black px-2.5 py-1 rounded uppercase tracking-widest transition-all duration-150 active:scale-95 flex items-center space-x-1">
                         <span>Editar</span>
                         <svg class="h-2 w-2" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="4"><path d="M9 5l7 7-7 7"/></svg>
                     </a>
@@ -204,6 +201,6 @@
         animation: pulse-subtle 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
     }
     .tactical-card {
-        border-radius: 4px;
+        border-radius: 2px;
     }
 </style>

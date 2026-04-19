@@ -4,39 +4,39 @@
 {% block title %}Histórico de Escalas | Mapa-Força{% endblock %}
 
 {% block content %}
-<div class="flex flex-col space-y-8 animate-fade-in">
+<div class="flex flex-col space-y-5 animate-fade-in">
     
     <!-- Header com Seletor de Data -->
-    <div class="relative p-8 rounded-[2.5rem] glass border border-white/10 overflow-hidden morphism-card">
-        <div class="absolute top-0 right-0 -mt-10 -mr-10 h-40 w-40 bg-red-600/10 rounded-full blur-[50px]"></div>
+    <div class="relative p-5 rounded-2xl glass border border-white/10 overflow-hidden morphism-card">
+        <div class="absolute top-0 right-0 -mt-10 -mr-10 h-40 w-40 bg-red-600/10 rounded-full blur-[40px]"></div>
         
-        <div class="relative z-10 flex flex-col md:flex-row md:items-center justify-between space-y-6 md:space-y-0">
-            <div class="space-y-1">
-                <div class="flex items-center space-x-3">
-                    <span class="h-1 w-6 bg-red-600 rounded-full"></span>
-                    <span class="text-[10px] font-black text-red-600 uppercase tracking-[0.3em]">Arquivo Operacional</span>
+        <div class="relative z-10 flex flex-col md:flex-row md:items-center justify-between space-y-4 md:space-y-0">
+            <div class="space-y-0.5">
+                <div class="flex items-center space-x-2">
+                    <span class="h-0.5 w-4 bg-red-600 rounded-full"></span>
+                    <span class="text-[8px] font-black text-red-600 uppercase tracking-[0.3em]">Arquivo Operacional</span>
                 </div>
-                <h1 class="text-4xl font-black text-slate-900 dark:text-white uppercase tracking-tighter italic">
+                <h1 class="text-2xl font-black text-slate-900 dark:text-white uppercase tracking-tighter italic">
                     Histórico de <span class="text-red-600">Escalas</span>
                 </h1>
             </div>
 
             <!-- Filtros Avançados -->
-            <form class="flex flex-wrap gap-4 items-end bg-slate-100 dark:bg-slate-900/50 p-6 rounded-[2.5rem] border border-slate-200 dark:border-slate-800"
+            <form class="flex flex-wrap gap-3 items-end bg-slate-100 dark:bg-slate-900/50 p-4 rounded-2xl border border-slate-200 dark:border-slate-800"
                   hx-get="{% url 'historico_mapa' %}" 
                   hx-target="#conteudo-historico" 
                   hx-trigger="change from:input, change from:select, keyup from:input[name='viatura_prefixo'] delay:500ms"
                   hx-push-url="true">
                 
                 <div class="flex flex-col">
-                    <label class="text-[9px] font-black text-slate-500 uppercase tracking-widest ml-4 mb-1">Data</label>
+                    <label class="text-[7px] font-black text-slate-500 uppercase tracking-widest ml-3 mb-0.5">Data</label>
                     <input type="date" name="data" value="{{ data_selecionada|date:'Y-m-d' }}"
-                           class="bg-white dark:bg-slate-950 border-none rounded-xl px-4 py-2 text-xs font-bold text-slate-900 dark:text-white focus:ring-2 focus:ring-red-600 transition-all cursor-pointer">
+                           class="bg-white dark:bg-slate-950 border-none rounded-lg px-3 py-1.5 text-[10px] font-bold text-slate-900 dark:text-white focus:ring-2 focus:ring-red-600 transition-all duration-200 cursor-pointer">
                 </div>
 
                 <div class="flex flex-col">
-                    <label class="text-[9px] font-black text-slate-500 uppercase tracking-widest ml-4 mb-1">SGB</label>
-                    <select name="sgb_id" class="bg-white dark:bg-slate-950 border-none rounded-xl px-4 py-2 text-xs font-bold text-slate-900 dark:text-white focus:ring-2 focus:ring-red-600 transition-all cursor-pointer min-w-[120px]">
+                    <label class="text-[7px] font-black text-slate-500 uppercase tracking-widest ml-3 mb-0.5">SGB</label>
+                    <select name="sgb_id" class="bg-white dark:bg-slate-950 border-none rounded-lg px-3 py-1.5 text-[10px] font-bold text-slate-900 dark:text-white focus:ring-2 focus:ring-red-600 transition-all duration-200 cursor-pointer min-w-[100px]">
                         <option value="">Todos</option>
                         {% for sgb in sgbs %}
                         <option value="{{ sgb.id }}" {% if sgb.id == sgb_selecionado %}selected{% endif %}>{{ sgb.nome }}</option>
@@ -45,8 +45,8 @@
                 </div>
 
                 <div class="flex flex-col">
-                    <label class="text-[9px] font-black text-slate-500 uppercase tracking-widest ml-4 mb-1">Posto/Unidade</label>
-                    <select name="unidade_id" class="bg-white dark:bg-slate-950 border-none rounded-xl px-4 py-2 text-xs font-bold text-slate-900 dark:text-white focus:ring-2 focus:ring-red-600 transition-all cursor-pointer min-w-[150px]">
+                    <label class="text-[7px] font-black text-slate-500 uppercase tracking-widest ml-3 mb-0.5">Posto/Unidade</label>
+                    <select name="unidade_id" class="bg-white dark:bg-slate-950 border-none rounded-lg px-3 py-1.5 text-[10px] font-bold text-slate-900 dark:text-white focus:ring-2 focus:ring-red-600 transition-all duration-200 cursor-pointer min-w-[130px]">
                         <option value="">Todas</option>
                         {% for u in unidades_lista %}
                         <option value="{{ u.id }}" {% if u.id == unidade_selecionada_id %}selected{% endif %}>{{ u.nome }}</option>
@@ -55,30 +55,30 @@
                 </div>
 
                 <div class="flex flex-col">
-                    <label class="text-[9px] font-black text-slate-500 uppercase tracking-widest ml-4 mb-1">Viatura (Prefixo)</label>
+                    <label class="text-[7px] font-black text-slate-500 uppercase tracking-widest ml-3 mb-0.5">Viatura (Prefixo)</label>
                     <input type="text" name="viatura_prefixo" placeholder="Ex: L-15..." value="{{ v_prefixo|default:'' }}"
-                           class="bg-white dark:bg-slate-950 border-none rounded-xl px-4 py-2 text-xs font-bold text-slate-900 dark:text-white focus:ring-2 focus:ring-red-600 transition-all placeholder:text-slate-600">
+                           class="bg-white dark:bg-slate-950 border-none rounded-lg px-3 py-1.5 text-[10px] font-bold text-slate-900 dark:text-white focus:ring-2 focus:ring-red-600 transition-all duration-200 placeholder:text-slate-600 w-32">
                 </div>
 
                 <!-- Toggle DEJEM -->
-                <div class="flex items-center space-x-3 mb-2 px-4">
+                <div class="flex items-center space-x-2 mb-1 px-2">
                     <label class="relative inline-flex items-center cursor-pointer">
                         <input type="checkbox" name="dejem" value="true" class="sr-only peer" {% if dejem_only %}checked{% endif %}>
-                        <div class="w-10 h-5 bg-slate-300 peer-focus:outline-none dark:bg-slate-700 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-red-600"></div>
+                        <div class="w-8 h-4 bg-slate-300 peer-focus:outline-none dark:bg-slate-700 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-3 after:w-3 after:transition-all peer-checked:bg-red-600"></div>
                     </label>
-                    <span class="text-[9px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-widest">Apenas DEJEM</span>
+                    <span class="text-[7px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-widest">Apenas DEJEM</span>
                 </div>
                 <!-- Filtros Secundários e Exportação -->
-                <div class="flex items-center space-x-2 mt-4">
+                <div class="flex items-center space-x-1.5 mt-2">
                     <!-- Botões de View -->
-                    <div class="flex bg-slate-200 dark:bg-slate-800 p-1 rounded-xl mr-4">
+                    <div class="flex bg-slate-200 dark:bg-slate-800 p-0.5 rounded-lg mr-3">
                         <input type="radio" name="view" value="cards" id="view-cards" class="sr-only peer/cards" {% if view_type == 'cards' %}checked{% endif %}>
-                        <label for="view-cards" class="px-3 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-widest cursor-pointer transition-all peer-checked/cards:bg-white dark:peer-checked/cards:bg-slate-700 peer-checked/cards:text-red-600 text-slate-500">
+                        <label for="view-cards" class="px-2 py-1 rounded-md text-[7px] font-black uppercase tracking-widest cursor-pointer transition-all duration-200 peer-checked/cards:bg-white dark:peer-checked/cards:bg-slate-700 peer-checked/cards:text-red-600 text-slate-500">
                             Cards
                         </label>
                         
                         <input type="radio" name="view" value="table" id="view-table" class="sr-only peer/table" {% if view_type == 'table' %}checked{% endif %}>
-                        <label for="view-table" class="px-3 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-widest cursor-pointer transition-all peer-checked/table:bg-white dark:peer-checked/table:bg-slate-700 peer-checked/table:text-red-600 text-slate-500">
+                        <label for="view-table" class="px-2 py-1 rounded-md text-[7px] font-black uppercase tracking-widest cursor-pointer transition-all duration-200 peer-checked/table:bg-white dark:peer-checked/table:bg-slate-700 peer-checked/table:text-red-600 text-slate-500">
                             Tabela
                         </label>
                     </div>
@@ -86,15 +86,15 @@
                     <!-- Botões de Exportação -->
                     <button type="button" 
                             onclick="exportar('csv')"
-                            class="flex items-center space-x-2 px-4 py-2 bg-emerald-600/10 text-emerald-500 rounded-xl hover:bg-emerald-600 hover:text-white transition-all text-[9px] font-black uppercase tracking-widest border border-emerald-600/20">
-                        <svg class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+                            class="flex items-center space-x-1.5 px-3 py-1.5 bg-emerald-600/10 text-emerald-500 rounded-lg hover:bg-emerald-600 hover:text-white transition-all duration-200 text-[7px] font-black uppercase tracking-widest border border-emerald-600/20">
+                        <svg class="h-2.5 w-2.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
                         <span>CSV</span>
                     </button>
 
                     <button type="button" 
                             onclick="exportar('pdf')"
-                            class="flex items-center space-x-2 px-4 py-2 bg-red-600/10 text-red-600 rounded-xl hover:bg-red-600 hover:text-white transition-all text-[9px] font-black uppercase tracking-widest border border-red-600/20">
-                        <svg class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2-2v4h10z"/></svg>
+                            class="flex items-center space-x-1.5 px-3 py-1.5 bg-red-600/10 text-red-600 rounded-lg hover:bg-red-600 hover:text-white transition-all duration-200 text-[7px] font-black uppercase tracking-widest border border-red-600/20">
+                        <svg class="h-2.5 w-2.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2-2v4h10z"/></svg>
                         <span>PDF</span>
                     </button>
                 </div>
@@ -132,11 +132,11 @@
 
 <style>
     @keyframes fade-in {
-        from { opacity: 0; transform: translateY(10px); }
+        from { opacity: 0; transform: translateY(8px); }
         to { opacity: 1; transform: translateY(0); }
     }
     .animate-fade-in {
-        animation: fade-in 0.5s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+        animation: fade-in 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards;
     }
 </style>
 {% endblock %}

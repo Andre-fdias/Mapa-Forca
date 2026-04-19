@@ -1,140 +1,140 @@
-<aside class="w-72 bg-slate-950 text-white flex-shrink-0 lg:static fixed inset-y-0 left-0 z-50 transform transition-transform duration-500 ease-in-out border-r border-slate-900"
+<aside class="w-56 bg-slate-950 text-white flex-shrink-0 lg:static fixed inset-y-0 left-0 z-50 transform transition-transform duration-500 ease-in-out border-r border-slate-900"
        :class="sidebarOpen ? 'translate-x-0 shadow-[20px_0_60px_rgba(0,0,0,0.5)]' : '-translate-x-full lg:translate-x-0'">
     
     <div class="h-full flex flex-col">
         <!-- Brand -->
-        <div class="h-20 px-8 flex items-center justify-between border-b border-slate-900 bg-slate-950">
-            <a href="/" class="flex items-center space-x-3 group cursor-pointer">
-                <div class="h-9 w-9 bg-red-600 rounded-2xl flex items-center justify-center shadow-lg shadow-red-600/20 group-hover:rotate-12 transition-transform duration-500">
-                    <svg class="h-5 w-5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <div class="h-14 px-4 flex items-center justify-between border-b border-slate-900 bg-slate-950">
+            <a href="/" class="flex items-center space-x-2 group cursor-pointer">
+                <div class="h-7 w-7 bg-red-600 rounded-xl flex items-center justify-center shadow-lg shadow-red-600/20 group-hover:rotate-12 transition-transform duration-500">
+                    <svg class="h-3.5 w-3.5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M13 10V3L4 14h7v7l9-11h-7z" />
                     </svg>
                 </div>
-                <span class="text-xl font-black tracking-tighter uppercase italic">
+                <span class="text-sm font-black tracking-tighter uppercase italic">
                     MAPA<span class="text-red-500">FORÇA</span>
                 </span>
             </a>
             <button class="lg:hidden text-slate-500 hover:text-white" @click="sidebarOpen = false">
-                <svg class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
                 </svg>
             </button>
         </div>
 
         <!-- Navigation -->
-        <nav class="flex-1 px-6 py-8 space-y-1.5 overflow-y-auto">
+        <nav class="flex-1 px-3 py-4 space-y-1 overflow-y-auto">
             
-            <p class="text-[10px] font-black text-slate-600 uppercase tracking-[0.2em] mb-4 ml-2">Sistemas</p>
+            <p class="text-[8px] font-black text-slate-600 uppercase tracking-[0.2em] mb-2 ml-2">Sistemas</p>
             
-            <a href="/" class="flex items-center space-x-4 px-4 py-3.5 rounded-2xl transition-all duration-300 group {% if request.path == '/' %}bg-slate-900 text-white shadow-lg border border-slate-800{% else %}text-slate-500 hover:bg-slate-900/50 hover:text-slate-300{% endif %}">
-                <div class="p-2 rounded-xl {% if request.path == '/' %}bg-red-600 text-white{% else %}bg-slate-900 text-slate-600 group-hover:text-slate-400{% endif %} transition-colors shadow-sm">
-                    <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <a href="/" class="flex items-center space-x-3 px-3 py-2 rounded-xl transition-all duration-300 group {% if request.path == '/' %}bg-slate-900 text-white shadow-lg border border-slate-800{% else %}text-slate-500 hover:bg-slate-900/50 hover:text-slate-300{% endif %}">
+                <div class="p-1.5 rounded-lg {% if request.path == '/' %}bg-red-600 text-white{% else %}bg-slate-900 text-slate-600 group-hover:text-slate-400{% endif %} transition-colors shadow-sm">
+                    <svg class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" />
                     </svg>
                 </div>
-                <span class="text-sm font-black uppercase tracking-tight">Visão Geral</span>
+                <span class="text-[10px] font-black uppercase tracking-tight">Visão Geral</span>
             </a>
 
-            <a href="{% url 'visao_cobom_efetivo' %}" class="flex items-center space-x-4 px-4 py-3.5 rounded-2xl transition-all duration-300 group {% if '/unidades/visao-cobom/' in request.path %}bg-slate-900 text-white shadow-lg border border-slate-800{% else %}text-slate-500 hover:bg-slate-900/50 hover:text-slate-300{% endif %}">
-                <div class="p-2 rounded-xl {% if '/unidades/visao-cobom/' in request.path %}bg-red-600 text-white{% else %}bg-slate-900 text-slate-600 group-hover:text-slate-400{% endif %} transition-colors shadow-sm">
-                    <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <a href="{% url 'visao_cobom_efetivo' %}" class="flex items-center space-x-3 px-3 py-2 rounded-xl transition-all duration-300 group {% if '/unidades/visao-cobom/' in request.path %}bg-slate-900 text-white shadow-lg border border-slate-800{% else %}text-slate-500 hover:bg-slate-900/50 hover:text-slate-300{% endif %}">
+                <div class="p-1.5 rounded-lg {% if '/unidades/visao-cobom/' in request.path %}bg-red-600 text-white{% else %}bg-slate-900 text-slate-600 group-hover:text-slate-400{% endif %} transition-colors shadow-sm">
+                    <svg class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
                     </svg>
                 </div>
-                <span class="text-sm font-black uppercase tracking-tight">Visão COBOM</span>
+                <span class="text-[10px] font-black uppercase tracking-tight">Visão COBOM</span>
             </a>
 
             {% if user.is_authenticated %}
-                <p class="text-[10px] font-black text-slate-600 uppercase tracking-[0.2em] mt-10 mb-4 ml-2">Operacional</p>
+                <p class="text-[8px] font-black text-slate-600 uppercase tracking-[0.2em] mt-6 mb-2 ml-2">Operacional</p>
                 
-                <a href="{% url 'compor_mapa' %}" class="flex items-center space-x-4 px-4 py-3.5 rounded-2xl transition-all duration-300 group {% if '/escalas/compor/' in request.path %}bg-slate-900 text-white shadow-lg border border-slate-800{% else %}text-slate-500 hover:bg-slate-900/50 hover:text-slate-300{% endif %}">
-                    <div class="p-2 rounded-xl {% if '/escalas/compor/' in request.path %}bg-red-600 text-white{% else %}bg-slate-900 text-slate-600 group-hover:text-slate-400{% endif %} transition-colors shadow-sm">
-                        <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <a href="{% url 'compor_mapa' %}" class="flex items-center space-x-3 px-3 py-2 rounded-xl transition-all duration-300 group {% if '/escalas/compor/' in request.path %}bg-slate-900 text-white shadow-lg border border-slate-800{% else %}text-slate-500 hover:bg-slate-900/50 hover:text-slate-300{% endif %}">
+                    <div class="p-1.5 rounded-lg {% if '/escalas/compor/' in request.path %}bg-red-600 text-white{% else %}bg-slate-900 text-slate-600 group-hover:text-slate-400{% endif %} transition-colors shadow-sm">
+                        <svg class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v3m0 0v3m0-3h3m-3 0H9m12 0a9 9 0 11-18 0 9 9 0 0118 0z" />
                         </svg>
                     </div>
-                    <span class="text-sm font-black uppercase tracking-tight">Compor Mapa</span>
+                    <span class="text-[10px] font-black uppercase tracking-tight">Compor Mapa</span>
                 </a>
 
-                <a href="{% url 'cadastro_viaturas' %}" class="flex items-center space-x-4 px-4 py-3.5 rounded-2xl transition-all duration-300 group {% if '/unidades/cadastro-viaturas/' in request.path %}bg-slate-900 text-white shadow-lg border border-slate-800{% else %}text-slate-500 hover:bg-slate-900/50 hover:text-slate-300{% endif %}">
-                    <div class="p-2 rounded-xl {% if '/unidades/cadastro-viaturas/' in request.path %}bg-red-600 text-white{% else %}bg-slate-900 text-slate-600 group-hover:text-slate-400{% endif %} transition-colors shadow-sm">
-                        <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <a href="{% url 'cadastro_viaturas' %}" class="flex items-center space-x-3 px-3 py-2 rounded-xl transition-all duration-300 group {% if '/unidades/cadastro-viaturas/' in request.path %}bg-slate-900 text-white shadow-lg border border-slate-800{% else %}text-slate-500 hover:bg-slate-900/50 hover:text-slate-300{% endif %}">
+                    <div class="p-1.5 rounded-lg {% if '/unidades/cadastro-viaturas/' in request.path %}bg-red-600 text-white{% else %}bg-slate-900 text-slate-600 group-hover:text-slate-400{% endif %} transition-colors shadow-sm">
+                        <svg class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
                         </svg>
                     </div>
-                    <span class="text-sm font-black uppercase tracking-tight">Viaturas</span>
+                    <span class="text-[10px] font-black uppercase tracking-tight">Viaturas</span>
                 </a>
 
-                <a href="{% url 'lista_efetivo_importado' %}" class="flex items-center space-x-4 px-4 py-3.5 rounded-2xl transition-all duration-300 group {% if '/efetivo/importado/' in request.path %}bg-slate-900 text-white shadow-lg border border-slate-800{% else %}text-slate-500 hover:bg-slate-900/50 hover:text-slate-300{% endif %}">
-                    <div class="p-2 rounded-xl {% if '/efetivo/importado/' in request.path %}bg-red-600 text-white{% else %}bg-slate-900 text-slate-600 group-hover:text-slate-400{% endif %} transition-colors shadow-sm">
-                        <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <a href="{% url 'lista_efetivo_importado' %}" class="flex items-center space-x-3 px-3 py-2 rounded-xl transition-all duration-300 group {% if '/efetivo/importado/' in request.path %}bg-slate-900 text-white shadow-lg border border-slate-800{% else %}text-slate-500 hover:bg-slate-900/50 hover:text-slate-300{% endif %}">
+                    <div class="p-1.5 rounded-lg {% if '/efetivo/importado/' in request.path %}bg-red-600 text-white{% else %}bg-slate-900 text-slate-600 group-hover:text-slate-400{% endif %} transition-colors shadow-sm">
+                        <svg class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
                         </svg>
                     </div>
-                    <span class="text-sm font-black uppercase tracking-tight">Efetivo</span>
+                    <span class="text-[10px] font-black uppercase tracking-tight">Efetivo</span>
                 </a>
 
-                <a href="{% url 'lista_postos' %}" class="flex items-center space-x-4 px-4 py-3.5 rounded-2xl transition-all duration-300 group {% if '/unidades/postos/' in request.path %}bg-slate-900 text-white shadow-lg border border-slate-800{% else %}text-slate-500 hover:bg-slate-900/50 hover:text-slate-300{% endif %}">
-                    <div class="p-2 rounded-xl {% if '/unidades/postos/' in request.path %}bg-red-600 text-white{% else %}bg-slate-900 text-slate-600 group-hover:text-slate-400{% endif %} transition-colors shadow-sm">
-                        <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <a href="{% url 'lista_postos' %}" class="flex items-center space-x-3 px-3 py-2 rounded-xl transition-all duration-300 group {% if '/unidades/postos/' in request.path %}bg-slate-900 text-white shadow-lg border border-slate-800{% else %}text-slate-500 hover:bg-slate-900/50 hover:text-slate-300{% endif %}">
+                    <div class="p-1.5 rounded-lg {% if '/unidades/postos/' in request.path %}bg-red-600 text-white{% else %}bg-slate-900 text-slate-600 group-hover:text-slate-400{% endif %} transition-colors shadow-sm">
+                        <svg class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"/>
                         </svg>
                     </div>
-                    <span class="text-sm font-black uppercase tracking-tight">Postos</span>
+                    <span class="text-[10px] font-black uppercase tracking-tight">Postos</span>
                 </a>
 
-                <a href="{% url 'historico_mapa' %}" class="flex items-center space-x-4 px-4 py-3.5 rounded-2xl transition-all duration-300 group {% if '/escalas/historico/' in request.path %}bg-slate-900 text-white shadow-lg border border-slate-800{% else %}text-slate-500 hover:bg-slate-900/50 hover:text-slate-300{% endif %}">
-                    <div class="p-2 rounded-xl {% if '/escalas/historico/' in request.path %}bg-red-600 text-white{% else %}bg-slate-900 text-slate-600 group-hover:text-slate-400{% endif %} transition-colors shadow-sm">
-                        <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <a href="{% url 'historico_mapa' %}" class="flex items-center space-x-3 px-3 py-2 rounded-xl transition-all duration-300 group {% if '/escalas/historico/' in request.path %}bg-slate-900 text-white shadow-lg border border-slate-800{% else %}text-slate-500 hover:bg-slate-900/50 hover:text-slate-300{% endif %}">
+                    <div class="p-1.5 rounded-lg {% if '/escalas/historico/' in request.path %}bg-red-600 text-white{% else %}bg-slate-900 text-slate-600 group-hover:text-slate-400{% endif %} transition-colors shadow-sm">
+                        <svg class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
                         </svg>
                     </div>
-                    <span class="text-sm font-black uppercase tracking-tight">Histórico</span>
+                    <span class="text-[10px] font-black uppercase tracking-tight">Histórico</span>
                 </a>
 
                 <!-- Account Section -->
-                <p class="text-[10px] font-black text-slate-600 uppercase tracking-[0.2em] mt-10 mb-4 ml-2">Sua Conta</p>
-                <a href="{% url 'profile' %}" class="flex items-center space-x-4 px-4 py-3.5 rounded-2xl transition-all duration-300 group {% if '/accounts/profile/' in request.path %}bg-slate-900 text-white shadow-lg border border-slate-800{% else %}text-slate-500 hover:bg-slate-900/50 hover:text-slate-300{% endif %}">
-                    <div class="p-2 rounded-xl {% if '/accounts/profile/' in request.path %}bg-red-600 text-white{% else %}bg-slate-900 text-slate-600 group-hover:text-slate-400{% endif %} transition-colors shadow-sm">
-                        <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <p class="text-[8px] font-black text-slate-600 uppercase tracking-[0.2em] mt-6 mb-2 ml-2">Sua Conta</p>
+                <a href="{% url 'profile' %}" class="flex items-center space-x-3 px-3 py-2 rounded-xl transition-all duration-300 group {% if '/accounts/profile/' in request.path %}bg-slate-900 text-white shadow-lg border border-slate-800{% else %}text-slate-500 hover:bg-slate-900/50 hover:text-slate-300{% endif %}">
+                    <div class="p-1.5 rounded-lg {% if '/accounts/profile/' in request.path %}bg-red-600 text-white{% else %}bg-slate-900 text-slate-600 group-hover:text-slate-400{% endif %} transition-colors shadow-sm">
+                        <svg class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
                         </svg>
                     </div>
-                    <span class="text-sm font-black uppercase tracking-tight">Meu Perfil</span>
+                    <span class="text-[10px] font-black uppercase tracking-tight">Meu Perfil</span>
                 </a>
 
                 {% if user.role == 'ADMIN' or user.is_superuser %}
-                <p class="text-[10px] font-black text-slate-600 uppercase tracking-[0.2em] mt-10 mb-4 ml-2">Gestão</p>
-                <a href="{% url 'admin_dashboard' %}" class="flex items-center space-x-4 px-4 py-3.5 rounded-2xl transition-all duration-300 group {% if '/accounts/admin-dashboard/' in request.path %}bg-slate-900 text-white shadow-lg border border-slate-800{% else %}text-slate-500 hover:bg-slate-900/50 hover:text-slate-300{% endif %}">
-                    <div class="p-2 rounded-xl {% if '/accounts/admin-dashboard/' in request.path %}bg-red-600 text-white{% else %}bg-slate-900 text-slate-600 group-hover:text-slate-400{% endif %} transition-colors shadow-sm">
-                        <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <p class="text-[8px] font-black text-slate-600 uppercase tracking-[0.2em] mt-6 mb-2 ml-2">Gestão</p>
+                <a href="{% url 'admin_dashboard' %}" class="flex items-center space-x-3 px-3 py-2 rounded-xl transition-all duration-300 group {% if '/accounts/admin-dashboard/' in request.path %}bg-slate-900 text-white shadow-lg border border-slate-800{% else %}text-slate-500 hover:bg-slate-900/50 hover:text-slate-300{% endif %}">
+                    <div class="p-1.5 rounded-lg {% if '/accounts/admin-dashboard/' in request.path %}bg-red-600 text-white{% else %}bg-slate-900 text-slate-600 group-hover:text-slate-400{% endif %} transition-colors shadow-sm">
+                        <svg class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
                         </svg>
                     </div>
-                    <span class="text-sm font-black uppercase tracking-tight">Painel Admin</span>
+                    <span class="text-[10px] font-black uppercase tracking-tight">Painel Admin</span>
                 </a>
                 {% endif %}
             {% endif %}
 
             {% if user.is_superuser %}
-                <p class="text-[10px] font-black text-slate-600 uppercase tracking-[0.2em] mt-10 mb-4 ml-2">Controle</p>
-                <a href="/admin/" class="flex items-center space-x-4 px-4 py-3.5 rounded-2xl transition-all duration-300 group text-slate-500 hover:bg-slate-900/50 hover:text-slate-300">
-                    <div class="p-2 rounded-xl bg-slate-900 text-slate-600 group-hover:text-slate-400 transition-colors shadow-sm">
-                        <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <p class="text-[8px] font-black text-slate-600 uppercase tracking-[0.2em] mt-6 mb-2 ml-2">Controle</p>
+                <a href="/admin/" class="flex items-center space-x-3 px-3 py-2 rounded-xl transition-all duration-300 group text-slate-500 hover:bg-slate-900/50 hover:text-slate-300">
+                    <div class="p-1.5 rounded-lg bg-slate-900 text-slate-600 group-hover:text-slate-400 transition-colors shadow-sm">
+                        <svg class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
                         </svg>
                     </div>
-                    <span class="text-sm font-black uppercase tracking-tight">Django Admin</span>
+                    <span class="text-[10px] font-black uppercase tracking-tight">Django Admin</span>
                 </a>
             {% endif %}
         </nav>
 
         <!-- Logout -->
-        <div class="p-8 border-t border-slate-900 bg-slate-950/50">
-            <a href="{% url 'account_logout' %}" class="flex items-center justify-center space-x-3 px-4 py-3 rounded-2xl bg-red-600/10 text-red-500 hover:bg-red-600 hover:text-white transition-all duration-300 font-black text-xs uppercase tracking-widest shadow-lg">
-                <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <div class="p-3 border-t border-slate-900 bg-slate-950/50">
+            <a href="{% url 'account_logout' %}" class="flex items-center justify-center space-x-2 px-3 py-2 rounded-xl bg-red-600/10 text-red-500 hover:bg-red-600 hover:text-white transition-all duration-300 font-black text-[9px] uppercase tracking-widest shadow-lg">
+                <svg class="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
                 </svg>
                 <span>Encerrar Sessão</span>

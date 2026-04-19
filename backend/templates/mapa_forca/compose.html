@@ -3,15 +3,15 @@
 {% block title %}Compor Mapa Força - {{ unidade_selecionada.nome }}{% endblock %}
 
 {% block content %}
-<div class="flex flex-col space-y-10 animate-fade-in pb-20" 
+<div class="flex flex-col space-y-6 animate-fade-in pb-12" 
      hx-vals='{"categoria": "{{ categoria_selecionada }}"}'>
     <!-- Header Context -->
-    <div class="flex flex-col md:flex-row items-end justify-between gap-6 px-4 bg-slate-100 dark:bg-slate-900/50 p-8 rounded-[3rem] border border-slate-200 dark:border-slate-800">
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-6 flex-1 w-full max-w-3xl">
+    <div class="flex flex-col md:flex-row items-end justify-between gap-4 px-3 bg-slate-100 dark:bg-slate-900/50 p-5 rounded-2xl border border-slate-200 dark:border-slate-800">
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 flex-1 w-full max-w-3xl">
             <div class="flex flex-col">
-                <label class="text-[9px] font-black text-slate-500 uppercase tracking-widest ml-4 mb-1">Unidade</label>
+                <label class="text-[7px] font-black text-slate-500 uppercase tracking-widest ml-3 mb-0.5">Unidade</label>
                 <select name="categoria" 
-                        class="bg-white dark:bg-slate-950 border-none rounded-2xl px-5 py-3 text-xs font-bold text-slate-900 dark:text-white focus:ring-2 focus:ring-red-600 transition-all cursor-pointer shadow-sm"
+                        class="bg-white dark:bg-slate-950 border-none rounded-lg px-4 py-2 text-[10px] font-bold text-slate-900 dark:text-white focus:ring-2 focus:ring-red-600 transition-all cursor-pointer shadow-sm"
                         hx-get="{% url 'compor_mapa' %}" 
                         hx-target="#select-posto-container" 
                         hx-trigger="change">
@@ -28,50 +28,50 @@
             </div>
         </div>
         
-        <div class="bg-slate-950 p-5 rounded-3xl border border-slate-800 shadow-xl flex items-center space-x-4">
-             <div class="flex flex-col items-end pr-5 border-r border-slate-800">
-                <span class="text-[9px] font-black text-slate-500 uppercase tracking-widest mb-1">Ciclo Operacional</span>
-                <span class="text-xl font-black text-red-500 tabular-nums italic">{{ mapa.data|date:"d/m/Y"|default:"SELECIONE POSTO" }}</span>
+        <div class="bg-slate-950 p-3 rounded-xl border border-slate-800 shadow-xl flex items-center space-x-3">
+             <div class="flex flex-col items-end pr-4 border-r border-slate-800">
+                <span class="text-[7px] font-black text-slate-500 uppercase tracking-widest mb-0.5">Ciclo Operacional</span>
+                <span class="text-base font-black text-red-500 tabular-nums italic">{{ mapa.data|date:"d/m/Y"|default:"SELECIONE POSTO" }}</span>
             </div>
-            <div class="h-10 w-10 bg-emerald-500/10 rounded-xl flex items-center justify-center border border-emerald-500/20">
-                <div class="h-2 w-2 bg-emerald-500 rounded-full {% if mapa %}animate-ping{% endif %}"></div>
+            <div class="h-7 w-7 bg-emerald-500/10 rounded-lg flex items-center justify-center border border-emerald-500/20">
+                <div class="h-1.5 w-1.5 bg-emerald-500 rounded-full {% if mapa %}animate-ping{% endif %}"></div>
             </div>
         </div>
     </div>
 
     {% if not mapa %}
-    <div class="bg-white dark:bg-slate-900 rounded-[3rem] p-20 text-center border-4 border-dashed border-slate-100 dark:border-slate-800 animate-pulse">
-        <div class="h-24 w-24 bg-slate-100 dark:bg-slate-800 rounded-full flex items-center justify-center mx-auto mb-8 shadow-inner">
-            <svg class="h-12 w-12 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"/></svg>
+    <div class="bg-white dark:bg-slate-900 rounded-2xl p-12 text-center border-2 border-dashed border-slate-100 dark:border-slate-800 animate-pulse">
+        <div class="h-16 w-16 bg-slate-100 dark:bg-slate-800 rounded-full flex items-center justify-center mx-auto mb-5 shadow-inner">
+            <svg class="h-8 w-8 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"/></svg>
         </div>
-        <h3 class="text-2xl font-black text-slate-400 uppercase tracking-tighter mb-2 italic">Aguardando Seleção de Unidade</h3>
-        <p class="text-xs font-bold text-slate-500 uppercase tracking-[0.2em]">Selecione um posto operacional acima para iniciar a composição do mapa força.</p>
+        <h3 class="text-xl font-black text-slate-400 uppercase tracking-tighter mb-1 italic">Aguardando Seleção de Unidade</h3>
+        <p class="text-[10px] font-bold text-slate-500 uppercase tracking-[0.2em]">Selecione um posto operacional acima para iniciar a composição do mapa força.</p>
     </div>
     {% else %}
     <!-- COMPONENTE: VIATURA SELECT PRO (ULTRA COLOR VERSION) -->
-    <div class="bg-slate-950 rounded-[2.5rem] p-10 shadow-2xl border border-slate-900 group relative">
-        <div class="mb-8 border-b border-slate-900 pb-6">
-            <h2 class="text-2xl font-black text-white uppercase tracking-tighter">Compor Guarnição</h2>
-            <p class="text-slate-500 text-[10px] font-black uppercase tracking-widest mt-1 italic">Selecione a viatura operacional na lista abaixo</p>
+    <div class="bg-slate-950 rounded-2xl p-5 shadow-2xl border border-slate-900 group relative">
+        <div class="mb-5 border-b border-slate-900 pb-4">
+            <h2 class="text-lg font-black text-white uppercase tracking-tighter">Compor Guarnição</h2>
+            <p class="text-slate-500 text-[8px] font-black uppercase tracking-widest mt-0.5 italic">Selecione a viatura operacional na lista abaixo</p>
         </div>
         
         <form hx-post="{% url 'adicionar_viatura_mapa' mapa.id %}" 
               hx-target="#lista-viaturas"
               hx-swap="afterbegin"
               id="vtr-form"
-              class="flex flex-col lg:flex-row items-end gap-6 relative">
+              class="flex flex-col lg:flex-row items-end gap-4 relative">
             {% csrf_token %}
             <input type="hidden" name="unidade_id" value="{{ unidade_selecionada.id }}">
             
             <div class="flex-1 w-full relative" id="vtr-select-wrapper">
-                <label class="block text-[9px] font-black text-slate-500 uppercase tracking-[0.2em] mb-3 ml-2">Viatura Operacional</label>
+                <label class="block text-[7px] font-black text-slate-500 uppercase tracking-[0.2em] mb-2 ml-1.5">Viatura Operacional</label>
                 
                 <div id="vtr-trigger" 
-                     class="w-full bg-slate-900 border-2 border-slate-800 text-white rounded-2xl p-5 text-sm font-black flex justify-between items-center cursor-pointer hover:border-red-600/50 transition-all shadow-2xl">
+                     class="w-full bg-slate-900 border border-slate-800 text-white rounded-lg p-3 text-[10px] font-black flex justify-between items-center cursor-pointer hover:border-red-600/50 transition-all shadow-xl">
                     <span id="vtr-selected-label" class="text-slate-500 uppercase tracking-widest">Escolha na lista...</span>
-                    <div class="flex items-center space-x-3">
-                        <div id="vtr-status-dot" class="h-2 w-2 rounded-full bg-slate-700 transition-all duration-500"></div>
-                        <svg class="h-5 w-5 text-slate-500 transition-transform duration-300" id="vtr-chevron" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-width="3" d="M19 9l-7 7-7-7"/></svg>
+                    <div class="flex items-center space-x-2">
+                        <div id="vtr-status-dot" class="h-1.5 w-1.5 rounded-full bg-slate-700 transition-all duration-300"></div>
+                        <svg class="h-3.5 w-3.5 text-slate-500 transition-transform duration-200" id="vtr-chevron" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-width="3" d="M19 9l-7 7-7-7"/></svg>
                     </div>
                 </div>
 
@@ -79,14 +79,14 @@
 
                 <!-- Dropdown List -->
                 <div id="vtr-dropdown" 
-                     class="absolute z-[100] w-full mt-4 bg-slate-900 border-2 border-slate-800 rounded-[2rem] shadow-[0_30px_90px_rgba(0,0,0,0.9)] overflow-hidden hidden animate-slide-down">
+                     class="absolute z-[100] w-full mt-3 bg-slate-900 border border-slate-800 rounded-xl shadow-2xl overflow-hidden hidden animate-slide-down">
                     
-                    <div class="p-4 border-b border-slate-800 bg-slate-950/80">
+                    <div class="p-3 border-b border-slate-800 bg-slate-950/80">
                         <input type="text" id="vtr-search-inner" placeholder="Filtrar por prefixo, placa ou SGB..." 
-                               class="w-full bg-slate-950 border border-slate-800 rounded-xl p-4 text-xs font-bold text-white outline-none focus:border-red-600 transition-all placeholder-slate-600">
+                               class="w-full bg-slate-950 border border-slate-800 rounded-lg p-2.5 text-[10px] font-bold text-white outline-none focus:border-red-600 transition-all placeholder-slate-600">
                     </div>
 
-                    <div id="vtr-list" class="max-h-[450px] overflow-y-auto scrollbar-vtr p-2 space-y-2">
+                    <div id="vtr-list" class="max-h-[350px] overflow-y-auto scrollbar-vtr p-2 space-y-1.5">
                         <!-- Itens via JS -->
                     </div>
                 </div>
@@ -95,31 +95,31 @@
             <button type="submit"
                     id="vtr-submit-btn"
                     disabled
-                    class="w-full lg:w-auto bg-slate-800 text-slate-600 font-black py-6 px-12 rounded-2xl transition-all flex items-center justify-center space-x-3 cursor-not-allowed shadow-xl active:scale-95">
-                <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-width="4" d="M12 4v16m8-8H4"/></svg>
-                <span class="uppercase">Adicionar</span>
+                    class="w-full lg:w-auto bg-slate-800 text-slate-600 font-black py-3.5 px-8 rounded-lg transition-all duration-200 flex items-center justify-center space-x-2 cursor-not-allowed shadow-xl active:scale-95">
+                <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-width="4" d="M12 4v16m8-8H4"/></svg>
+                <span class="uppercase text-[10px]">Adicionar</span>
             </button>
         </form>
     </div>
 
     <!-- Cards Grid -->
-    <div id="lista-viaturas" class="grid grid-cols-1 xl:grid-cols-2 gap-10 mt-10">
+    <div id="lista-viaturas" class="grid grid-cols-1 xl:grid-cols-2 gap-6 mt-6">
         {% for alocacao in mapa.alocacoes_viaturas.all %}
             {% include "mapa_forca/partials/card_viatura_alocada.html" with alocacao=alocacao %}
         {% endfor %}
     </div>
 
     <!-- Final Save Button -->
-    <div class="flex justify-center pt-10">
+    <div class="flex justify-center pt-6">
         <div id="save-response"></div>
         <button hx-post="{% url 'validar_mapa_final' mapa.id %}"
                 hx-target="#save-response"
                 hx-swap="innerHTML"
-                class="bg-white text-slate-950 font-black py-6 px-24 rounded-[2rem] transition-all transform hover:scale-105 active:scale-95 shadow-2xl flex items-center space-x-4 border-4 border-slate-100">
+                class="bg-white text-slate-950 font-black py-4 px-16 rounded-xl transition-all duration-200 transform hover:scale-105 active:scale-95 shadow-2xl flex items-center space-x-3 border-2 border-slate-100">
             {% csrf_token %}
-            <span class="text-xl uppercase tracking-tighter">Finalizar e Salvar Mapa</span>
-            <div class="h-8 w-8 bg-red-600 rounded-xl flex items-center justify-center shadow-lg">
-                <svg class="h-4 w-4 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="4"><path d="M5 13l4 4L19 7"/></svg>
+            <span class="text-base uppercase tracking-tighter">Finalizar e Salvar Mapa</span>
+            <div class="h-6 w-6 bg-red-600 rounded-lg flex items-center justify-center shadow-md">
+                <svg class="h-3 w-3 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="4"><path d="M5 13l4 4L19 7"/></svg>
             </div>
         </button>
     </div>
@@ -127,14 +127,14 @@
 </div>
 
 <!-- Toast System -->
-<div id="toast" class="fixed bottom-10 right-10 z-[100] transform translate-y-20 opacity-0 transition-all duration-500 pointer-events-none">
-    <div id="toast-container" class="bg-slate-900 text-white px-8 py-5 rounded-2xl shadow-2xl border border-white/10 flex items-center space-x-4 min-w-[300px]">
-        <div id="toast-icon-bg" class="h-10 w-10 bg-emerald-500 rounded-xl flex items-center justify-center">
-            <svg class="h-6 w-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="3"><path d="M5 13l4 4L19 7"/></svg>
+<div id="toast" class="fixed bottom-8 right-8 z-[100] transform translate-y-16 opacity-0 transition-all duration-300 pointer-events-none">
+    <div id="toast-container" class="bg-slate-900 text-white px-6 py-3.5 rounded-lg shadow-2xl border border-white/10 flex items-center space-x-3 min-w-[260px]">
+        <div id="toast-icon-bg" class="h-7 w-7 bg-emerald-500 rounded-lg flex items-center justify-center">
+            <svg class="h-4 w-4 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="3"><path d="M5 13l4 4L19 7"/></svg>
         </div>
         <div class="flex flex-col">
-            <span class="text-[10px] font-black text-slate-400 uppercase tracking-widest">Notificação</span>
-            <span class="text-sm font-black uppercase" id="toast-message">Sucesso!</span>
+            <span class="text-[8px] font-black text-slate-400 uppercase tracking-widest">Notificação</span>
+            <span class="text-xs font-black uppercase" id="toast-message">Sucesso!</span>
         </div>
     </div>
 </div>
@@ -142,22 +142,22 @@
 
 {% block extra_scripts %}
 <style>
-    .scrollbar-vtr::-webkit-scrollbar { width: 8px; }
+    .scrollbar-vtr::-webkit-scrollbar { width: 6px; }
     .scrollbar-vtr::-webkit-scrollbar-track { background: transparent; }
-    .scrollbar-vtr::-webkit-scrollbar-thumb { background: #1e293b; border-radius: 20px; border: 2px solid #0f172a; }
+    .scrollbar-vtr::-webkit-scrollbar-thumb { background: #1e293b; border-radius: 20px; border: 1.5px solid #0f172a; }
     .scrollbar-vtr::-webkit-scrollbar-thumb:hover { background: #ef4444; }
 
     /* Item do Select */
     .vtr-item {
         background: rgba(30, 41, 59, 0.2);
         border: 1px solid rgba(51, 65, 85, 0.3);
-        border-radius: 1.25rem;
-        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        border-radius: 0.75rem;
+        transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
     }
     .vtr-item:hover {
         background: rgba(225, 29, 72, 0.05);
         border-color: #ef4444;
-        transform: translateX(5px);
+        transform: translateX(3px);
     }
     .vtr-item.selected-nav {
         background: rgba(225, 29, 72, 0.1);
@@ -166,37 +166,37 @@
 
     /* Badges Customizados */
     .status-badge {
-        padding: 4px 10px;
-        border-radius: 8px;
-        font-size: 9px;
+        padding: 3px 8px;
+        border-radius: 6px;
+        font-size: 7px;
         font-weight: 900;
         text-transform: uppercase;
         letter-spacing: 0.05em;
     }
     .status-operando { 
         background: #064e3b; color: #10b981; border: 1px solid #059669;
-        box-shadow: 0 0 15px rgba(16, 185, 129, 0.1);
+        box-shadow: 0 0 10px rgba(16, 185, 129, 0.1);
     }
     .status-reserva { background: #1e293b; color: #94a3b8; border: 1px solid #334155; }
 
     .sgb-pill {
-        background: #ef4444; color: white; padding: 2px 8px; border-radius: 6px;
-        font-size: 9px; font-weight: 900;
+        background: #ef4444; color: white; padding: 1.5px 6px; border-radius: 4px;
+        font-size: 7px; font-weight: 900;
     }
 
     .placa-box {
-        background: #cbd5e1; color: #0f172a; padding: 2px 8px; border-radius: 4px;
-        font-family: 'Monaco', 'Consolas', monospace; font-weight: 800; font-size: 10px;
+        background: #cbd5e1; color: #0f172a; padding: 1.5px 6px; border-radius: 3px;
+        font-family: 'Monaco', 'Consolas', monospace; font-weight: 800; font-size: 8px;
     }
 
     @keyframes slide-down {
-        from { opacity: 0; transform: translateY(-20px); }
+        from { opacity: 0; transform: translateY(-15px); }
         to { opacity: 1; transform: translateY(0); }
     }
-    .animate-slide-down { animation: slide-down 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
+    .animate-slide-down { animation: slide-down 0.25s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
 
-    @keyframes fade-in { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
-    .animate-fade-in { animation: fade-in 0.8s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
+    @keyframes fade-in { from { opacity: 0; transform: translateY(15px); } to { opacity: 1; transform: translateY(0); } }
+    .animate-fade-in { animation: fade-in 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
 </style>
 
 <script>

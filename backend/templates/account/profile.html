@@ -3,79 +3,79 @@
 {% block title %}Perfil de Usuário - Mapa Força{% endblock %}
 
 {% block content %}
-<div class="max-w-5xl mx-auto py-10 px-4 sm:px-6 lg:px-8 animate-fade-in">
+<div class="max-w-5xl mx-auto py-5 px-3 sm:px-4 lg:px-6 animate-fade-in">
     <!-- Header -->
-    <div class="mb-10 text-center">
-        <h1 class="text-4xl font-black text-slate-900 dark:text-white uppercase tracking-tighter">Seu Perfil</h1>
-        <p class="text-slate-500 dark:text-slate-400 font-bold uppercase tracking-widest text-xs mt-2 italic">Gerencie suas informações e solicitações de acesso</p>
+    <div class="mb-6 text-center">
+        <h1 class="text-2xl font-black text-slate-900 dark:text-white uppercase tracking-tighter">Seu Perfil</h1>
+        <p class="text-slate-500 dark:text-slate-400 font-bold uppercase tracking-widest text-[9px] mt-1 italic">Gerencie suas informações e solicitações de acesso</p>
     </div>
 
-    <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-4">
         <!-- Sidebar Informações -->
-        <div class="lg:col-span-1 space-y-6">
-            <div class="bg-white dark:bg-slate-900 rounded-[2rem] p-8 shadow-xl border border-slate-100 dark:border-slate-800 text-center">
-                <div class="h-24 w-24 bg-red-600 rounded-full flex items-center justify-center mx-auto mb-6 shadow-lg shadow-red-600/20 text-3xl font-black text-white">
+        <div class="lg:col-span-1 space-y-3">
+            <div class="bg-white dark:bg-slate-900 rounded-2xl p-4 shadow-xl border border-slate-100 dark:border-slate-800 text-center">
+                <div class="h-14 w-14 bg-red-600 rounded-full flex items-center justify-center mx-auto mb-3 shadow-lg shadow-red-600/20 text-xl font-black text-white">
                     {{ user.email|slice:":1"|upper }}
                 </div>
-                <h2 class="text-xl font-black text-slate-900 dark:text-white uppercase tracking-tight truncate">{{ user.email }}</h2>
-                <span class="inline-block mt-2 px-4 py-1 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 rounded-full text-[10px] font-black uppercase tracking-widest">
+                <h2 class="text-sm font-black text-slate-900 dark:text-white uppercase tracking-tight truncate">{{ user.email }}</h2>
+                <span class="inline-block mt-1.5 px-2.5 py-0.5 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 rounded-full text-[8px] font-black uppercase tracking-widest">
                     {{ user.get_role_display }}
                 </span>
                 
                 {% if is_social %}
-                <div class="mt-4 flex items-center justify-center space-x-2 text-emerald-500 bg-emerald-500/10 py-2 rounded-xl border border-emerald-500/20">
-                    <svg class="h-4 w-4" fill="currentColor" viewBox="0 0 24 24">
+                <div class="mt-3 flex items-center justify-center space-x-1.5 text-emerald-500 bg-emerald-500/10 py-1.5 rounded-lg border border-emerald-500/20">
+                    <svg class="h-3 w-3" fill="currentColor" viewBox="0 0 24 24">
                         <path d="M12.48 10.92v3.28h7.84c-.24 1.84-.909 3.264-2.09 4.34-1.206 1.082-3.09 2.14-6.21 2.14-4.629 0-8.448-3.763-8.448-8.4s3.82-8.4 8.448-8.4c2.497 0 4.387.983 5.752 2.303l2.31-2.303C17.938 1.09 15.446 0 12.48 0 5.867 0 .307 5.387.307 12s5.56 12 12.173 12c3.57 0 6.267-1.177 8.37-3.347 2.16-2.16 2.84-5.19 2.84-7.51 0-.72-.06-1.4-.18-2.08H12.48z"/>
                     </svg>
-                    <span class="text-[10px] font-black uppercase tracking-widest">Google Auth</span>
+                    <span class="text-[8px] font-black uppercase tracking-widest">Google Auth</span>
                 </div>
                 {% endif %}
             </div>
 
-            <div class="bg-white dark:bg-slate-900 rounded-[2rem] p-8 shadow-xl border border-slate-100 dark:border-slate-800">
-                <h3 class="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-4">Dados Cadastrais</h3>
-                <div class="space-y-4 text-xs">
-                    <div class="flex justify-between border-b border-slate-50 dark:border-slate-800 pb-2">
-                        <span class="font-black text-slate-400 uppercase">Email</span>
-                        <span class="font-bold text-slate-900 dark:text-white">{{ user.email }}</span>
+            <div class="bg-white dark:bg-slate-900 rounded-2xl p-4 shadow-xl border border-slate-100 dark:border-slate-800">
+                <h3 class="text-[8px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-3">Dados Cadastrais</h3>
+                <div class="space-y-2 text-xs">
+                    <div class="flex justify-between border-b border-slate-50 dark:border-slate-800 pb-1.5">
+                        <span class="font-black text-slate-400 uppercase text-[9px]">Email</span>
+                        <span class="font-bold text-slate-900 dark:text-white text-[10px]">{{ user.email }}</span>
                     </div>
-                    <div class="flex justify-between border-b border-slate-50 dark:border-slate-800 pb-2">
-                        <span class="font-black text-slate-400 uppercase">Status</span>
-                        <span class="font-bold text-emerald-500 uppercase">Ativo</span>
+                    <div class="flex justify-between border-b border-slate-50 dark:border-slate-800 pb-1.5">
+                        <span class="font-black text-slate-400 uppercase text-[9px]">Status</span>
+                        <span class="font-bold text-emerald-500 uppercase text-[9px]">Ativo</span>
                     </div>
                     <div class="flex justify-between">
-                        <span class="font-black text-slate-400 uppercase">Acesso</span>
-                        <span class="font-bold text-slate-900 dark:text-white uppercase">{{ user.get_role_display }}</span>
+                        <span class="font-black text-slate-400 uppercase text-[9px]">Acesso</span>
+                        <span class="font-bold text-slate-900 dark:text-white uppercase text-[9px]">{{ user.get_role_display }}</span>
                     </div>
                 </div>
             </div>
         </div>
 
         <!-- Área Principal -->
-        <div class="lg:col-span-2 space-y-8">
+        <div class="lg:col-span-2 space-y-4">
             
             <!-- Solicitação de Vínculo -->
-            <div class="bg-white dark:bg-slate-900 rounded-[2.5rem] p-10 shadow-2xl border border-slate-100 dark:border-slate-800">
-                <div class="mb-8 border-b border-slate-100 dark:border-slate-800 pb-6 flex justify-between items-end">
+            <div class="bg-white dark:bg-slate-900 rounded-2xl p-5 shadow-2xl border border-slate-100 dark:border-slate-800">
+                <div class="mb-4 border-b border-slate-100 dark:border-slate-800 pb-3 flex justify-between items-end">
                     <div>
-                        <h2 class="text-2xl font-black text-slate-900 dark:text-white uppercase tracking-tighter">Vínculo de Unidade</h2>
-                        <p class="text-slate-500 text-[10px] font-black uppercase tracking-widest mt-1 italic">Solicite acesso aos seus postos de atuação</p>
+                        <h2 class="text-base font-black text-slate-900 dark:text-white uppercase tracking-tighter">Vínculo de Unidade</h2>
+                        <p class="text-slate-500 text-[8px] font-black uppercase tracking-widest mt-0.5 italic">Solicite acesso aos seus postos de atuação</p>
                     </div>
                     {% if user.is_link_pending %}
-                    <span class="px-4 py-2 bg-amber-500/10 text-amber-500 rounded-xl text-[9px] font-black uppercase tracking-widest border border-amber-500/20 animate-pulse">
-                        Aguardando Auditoria
+                    <span class="px-2 py-1 bg-amber-500/10 text-amber-500 rounded-lg text-[7px] font-black uppercase tracking-widest border border-amber-500/20 animate-pulse">
+                        Aguardando
                     </span>
                     {% endif %}
                 </div>
 
-                <form method="post" class="space-y-8">
+                <form method="post" class="space-y-4">
                     {% csrf_token %}
                     
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <!-- Nível de Acesso -->
-                        <div class="space-y-3">
-                            <label class="block text-[10px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-widest ml-2">Nível de Acesso Desejado</label>
-                            <select name="requested_role" required class="w-full bg-slate-50 dark:bg-slate-950 border-2 border-slate-100 dark:border-slate-800 rounded-2xl p-4 text-xs font-bold text-slate-900 dark:text-white focus:border-red-600 transition-all outline-none">
+                        <div class="space-y-1.5">
+                            <label class="block text-[8px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-widest ml-1">Nível de Acesso</label>
+                            <select name="requested_role" required class="w-full bg-slate-50 dark:bg-slate-950 border-2 border-slate-100 dark:border-slate-800 rounded-xl p-2.5 text-[10px] font-bold text-slate-900 dark:text-white focus:border-red-600 transition-all outline-none">
                                 {% for code, name in role_choices %}
                                     <option value="{{ code }}" {% if user.role == code %}selected{% endif %}>{{ name }}</option>
                                 {% endfor %}
@@ -83,46 +83,46 @@
                         </div>
 
                         <!-- Unidade Principal -->
-                        <div class="space-y-3">
-                            <label class="block text-[10px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-widest ml-2">Posto(s) de Atendimento</label>
+                        <div class="space-y-1.5">
+                            <label class="block text-[8px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-widest ml-1">Posto(s) de Atendimento</label>
                             <div class="relative group">
-                                <select name="requested_unidades" multiple required class="w-full bg-slate-50 dark:bg-slate-950 border-2 border-slate-100 dark:border-slate-800 rounded-2xl p-4 text-xs font-bold text-slate-900 dark:text-white focus:border-red-600 transition-all outline-none min-h-[150px]">
+                                <select name="requested_unidades" multiple required class="w-full bg-slate-50 dark:bg-slate-950 border-2 border-slate-100 dark:border-slate-800 rounded-xl p-2.5 text-[10px] font-bold text-slate-900 dark:text-white focus:border-red-600 transition-all outline-none min-h-[100px]">
                                     {% for u in unidades %}
                                         <option value="{{ u.id }}">{{ u.nome }}</option>
                                     {% endfor %}
                                 </select>
-                                <p class="text-[9px] text-slate-500 font-bold mt-2 ml-2 italic">Mantenha 'Ctrl' pressionado para selecionar mais de um posto.</p>
+                                <p class="text-[7px] text-slate-500 font-bold mt-1 ml-1 italic">Ctrl + clique para múltiplos</p>
                             </div>
                         </div>
                     </div>
 
-                    <button type="submit" name="request_link" class="w-full bg-slate-900 dark:bg-white text-white dark:text-slate-950 font-black py-5 px-12 rounded-2xl transition-all shadow-xl flex items-center justify-center space-x-3 active:scale-95 group">
-                        <svg class="h-5 w-5 group-hover:rotate-12 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="3">
+                    <button type="submit" name="request_link" class="w-full bg-slate-900 dark:bg-white text-white dark:text-slate-950 font-black py-3 px-8 rounded-xl transition-all shadow-xl flex items-center justify-center space-x-2 active:scale-95 group">
+                        <svg class="h-3.5 w-3.5 group-hover:rotate-12 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="3">
                             <path d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"/><path d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"/>
                         </svg>
-                        <span class="uppercase tracking-widest">Solicitar Vínculo Operacional</span>
+                        <span class="uppercase tracking-widest text-[9px]">Solicitar Vínculo</span>
                     </button>
                 </form>
             </div>
 
             <!-- Troca de Senha (se não for Google) -->
             {% if not is_social %}
-            <div class="bg-white dark:bg-slate-900 rounded-[2.5rem] p-10 shadow-2xl border border-slate-100 dark:border-slate-800">
-                <div class="mb-8 border-b border-slate-100 dark:border-slate-800 pb-6">
-                    <h2 class="text-2xl font-black text-slate-900 dark:text-white uppercase tracking-tighter">Segurança</h2>
-                    <p class="text-slate-500 text-[10px] font-black uppercase tracking-widest mt-1 italic">Mantenha sua conta admin local segura</p>
+            <div class="bg-white dark:bg-slate-900 rounded-2xl p-5 shadow-2xl border border-slate-100 dark:border-slate-800">
+                <div class="mb-4 border-b border-slate-100 dark:border-slate-800 pb-3">
+                    <h2 class="text-base font-black text-slate-900 dark:text-white uppercase tracking-tighter">Segurança</h2>
+                    <p class="text-slate-500 text-[8px] font-black uppercase tracking-widest mt-0.5 italic">Mantenha sua conta segura</p>
                 </div>
 
-                <form method="post" class="space-y-6">
+                <form method="post" class="space-y-3">
                     {% csrf_token %}
                     {% for field in form %}
-                    <div class="space-y-2">
-                        <label class="block text-[10px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-widest ml-2">{{ field.label }}</label>
+                    <div class="space-y-1">
+                        <label class="block text-[8px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-widest ml-1">{{ field.label }}</label>
                         {{ field }}
                     </div>
                     {% endfor %}
-                    <button type="submit" name="change_password" class="w-full bg-red-600 hover:bg-red-500 text-white font-black py-5 px-12 rounded-2xl transition-all shadow-xl active:scale-95 mt-4">
-                        <span class="uppercase tracking-widest">Atualizar Senha</span>
+                    <button type="submit" name="change_password" class="w-full bg-red-600 hover:bg-red-500 text-white font-black py-3 px-8 rounded-xl transition-all shadow-xl active:scale-95 mt-2">
+                        <span class="uppercase tracking-widest text-[9px]">Atualizar Senha</span>
                     </button>
                 </form>
             </div>
@@ -133,9 +133,11 @@
 
 <style>
     input[type="password"] {
-        width: 100%; background-color: #f8fafc; border: 2px solid #e2e8f0; border-radius: 1rem; padding: 1rem 1.25rem; font-weight: 700; transition: all 0.3s;
+        width: 100%; background-color: #f8fafc; border: 2px solid #e2e8f0; border-radius: 0.75rem; padding: 0.625rem 0.875rem; font-size: 10px; font-weight: 700; transition: all 0.3s;
     }
     .dark input[type="password"] { background-color: #020617; border-color: #1e293b; color: white; }
-    input[type="password"]:focus { border-color: #E11D48; outline: none; box-shadow: 0 0 0 4px rgba(225, 29, 72, 0.1); }
+    input[type="password"]:focus { border-color: #E11D48; outline: none; box-shadow: 0 0 0 3px rgba(225, 29, 72, 0.1); }
+    
+    select[multiple] option { padding: 0.375rem 0.5rem; font-size: 9px; }
 </style>
 {% endblock %}

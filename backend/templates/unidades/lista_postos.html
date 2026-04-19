@@ -3,7 +3,7 @@
 {% block title %}Postos de Atendimento — Mapa Força{% endblock %}
 
 {% block content %}
-<div class="flex flex-col space-y-12 animate-fade-in" x-data="{ 
+<div class="flex flex-col space-y-6 animate-fade-in" x-data="{ 
     copyToClipboard(text) {
         navigator.clipboard.writeText(text);
         window.dispatchEvent(new CustomEvent('notify', { detail: 'Copiado para a área de transferência!' }));
@@ -11,34 +11,34 @@
 }">
     
     <!-- Hero Header -->
-    <div class="relative p-10 rounded-[3rem] glass border border-white/20 overflow-hidden morphism-card">
-        <div class="absolute top-0 right-0 -mt-20 -mr-20 h-64 w-64 bg-red-600/10 rounded-full blur-[80px]"></div>
-        <div class="absolute bottom-0 left-0 -mb-20 -ml-20 h-64 w-64 bg-slate-900/10 dark:bg-red-900/10 rounded-full blur-[80px]"></div>
+    <div class="relative p-5 rounded-2xl glass border border-white/20 overflow-hidden morphism-card">
+        <div class="absolute top-0 right-0 -mt-20 -mr-20 h-64 w-64 bg-red-600/10 rounded-full blur-[60px]"></div>
+        <div class="absolute bottom-0 left-0 -mb-20 -ml-20 h-64 w-64 bg-slate-900/10 dark:bg-red-900/10 rounded-full blur-[60px]"></div>
         
-        <div class="relative z-10 flex flex-col md:flex-row md:items-center md:justify-between space-y-8 md:space-y-0">
-            <div class="space-y-2">
-                <div class="flex items-center space-x-3 mb-2">
-                    <span class="h-1.5 w-8 bg-red-600 rounded-full"></span>
-                    <span class="text-[10px] font-black text-red-600 dark:text-red-400 uppercase tracking-[0.3em]">Gestão Territorial</span>
+        <div class="relative z-10 flex flex-col md:flex-row md:items-center md:justify-between space-y-6 md:space-y-0">
+            <div class="space-y-1.5">
+                <div class="flex items-center space-x-2 mb-1">
+                    <span class="h-1 w-5 bg-red-600 rounded-full"></span>
+                    <span class="text-[8px] font-black text-red-600 dark:text-red-400 uppercase tracking-[0.3em]">Gestão Territorial</span>
                 </div>
-                <h1 class="text-5xl font-black text-slate-900 dark:text-white uppercase tracking-tighter leading-tight italic">
+                <h1 class="text-3xl font-black text-slate-900 dark:text-white uppercase tracking-tighter leading-tight italic">
                     Postos <span class="text-red-600">Atendimento</span>
                 </h1>
-                <p class="text-slate-500 dark:text-slate-400 font-bold uppercase tracking-[0.2em] text-[10px] ml-1">Consulta de unidades e municípios atendidos</p>
+                <p class="text-slate-500 dark:text-slate-400 font-bold uppercase tracking-[0.2em] text-[8px] ml-1">Consulta de unidades e municípios atendidos</p>
             </div>
 
-            <div class="flex flex-col items-end space-y-4">
-                <div class="bg-white/50 dark:bg-slate-900/50 p-6 rounded-[2rem] border border-white/20 dark:border-slate-800 backdrop-blur-md shadow-xl transition-all text-right">
-                    <span class="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest block mb-1">Total de Postos</span>
-                    <span class="text-3xl font-black text-slate-900 dark:text-white tabular-nums">{{ postos|length }}</span>
+            <div class="flex flex-col items-end space-y-3">
+                <div class="bg-white/50 dark:bg-slate-900/50 p-4 rounded-xl border border-white/20 dark:border-slate-800 backdrop-blur-md shadow-xl transition-all text-right">
+                    <span class="text-[8px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest block mb-0.5">Total de Postos</span>
+                    <span class="text-2xl font-black text-slate-900 dark:text-white tabular-nums">{{ postos|length }}</span>
                 </div>
 
                 <div id="sync-target">
                     <button hx-get="{% url 'sync_postos_sheets' %}" 
                             hx-target="#sync-target"
                             hx-swap="outerHTML"
-                            class="px-6 py-3 bg-red-600 hover:bg-red-700 text-white text-[10px] font-black uppercase tracking-widest rounded-2xl shadow-lg shadow-red-600/20 transition-all flex items-center space-x-2">
-                        <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
+                            class="px-4 py-2 bg-red-600 hover:bg-red-700 text-white text-[8px] font-black uppercase tracking-widest rounded-lg shadow-lg shadow-red-600/20 transition-all duration-200 flex items-center space-x-1.5">
+                        <svg class="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
                         <span>Sincronizar Postos</span>
                     </button>
                 </div>
@@ -46,49 +46,49 @@
         </div>
 
         <!-- Barra de Filtros Integrada -->
-        <div class="relative z-10 mt-10 pt-8 border-t border-white/10">
-            <form method="GET" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+        <div class="relative z-10 mt-6 pt-5 border-t border-white/10">
+            <form method="GET" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
                 <!-- Busca Texto -->
                 <div class="relative group lg:col-span-1">
-                    <span class="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-red-500 transition-colors">
-                        <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
+                    <span class="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-red-500 transition-colors">
+                        <svg class="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
                     </span>
                     <input type="text" name="q" value="{{ query }}" placeholder="Buscar posto..." 
-                           class="w-full bg-white/40 dark:bg-slate-950/40 border border-white/20 dark:border-slate-800 rounded-2xl pl-12 pr-6 py-3 text-xs font-bold focus:outline-none focus:ring-2 focus:ring-red-500/50 transition-all placeholder:text-slate-500">
+                           class="w-full bg-white/40 dark:bg-slate-950/40 border border-white/20 dark:border-slate-800 rounded-lg pl-9 pr-4 py-2 text-[10px] font-bold focus:outline-none focus:ring-2 focus:ring-red-500/50 transition-all placeholder:text-slate-500">
                 </div>
 
                 <!-- Filtro Unidade -->
                 <div class="relative">
                     <select name="unidade" onchange="this.form.submit()"
-                            class="w-full bg-white/40 dark:bg-slate-950/40 border border-white/20 dark:border-slate-800 rounded-2xl px-6 py-3 text-xs font-bold focus:outline-none focus:ring-2 focus:ring-red-500/50 transition-all appearance-none cursor-pointer">
+                            class="w-full bg-white/40 dark:bg-slate-950/40 border border-white/20 dark:border-slate-800 rounded-lg px-4 py-2 text-[10px] font-bold focus:outline-none focus:ring-2 focus:ring-red-500/50 transition-all appearance-none cursor-pointer">
                         <option value="">TODAS UNIDADES</option>
                         {% for unit in lista_unidades %}
                         <option value="{{ unit }}" {% if unidade_filter == unit %}selected{% endif %}>{{ unit }}</option>
                         {% endfor %}
                     </select>
-                    <div class="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none text-slate-400">
-                        <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M19 9l-7 7-7-7"/></svg>
+                    <div class="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-slate-400">
+                        <svg class="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M19 9l-7 7-7-7"/></svg>
                     </div>
                 </div>
 
                 <!-- Filtro SGB -->
                 <div class="relative">
                     <select name="sgb" onchange="this.form.submit()"
-                            class="w-full bg-white/40 dark:bg-slate-950/40 border border-white/20 dark:border-slate-800 rounded-2xl px-6 py-3 text-xs font-bold focus:outline-none focus:ring-2 focus:ring-red-500/50 transition-all appearance-none cursor-pointer">
+                            class="w-full bg-white/40 dark:bg-slate-950/40 border border-white/20 dark:border-slate-800 rounded-lg px-4 py-2 text-[10px] font-bold focus:outline-none focus:ring-2 focus:ring-red-500/50 transition-all appearance-none cursor-pointer">
                         <option value="">TODOS OS SGBS</option>
                         {% for sgb in lista_sgb %}
                         <option value="{{ sgb }}" {% if sgb_filter == sgb %}selected{% endif %}>{{ sgb }}</option>
                         {% endfor %}
                     </select>
-                    <div class="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none text-slate-400">
-                        <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M19 9l-7 7-7-7"/></svg>
+                    <div class="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-slate-400">
+                        <svg class="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M19 9l-7 7-7-7"/></svg>
                     </div>
                 </div>
 
                 <!-- Botão Limpar -->
                 <a href="{% url 'lista_postos' %}" 
-                   class="flex items-center justify-center space-x-2 bg-slate-900/10 hover:bg-slate-900/20 dark:bg-white/5 dark:hover:bg-white/10 rounded-2xl px-6 py-3 text-[10px] font-black uppercase tracking-widest transition-all">
-                    <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M6 18L18 6M6 6l12 12"/></svg>
+                   class="flex items-center justify-center space-x-1.5 bg-slate-900/10 hover:bg-slate-900/20 dark:bg-white/5 dark:hover:bg-white/10 rounded-lg px-4 py-2 text-[8px] font-black uppercase tracking-widest transition-all duration-200">
+                    <svg class="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M6 18L18 6M6 6l12 12"/></svg>
                     <span>Limpar</span>
                 </a>
             </form>
@@ -96,101 +96,101 @@
     </div>
 
     <!-- Lista de Postos -->
-    <div class="bg-white dark:bg-slate-900 rounded-[2.5rem] shadow-xl border border-slate-100 dark:border-slate-800 overflow-hidden">
-        <div class="bg-slate-950 p-6 flex justify-between items-center border-b border-slate-900 relative">
-            <div class="absolute top-0 left-0 w-1.5 h-full bg-red-600"></div>
-            <div class="pl-2">
-                <h2 class="text-sm font-black text-white uppercase tracking-tighter">Listagem de Unidades</h2>
-                <span class="text-[9px] font-bold text-slate-500 uppercase tracking-widest">Base de Dados: Planilha Municípios</span>
+    <div class="bg-white dark:bg-slate-900 rounded-2xl shadow-xl border border-slate-100 dark:border-slate-800 overflow-hidden">
+        <div class="bg-slate-950 p-4 flex justify-between items-center border-b border-slate-900 relative">
+            <div class="absolute top-0 left-0 w-1 h-full bg-red-600"></div>
+            <div class="pl-1.5">
+                <h2 class="text-xs font-black text-white uppercase tracking-tighter">Listagem de Unidades</h2>
+                <span class="text-[7px] font-bold text-slate-500 uppercase tracking-widest">Base de Dados: Planilha Municípios</span>
             </div>
-            <div class="flex items-center space-x-2 bg-emerald-500/10 px-3 py-1.5 rounded-xl border border-emerald-500/20">
-                <div class="h-1.5 w-1.5 bg-emerald-500 rounded-full animate-pulse"></div>
-                <span class="text-[9px] text-emerald-500 font-black uppercase tracking-widest">Ativo</span>
+            <div class="flex items-center space-x-1.5 bg-emerald-500/10 px-2 py-1 rounded-lg border border-emerald-500/20">
+                <div class="h-1 w-1 bg-emerald-500 rounded-full animate-pulse"></div>
+                <span class="text-[7px] text-emerald-500 font-black uppercase tracking-widest">Ativo</span>
             </div>
         </div>
 
-        <div class="p-6">
-            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <div class="p-4">
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                 {% for posto in postos %}
-                <div class="p-6 bg-white dark:bg-[#0f172a] rounded-[2rem] border border-slate-200 dark:border-slate-800 transition-all hover:border-red-500/30 hover:shadow-lg dark:hover:shadow-black/40 group flex flex-col justify-between relative overflow-hidden">
+                <div class="zoom-card p-4 bg-white dark:bg-[#0f172a] rounded-xl border border-slate-200 dark:border-slate-800 transition-all hover:border-red-500/30 hover:shadow-lg dark:hover:shadow-black/40 group flex flex-col justify-between relative overflow-hidden cursor-pointer">
                     <!-- TAG UNIDADE -->
-                    <div class="absolute -top-1 -right-1 bg-slate-900 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 px-3 py-1 rounded-bl-2xl shadow-lg z-10 group-hover:bg-red-600 transition-colors">
-                        <span class="text-[9px] font-black text-white uppercase tracking-widest">{{ posto.unidade|default:"GB" }}</span>
+                    <div class="absolute -top-0.5 -right-0.5 bg-slate-900 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 px-2 py-0.5 rounded-bl-xl shadow-lg z-10 group-hover:bg-red-600 transition-colors">
+                        <span class="text-[7px] font-black text-white uppercase tracking-widest">{{ posto.unidade|default:"GB" }}</span>
                     </div>
 
                     <div>
-                        <div class="flex items-center justify-between mb-4">
-                            <span class="px-3 py-1 bg-red-600/10 text-red-600 text-[10px] font-black uppercase rounded-full tracking-widest">{{ posto.sgb|default:"SGB -" }}</span>
-                            <span class="text-[9px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-tighter mr-12">{{ posto.cod_secao|default:"Seção -" }}</span>
+                        <div class="flex items-center justify-between mb-3">
+                            <span class="px-2 py-0.5 bg-red-600/10 text-red-600 text-[8px] font-black uppercase rounded-md tracking-widest">{{ posto.sgb|default:"SGB -" }}</span>
+                            <span class="text-[7px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-tighter mr-8">{{ posto.cod_secao|default:"Seção -" }}</span>
                         </div>
                         
-                        <h3 class="text-lg font-black text-slate-900 dark:text-white uppercase tracking-tight group-hover:text-red-600 dark:group-hover:text-red-500 transition-colors leading-tight mb-1">
+                        <h3 class="text-base font-black text-slate-900 dark:text-white uppercase tracking-tight group-hover:text-red-600 dark:group-hover:text-red-500 transition-colors leading-tight mb-0.5">
                             {{ posto.nome }}
                         </h3>
                         
                         <!-- DESTAQUE UNIDADE NO CORPO -->
-                        <div class="flex items-center space-x-2 mb-2">
-                            <div class="w-1 h-3 bg-red-600 rounded-full"></div>
-                            <p class="text-[10px] font-black text-slate-900 dark:text-white uppercase tracking-wide">
-                                {{ posto.unidade|default:"GB" }} <span class="text-red-600 mx-1">/</span> {{ posto.sgb|default:"-" }}
+                        <div class="flex items-center space-x-1.5 mb-1.5">
+                            <div class="w-0.5 h-2.5 bg-red-600 rounded-full"></div>
+                            <p class="text-[8px] font-black text-slate-900 dark:text-white uppercase tracking-wide">
+                                {{ posto.unidade|default:"GB" }} <span class="text-red-600 mx-0.5">/</span> {{ posto.sgb|default:"-" }}
                             </p>
                         </div>
 
-                        <p class="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase italic opacity-80 mb-4">
+                        <p class="text-[8px] font-bold text-slate-500 dark:text-slate-400 uppercase italic opacity-80 mb-3">
                             Sede: {{ posto.cidade_posto|default:"Não definida" }}
                         </p>
 
-                        <div class="space-y-4">
+                        <div class="space-y-3">
                             <!-- Municípios Atendidos -->
-                            <div class="bg-slate-50 dark:bg-slate-900/50 p-4 rounded-2xl border border-slate-100 dark:border-slate-800">
-                                <div class="flex items-center space-x-2 mb-2">
-                                    <div class="w-1.5 h-1.5 bg-red-600 rounded-full"></div>
-                                    <p class="text-[9px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest">Atendimento Territorial</p>
+                            <div class="bg-slate-50 dark:bg-slate-900/50 p-3 rounded-lg border border-slate-100 dark:border-slate-800">
+                                <div class="flex items-center space-x-1.5 mb-1.5">
+                                    <div class="w-1 h-1 bg-red-600 rounded-full"></div>
+                                    <p class="text-[7px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest">Atendimento Territorial</p>
                                 </div>
-                                <div class="flex flex-wrap gap-1.5">
+                                <div class="flex flex-wrap gap-1">
                                     {% for municipio in posto.municipios.all %}
-                                        <span class="text-[9px] font-black text-slate-600 dark:text-slate-300 uppercase bg-white dark:bg-slate-800 px-2 py-0.5 rounded-lg border border-slate-200 dark:border-slate-700 shadow-sm">
+                                        <span class="text-[7px] font-black text-slate-600 dark:text-slate-300 uppercase bg-white dark:bg-slate-800 px-1.5 py-0.5 rounded-md border border-slate-200 dark:border-slate-700 shadow-sm">
                                             {{ municipio.nome }}
                                         </span>
                                     {% empty %}
-                                        <span class="text-[9px] font-bold text-slate-400 italic">Nenhum município vinculado</span>
+                                        <span class="text-[7px] font-bold text-slate-400 italic">Nenhum município vinculado</span>
                                     {% endfor %}
                                 </div>
                             </div>
 
                             <!-- Endereço -->
-                            <div class="flex items-start space-x-3 px-1">
-                                <div class="p-2 rounded-xl bg-red-600/5 dark:bg-red-600/10 text-red-600">
-                                    <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
+                            <div class="flex items-start space-x-2 px-0.5">
+                                <div class="p-1.5 rounded-lg bg-red-600/5 dark:bg-red-600/10 text-red-600">
+                                    <svg class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
                                 </div>
                                 <div>
-                                    <p class="text-[10px] font-bold text-slate-600 dark:text-slate-300 uppercase leading-snug">{{ posto.endereco_quarte|default:"Endereço não cadastrado" }}</p>
+                                    <p class="text-[8px] font-bold text-slate-600 dark:text-slate-300 uppercase leading-snug">{{ posto.endereco_quarte|default:"Endereço não cadastrado" }}</p>
                                 </div>
                             </div>
                         </div>
                     </div>
 
                     <!-- Rodapé do Card com Ações de Telefone -->
-                    <div class="mt-6 pt-4 border-t border-slate-100 dark:border-slate-800">
+                    <div class="mt-4 pt-3 border-t border-slate-100 dark:border-slate-800">
                         <div class="flex items-center justify-between">
                             <div class="flex flex-col">
-                                <span class="text-[8px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-0.5">Contato Telefônico</span>
-                                <span class="text-[11px] font-black text-slate-900 dark:text-white tabular-nums">{{ posto.telefone|default:"S/ TELEFONE" }}</span>
+                                <span class="text-[6px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-0.5">Contato Telefônico</span>
+                                <span class="text-[9px] font-black text-slate-900 dark:text-white tabular-nums">{{ posto.telefone|default:"S/ TELEFONE" }}</span>
                             </div>
                             
-                            <div class="flex space-x-2">
+                            <div class="flex space-x-1.5">
                                 {% if posto.telefone %}
                                 <!-- Abrir WhatsApp -->
                                 <a href="https://wa.me/55{{ posto.telefone|force_escape|cut:' '|cut:'-'|cut:'(' |cut:')' }}" target="_blank"
-                                   class="p-2 bg-emerald-500/10 text-emerald-600 hover:bg-emerald-500 hover:text-white rounded-xl transition-all"
+                                   class="p-1.5 bg-emerald-500/10 text-emerald-600 hover:bg-emerald-500 hover:text-white rounded-lg transition-all duration-200"
                                    title="Abrir no WhatsApp">
-                                    <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.353-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.87 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L0 24l6.335-1.662c1.72.94 3.659 1.437 5.634 1.437h.005c6.558 0 11.895-5.335 11.898-11.893a11.821 11.821 0 00-3.48-8.413Z"/></svg>
+                                    <svg class="w-3 h-3" fill="currentColor" viewBox="0 0 24 24"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.353-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.87 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L0 24l6.335-1.662c1.72.94 3.659 1.437 5.634 1.437h.005c6.558 0 11.895-5.335 11.898-11.893a11.821 11.821 0 00-3.48-8.413Z"/></svg>
                                 </a>
                                 <!-- Copiar Telefone -->
                                 <button @click="copyToClipboard('{{ posto.telefone }}')"
-                                        class="p-2 bg-slate-900/5 dark:bg-white/5 text-slate-500 hover:bg-slate-900 dark:hover:bg-white hover:text-white dark:hover:text-slate-900 rounded-xl transition-all"
+                                        class="p-1.5 bg-slate-900/5 dark:bg-white/5 text-slate-500 hover:bg-slate-900 dark:hover:bg-white hover:text-white dark:hover:text-slate-900 rounded-lg transition-all duration-200"
                                         title="Copiar número">
-                                    <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3"/></svg>
+                                    <svg class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3"/></svg>
                                 </button>
                                 {% endif %}
                             </div>
@@ -198,11 +198,11 @@
                     </div>
                 </div>
                 {% empty %}
-                <div class="col-span-full py-20 text-center opacity-40">
-                    <svg class="h-12 w-12 text-slate-300 dark:text-slate-700 mx-auto mb-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <div class="col-span-full py-12 text-center opacity-40">
+                    <svg class="h-8 w-8 text-slate-300 dark:text-slate-700 mx-auto mb-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
                     </svg>
-                    <p class="text-xs font-black text-slate-400 dark:text-slate-600 uppercase tracking-[0.2em]">Nenhum posto encontrado para os filtros aplicados</p>
+                    <p class="text-[10px] font-black text-slate-400 dark:text-slate-600 uppercase tracking-[0.2em]">Nenhum posto encontrado para os filtros aplicados</p>
                 </div>
                 {% endfor %}
             </div>
@@ -216,7 +216,46 @@
         to { opacity: 1; transform: translateY(0); }
     }
     .animate-fade-in {
-        animation: fade-in 0.8s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+        animation: fade-in 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards;
     }
 </style>
+
+<!-- Modal de Projeção de Card -->
+<div id="card-modal-overlay" class="fixed inset-0 z-[100] hidden items-center justify-center bg-slate-950/60 backdrop-blur-md p-4 transition-all duration-300">
+    <div id="card-modal-content" class="w-full max-w-md transition-transform duration-300 transform scale-150">
+        <!-- O clone do card será inserido aqui via JS -->
+    </div>
+</div>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const cards = document.querySelectorAll('.zoom-card');
+        const overlay = document.getElementById('card-modal-overlay');
+        const modalContent = document.getElementById('card-modal-content');
+
+        cards.forEach(card => {
+            card.addEventListener('click', function() {
+                modalContent.innerHTML = '';
+                const clone = card.cloneNode(true);
+                clone.classList.remove('hover:border-red-500/30', 'hover:shadow-lg', 'cursor-pointer', 'group');
+                clone.classList.add('border-slate-300', 'dark:border-slate-700', 'shadow-2xl');
+                modalContent.appendChild(clone);
+                overlay.classList.remove('hidden');
+                overlay.classList.add('flex');
+
+                clone.addEventListener('mouseleave', function() {
+                    overlay.classList.add('hidden');
+                    overlay.classList.remove('flex');
+                });
+            });
+        });
+
+        overlay.addEventListener('click', function(e) {
+            if (e.target === overlay) {
+                overlay.classList.add('hidden');
+                overlay.classList.remove('flex');
+            }
+        });
+    });
+</script>
 {% endblock %}
