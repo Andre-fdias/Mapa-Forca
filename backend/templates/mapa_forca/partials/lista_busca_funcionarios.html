@@ -93,7 +93,7 @@ function selectFuncionario(re, nomeCompleto, efetivoId) {
     }
 
     inputEfetivoId.value = efetivoId;
-    inputBusca.value = re && !re.includes('S/ RE') ? re : nomeCompleto;
+    inputBusca.value = nomeCompleto; // Sempre preenche com o nome completo (Padrão Militar)
     inputExtra.value = nomeCompleto;
     
     // Feedback visual da seleção
