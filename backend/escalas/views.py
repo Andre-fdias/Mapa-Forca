@@ -97,41 +97,69 @@ def compor_mapa_view(request):
     categoria = request.GET.get('categoria')
     mapa = None
     
-    # 1. Busca as Unidades (Grupamentos) disponíveis na planilha
-    lista_opm = list(Posto.objects.exclude(unidade__isnull=True).exclude(unidade='').values_list('unidade', flat=True).distinct().order_by('unidade'))
-    
-    # 2. Define a categoria padrão se nenhuma for selecionada
-    if not categoria:
-        if lista_opm:
-            categoria = lista_opm[0]
-        else:
-            categoria = '15º GB'
 
-    # 3. Gerencia a seleção do Posto específico
+    # 1. IDENTIFICAÇÃO DE ACESSO E CATEGORIA (OPM)
+    user_root_unit = None
+    if request.user.unidade:
+        user_root_unit = request.user.unidade.root_unit.nome
+
+    # Lógica de Categorias (Grupamentos)
+    qs_opm = Posto.objects.exclude(unidade__isnull=True).exclude(unidade='')
+    if request.user.role not in ['ADMIN', 'COBOM'] and user_root_unit:
+        # Usuários regionais ficam presos ao seu Grupamento
+        qs_opm = qs_opm.filter(unidade=user_root_unit)
+        categoria = user_root_unit
+    
+    lista_opm = list(qs_opm.values_list('unidade', flat=True).distinct().order_by('unidade'))
+    
+    if not categoria:
+        categoria = user_root_unit if user_root_unit else (lista_opm[0] if lista_opm else '15º GB')
+
+    # 2. DEFINIÇÃO DA UNIDADE SELECIONADA E SEGURANÇA
     unidade_obj = None
     if u_id:
         unidade_obj = get_object_or_404(Unidade, id=u_id)
-    elif request.user.unidade and request.user.unidade.tipo_unidade and request.user.unidade.tipo_unidade.codigo == 'POSTO':
-        unidade_obj = request.user.unidade
+        # Bloqueio de segurança: impede que usuários regionais acessem unidades fora do seu escopo
+        if request.user.role not in ['ADMIN', 'COBOM']:
+            if request.user.role == 'BATALHAO' and unidade_obj.root_unit.nome != user_root_unit:
+                unidade_obj = request.user.unidade
+            elif request.user.role == 'SGB' and (unidade_obj != request.user.unidade and unidade_obj.parent != request.user.unidade):
+                unidade_obj = request.user.unidade
+            elif request.user.role == 'POSTO' and unidade_obj != request.user.unidade:
+                unidade_obj = request.user.unidade
+    else:
+        # Se não houver ID na URL, tenta usar a unidade do usuário
+        if request.user.unidade:
+            unidade_obj = request.user.unidade
 
+    # 3. CRIAÇÃO/BUSCA DO MAPA
     if unidade_obj:
-        mapa, created = MapaDiario.objects.get_or_create(data=hoje, unidade=unidade_obj, defaults={'criado_por': request.user})
+        mapa, created = MapaDiario.objects.get_or_create(
+            data=hoje, 
+            unidade=unidade_obj, 
+            defaults={'criado_por': request.user}
+        )
         if created:
             HistoricoAlteracao.objects.create(
                 mapa=mapa, usuario=request.user, tipo_acao='CREATE',
-                descricao="Iniciou a composição do mapa força do dia."
+                descricao=f"Iniciou a composição do mapa força para {unidade_obj.nome}."
             )
 
-    # 4. FILTRAGEM DINÂMICA: Busca no model Unidade os postos que pertencem à Categoria (Grupamento)
-    # Pegamos os códigos de seção que a planilha diz pertencer a este GB
+    # 4. FILTRAGEM DA LISTA DE UNIDADES (O QUE APARECE NO SELETOR)
     codigos_secao = list(Posto.objects.filter(unidade=categoria).values_list('cod_secao', flat=True))
-    
-    # Buscamos as Unidades que batem com esses códigos ou nomes específicos daquela categoria
-    todas_unidades = Unidade.objects.filter(
+    qs_unidades = Unidade.objects.filter(
         Q(codigo_secao__in=codigos_secao) | 
         Q(parent__nome__icontains=categoria.replace('º', '').replace('°', '').strip())
-    ).distinct().order_by('nome')
+    ).distinct()
 
+    if request.user.role == 'SGB':
+        qs_unidades = qs_unidades.filter(Q(id=request.user.unidade.id) | Q(parent=request.user.unidade))
+    elif request.user.role == 'POSTO':
+        qs_unidades = qs_unidades.filter(id=request.user.unidade.id)
+
+    todas_unidades = qs_unidades.order_by('nome')
+
+    # 5. PREPARAÇÃO DO CONTEXTO
     context = {
         'mapa': mapa, 
         'todas_unidades': todas_unidades,
@@ -139,30 +167,32 @@ def compor_mapa_view(request):
         'categorias_opm': lista_opm,
         'categoria_selecionada': categoria,
         'funcoes': Dictionary.objects.filter(tipo='FUNCAO_OPERACIONAL'),
+        'user_gb': user_root_unit,
+        'hoje': hoje,
         'base_template': 'base/partial.html' if request.headers.get('HX-Request') else 'base/base.html'
     }
 
-    if request.headers.get('HX-Request') and not u_id:
-        return render(request, 'mapa_forca/partials/select_postos.html', context)
-
-    # Se for COBOM (CBI-1 ou Admin se apresentando como COBOM)
-    if request.user.role == 'COBOM' or (request.user.role == 'ADMIN' and (request.GET.get('is_cobom') == 'true' or (unidade_obj and unidade_obj.nome == 'CBI-1'))):
+    # 6. SELEÇÃO DE TEMPLATE BASEADO NA ROLE
+    if request.user.role == 'COBOM':
+        # Lógica adicional para funções específicas do COBOM
         f_names = ['Oficial de Operações DEJEM', 'Chefe de Equipe', 'Supervisor Despacho', 'Supervisor 193', 'Supervisor 7º GB', 'Cabine 7º GB', 'Supervisor 19º GB', 'Cabine 19º GB', 'Supervisor 15º GB', 'Cabine 15º GB', 'Supervisor 16º GB', 'Cabine 16º GB', 'Apoio Cabine 7º, 19º e 15º GB', 'Apoio Cabine 16º GB', 'Enfermeiro de Triagem', 'Inclusor', 'Supervisor COE Autoban', 'Atendente 193']
-        funcoes = Dictionary.objects.filter(tipo='FUNCAO_OPERACIONAL', nome__in=f_names)
+        funcoes_cobom = Dictionary.objects.filter(tipo='FUNCAO_OPERACIONAL', nome__in=f_names)
         
         funcs_com_alocacoes = []
-        for func in funcoes:
-            alocs = mapa.alocacoes_funcionarios.filter(funcao=func) if mapa else []
-            funcs_com_alocacoes.append({
-                'funcao': func,
-                'alocacoes': alocs
-            })
+        for f in funcoes_cobom:
+            alocs = []
+            if mapa:
+                alocs = AlocacaoFuncionario.objects.filter(mapa=mapa, funcao=f)
+            funcs_com_alocacoes.append({'funcao': f, 'alocacoes': alocs})
             
         context['funcs_com_alocacoes'] = funcs_com_alocacoes
-        context['hoje'] = hoje
         return render(request, 'mapa_forca/compor_mapa_cobom.html', context)
 
-    return render(request, 'mapa_forca/compose.html', context)
+    # Caso padrão (Escalas de Posto/Batalhão/Admin)
+    if request.headers.get('HX-Request') and not u_id:
+        return render(request, 'mapa_forca/partials/select_postos.html', context)
+        
+    return render(request, 'escalas/compor_mapa.html', context)
 
 @login_required
 def buscar_funcionario_re(request):
