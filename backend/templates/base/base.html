@@ -81,7 +81,7 @@
     <!-- GLOBAL NOTIFICATION MODAL (Forced Approval/Rejection/Admin Alerts) -->
     <div id="global-notification-poll" 
          hx-get="{% url 'check_notifications' %}" 
-         hx-trigger="every 30s" 
+         hx-trigger="every 5s" 
          hx-swap="innerHTML">
         {% include "accounts/partials/notification_modal.html" %}
     </div>

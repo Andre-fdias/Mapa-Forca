@@ -68,7 +68,7 @@ def profile_view(request):
                 
                 # NOTIFICA ADMINS
                 notify_admins(
-                    mensagem=f"O usuário {request.user.email} solicitou alteração de perfil para {request.user.get_requested_role_display()}.",
+                    mensagem=f"O militar {request.user.email} solicitou alteração de perfil. Caso queira aprovar agora click aqui",
                     tipo='warning'
                 )
                 
