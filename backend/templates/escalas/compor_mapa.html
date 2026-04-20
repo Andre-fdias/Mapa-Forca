@@ -108,6 +108,20 @@
                 {% include "escalas/partials/card_viatura_alocada.html" with alocacao=alocacao %}
             {% endfor %}
         </div>
+
+        <!-- Botão Finalizar Mapa -->
+        <div class="mt-8 mb-12 flex justify-center border-t border-gray-200 dark:border-slate-800 pt-8">
+            <form hx-post="{% url 'validar_mapa_final' mapa.id %}" hx-target="body" hx-swap="beforeend">
+                {% csrf_token %}
+                <button type="submit" 
+                        class="bg-green-600 hover:bg-green-700 text-white font-black text-base uppercase tracking-widest px-10 py-4 rounded-xl transition-all shadow-xl hover:shadow-green-500/20 transform hover:-translate-y-1 active:scale-95 flex items-center group">
+                    <svg class="w-6 h-6 mr-3 text-white/80 group-hover:scale-110 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                    Salvar e Finalizar Mapa
+                </button>
+            </form>
+        </div>
         {% else %}
         <div class="bg-white p-12 text-center rounded-md border-2 border-dashed border-gray-200">
             <p class="text-gray-500 italic">Selecione um Posto Operacional acima para começar.</p>

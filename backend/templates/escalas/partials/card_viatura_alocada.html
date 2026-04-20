@@ -34,7 +34,7 @@
               hx-target="#equipe-viatura-{{ alocacao.id }}"
               hx-swap="beforeend"
               class="flex flex-col space-y-2"
-              onsubmit="setTimeout(() => { this.querySelector('input').value = ''; }, 100);">
+              onsubmit="setTimeout(() => { this.querySelector('input[name=\'funcionario_re\']').value = ''; this.querySelector('select[name=\'funcao_id\']').value = ''; }, 100);">
             {% csrf_token %}
             
             <!-- Campo de Busca de Militar -->
