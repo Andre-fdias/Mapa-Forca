@@ -111,18 +111,18 @@
 
     <!-- Final Save Button -->
     <div class="flex justify-center pt-6">
-        <div id="save-response"></div>
-        <button hx-post="{% url 'validar_mapa_final' mapa.id %}"
-                hx-target="#save-response"
-                hx-swap="innerHTML"
-                class="bg-white text-slate-950 font-black py-4 px-16 rounded-xl transition-all duration-200 transform hover:scale-105 active:scale-95 shadow-2xl flex items-center space-x-3 border-2 border-slate-100">
-            {% csrf_token %}
-            <span class="text-base uppercase tracking-tighter">Finalizar e Salvar Mapa</span>
-            <div class="h-6 w-6 bg-red-600 rounded-lg flex items-center justify-center shadow-md">
-                <svg class="h-3 w-3 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="4"><path d="M5 13l4 4L19 7"/></svg>
-            </div>
-        </button>
-    </div>
+        <div class="mt-8 flex justify-center pb-12">
+            <button hx-post="{% url 'validar_mapa_final' mapa.id %}"
+                    hx-target="#save-response"
+                    hx-swap="innerHTML"
+                    class="bg-white text-slate-950 font-black py-2.5 px-8 rounded-lg transition-all duration-200 transform hover:scale-105 active:scale-95 shadow-xl flex items-center space-x-2.5 border border-slate-200">
+                {% csrf_token %}
+                <span class="text-[11px] font-black uppercase tracking-widest">Finalizar e Salvar Mapa</span>
+                <div class="h-5 w-5 bg-red-600 rounded-md flex items-center justify-center shadow-md">
+                    <svg class="h-3 w-3 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="4"><path d="M5 13l4 4L19 7"/></svg>
+                </div>
+            </button>
+        </div>
     {% endif %}
 </div>
 
