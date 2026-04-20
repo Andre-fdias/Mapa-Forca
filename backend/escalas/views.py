@@ -319,6 +319,7 @@ def alocar_funcionario_viatura(request, alocacao_viatura_id):
     efetivo_id = request.POST.get('efetivo_id')
     f_id = request.POST.get('funcao_id')
     dejem_val = request.POST.get('dejem') == 'true'
+    is_cmt_prontidao = request.POST.get('is_cmt_prontidao') == 'on'
     inicio_dejem = request.POST.get('inicio_dejem')
     termino_dejem = request.POST.get('termino_dejem')
     
@@ -416,6 +417,7 @@ def alocar_funcionario_viatura(request, alocacao_viatura_id):
             funcionario=militar, 
             funcao=funcao,
             dejem=(dejem_val == True),
+            is_comandante_prontidao=is_cmt_prontidao,
             inicio_dejem=inicio_dejem if dejem_val and inicio_dejem else None,
             termino_dejem=termino_dejem if dejem_val and termino_dejem else None,
             inicio_servico=inicio_servico,

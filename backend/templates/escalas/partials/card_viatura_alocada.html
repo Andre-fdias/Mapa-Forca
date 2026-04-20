@@ -68,8 +68,8 @@
                 </div>
             </div>
 
-            <!-- Seleção de Função e Botão -->
-            <div class="flex space-x-1">
+            <!-- Seleção de Função, Checkbox Cmt Prontidão e Botão -->
+            <div class="flex items-center space-x-1">
                 <select name="funcao_id" class="flex-grow text-[10px] font-black border border-gray-300 dark:border-slate-700 rounded bg-white dark:bg-slate-800 text-slate-900 dark:text-white p-1" required>
                     <option value="">FUNÇÃO...</option>
                     {% for f in funcoes %}
@@ -78,6 +78,12 @@
                         {% endif %}
                     {% endfor %}
                 </select>
+                
+                <div class="flex items-center bg-slate-100 dark:bg-slate-700 px-1 rounded border border-gray-300 dark:border-slate-600 h-full">
+                    <input type="checkbox" name="is_cmt_prontidao" id="is_cmt_prontidao_{{ viatura_alocada.id }}" class="w-3 h-3 text-red-600 rounded focus:ring-red-500">
+                    <label for="is_cmt_prontidao_{{ viatura_alocada.id }}" class="ml-1 text-[8px] font-black text-slate-700 dark:text-slate-300 uppercase leading-none">Cmt Pront.</label>
+                </div>
+
                 <button type="submit" class="bg-red-600 hover:bg-red-700 text-white font-black px-3 rounded text-[10px] uppercase tracking-tighter transition-all active:scale-95 shadow-sm">
                     OK
                 </button>
