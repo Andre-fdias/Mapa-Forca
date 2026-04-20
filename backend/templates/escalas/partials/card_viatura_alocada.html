@@ -1,59 +1,67 @@
-<div id="viatura-card-{{ alocacao.id }}" class="bg-white overflow-hidden shadow-md rounded border border-gray-200">
-    <!-- Header do Card da Viatura -->
-    <div class="bg-gray-50 px-3 py-2 border-b border-gray-200 flex justify-between items-center">
-        <div class="flex items-center space-x-1.5">
-            <span class="text-base font-bold text-red-700">{{ alocacao.viatura.prefixo }}</span>
-            <span class="text-[10px] font-medium text-gray-500 bg-gray-200 px-1.5 py-0.5 rounded">{{ alocacao.viatura.tipo.nome }}</span>
+<div id="viatura-card-{{ alocacao.id }}" class="bg-white dark:bg-slate-900 overflow-hidden shadow-md rounded-lg border-l-4 border-red-600 border border-gray-200 dark:border-slate-800 flex flex-col h-full transition-all duration-200 hover:shadow-xl">
+    <!-- Header Compacto -->
+    <div class="bg-gray-50 dark:bg-slate-800/50 px-3 py-2 border-b border-gray-200 dark:border-slate-800 flex justify-between items-center">
+        <div class="flex items-center space-x-2">
+            <span class="text-sm font-black text-slate-900 dark:text-white tracking-tighter">{{ alocacao.viatura.prefixo }}</span>
+            <span class="text-[9px] font-bold text-gray-500 dark:text-slate-400 uppercase">{{ alocacao.viatura.tipo.nome }}</span>
         </div>
-        <button hx-delete="{% url 'remover_viatura_mapa' alocacao.id %}"
-                hx-confirm="Deseja remover esta viatura do mapa?"
-                hx-target="#viatura-card-{{ alocacao.id }}"
-                hx-swap="outerHTML"
-                class="text-gray-400 hover:text-red-500 transition-colors duration-200">
-            <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-            </svg>
-        </button>
+        <div class="flex items-center space-x-2">
+            <span class="text-[9px] font-mono font-bold text-slate-600 dark:text-slate-400 bg-white dark:bg-slate-900 px-1 rounded border border-gray-200 dark:border-slate-700">{{ alocacao.viatura.placa|default:"S/P" }}</span>
+            <button hx-delete="{% url 'remover_viatura_mapa' alocacao.id %}"
+                    hx-confirm="Remover {{ alocacao.viatura.prefixo }}?"
+                    hx-target="#viatura-card-{{ alocacao.id }}"
+                    hx-swap="outerHTML"
+                    class="text-gray-400 hover:text-red-500 transition-colors">
+                <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" /></svg>
+            </button>
+        </div>
     </div>
 
-    <!-- Lista de Equipe -->
-    <div class="p-3 bg-white min-h-[110px]">
-        <h4 class="text-[10px] font-semibold text-gray-400 uppercase tracking-wider mb-2">Guarnição</h4>
-        <div id="equipe-viatura-{{ alocacao.id }}" class="space-y-1.5">
+    <!-- Lista de Equipe (Área Central) -->
+    <div class="p-2 flex-grow overflow-y-auto max-h-48 bg-white dark:bg-slate-900">
+        <div id="equipe-viatura-{{ alocacao.id }}" class="space-y-1">
             {% for aloc_func in alocacao.equipe.all %}
                 {% include "escalas/partials/linha_funcionario_viatura.html" with aloc_func=aloc_func %}
             {% empty %}
-                <p class="text-[11px] text-gray-400 italic text-center py-3">Nenhum funcionário alocado.</p>
+                <p class="text-[10px] text-gray-400 dark:text-slate-500 italic text-center py-2">Guarnição vazia</p>
             {% endfor %}
         </div>
     </div>
 
-    <!-- Form para Adicionar Funcionário (Autocomplete HTMX) -->
-    <div class="bg-gray-50 px-3 py-2.5 border-t border-gray-100">
+    <!-- Form de Adição (Footer Compacto) -->
+    <div class="bg-gray-50 dark:bg-slate-800/30 p-2 border-t border-gray-100 dark:border-slate-800">
         <form hx-post="{% url 'alocar_funcionario_viatura' alocacao.id %}" 
               hx-target="#equipe-viatura-{{ alocacao.id }}"
               hx-swap="beforeend"
-              class="relative">
+              class="flex flex-col space-y-2"
+              onsubmit="setTimeout(() => { this.querySelector('input').value = ''; }, 100);">
             {% csrf_token %}
-            <div class="flex space-x-1.5">
-                <div class="relative flex-1">
-                    <input type="text" name="funcionario_re" placeholder="RE (000000-0)" 
-                           class="w-full text-[10px] border-gray-300 rounded focus:ring-red-500 focus:border-red-500 p-1.5"
-                           hx-get="{% url 'buscar_funcionario_re' %}"
-                           hx-trigger="keyup changed delay:500ms"
-                           hx-target="#results-{{ alocacao.id }}"
-                           autocomplete="off">
-                    <div id="results-{{ alocacao.id }}" class="absolute z-50 w-full bg-white shadow-lg rounded-b border border-gray-200 mt-1 max-h-36 overflow-y-auto">
-                        <!-- Resultados AJAX aqui -->
-                    </div>
+            
+            <!-- Campo de Busca de Militar -->
+            <div class="relative">
+                <input type="text" name="funcionario_re" placeholder="RE ou Nome..." 
+                       class="w-full text-[11px] font-bold border border-gray-300 dark:border-slate-700 rounded bg-white dark:bg-slate-800 text-slate-900 dark:text-white focus:ring-red-500 focus:border-red-500 p-1.5 shadow-sm"
+                       hx-get="{% url 'buscar_funcionario_re' %}"
+                       hx-trigger="keyup changed delay:300ms"
+                       hx-target="#results-{{ alocacao.id }}"
+                       autocomplete="off">
+                <div id="results-{{ alocacao.id }}" class="absolute bottom-full left-0 z-50 w-full bg-white dark:bg-slate-800 shadow-2xl border border-gray-200 dark:border-slate-700 rounded-t-md max-h-40 overflow-y-auto">
+                    <!-- Resultados HTMX -->
                 </div>
-                <select name="funcao_id" class="text-[10px] border-gray-300 rounded focus:ring-red-500 focus:border-red-500 p-1.5 w-24">
-                    {% for funcao in funcoes %}
-                    <option value="{{ funcao.id }}">{{ funcao.nome }}</option>
+            </div>
+
+            <!-- Seleção de Função e Botão -->
+            <div class="flex space-x-1">
+                <select name="funcao_id" class="flex-grow text-[10px] font-black border border-gray-300 dark:border-slate-700 rounded bg-white dark:bg-slate-800 text-slate-900 dark:text-white p-1" required>
+                    <option value="">FUNÇÃO...</option>
+                    {% for f in funcoes %}
+                        {% if f.nome|upper == "COMANDANTE" or f.nome|upper == "MOTORISTA" or f.nome|upper == "AUXILIAR" or f.nome|upper == "TELEGRAFISTA" or "OFICIAL" in f.nome|upper %}
+                        <option value="{{ f.id }}">{{ f.nome|upper }}</option>
+                        {% endif %}
                     {% endfor %}
                 </select>
-                <button type="submit" class="bg-gray-800 hover:bg-black text-white px-2.5 py-1 rounded text-[10px] transition-all duration-150">
-                    +
+                <button type="submit" class="bg-red-600 hover:bg-red-700 text-white font-black px-3 rounded text-[10px] uppercase tracking-tighter transition-all active:scale-95 shadow-sm">
+                    OK
                 </button>
             </div>
         </form>
