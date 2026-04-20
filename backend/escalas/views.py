@@ -160,10 +160,18 @@ def compor_mapa_view(request):
     todas_unidades = qs_unidades.order_by('nome')
 
     # 5. PREPARAÇÃO DO CONTEXTO
+    viaturas_disponiveis = []
+    if categoria:
+        # Filtra todas as viaturas pertencentes ao Grupamento (OPM) selecionado
+        viaturas_disponiveis = Viatura.objects.filter(
+            opmcb__icontains=categoria.strip()
+        ).exclude(prefixo='TELEGRAFIA').order_by('prefixo')
+
     context = {
         'mapa': mapa, 
         'todas_unidades': todas_unidades,
         'unidade_selecionada': unidade_obj, 
+        'viaturas_disponiveis': viaturas_disponiveis,
         'categorias_opm': lista_opm,
         'categoria_selecionada': categoria,
         'funcoes': Dictionary.objects.filter(tipo='FUNCAO_OPERACIONAL'),
