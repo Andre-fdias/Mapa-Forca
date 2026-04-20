@@ -163,9 +163,17 @@ def compor_mapa_view(request):
     viaturas_disponiveis = []
     if categoria:
         # Filtra todas as viaturas pertencentes ao Grupamento (OPM) selecionado
-        viaturas_disponiveis = Viatura.objects.filter(
+        viaturas_disponiveis = list(Viatura.objects.filter(
             opmcb__icontains=categoria.strip()
-        ).exclude(prefixo='TELEGRAFIA').order_by('prefixo')
+        ).exclude(prefixo='TELEGRAFIA').order_by('prefixo'))
+        
+        # Injeta a TELEGRAFIA virtual na lista de todas as unidades
+        v_telegrafia = Viatura.objects.filter(prefixo='TELEGRAFIA').first()
+        if v_telegrafia:
+            viaturas_disponiveis.insert(0, v_telegrafia)
+        else:
+            # Caso não exista, cria uma temporária para exibição (será salva no banco ao alocar)
+            viaturas_disponiveis.insert(0, Viatura(prefixo='TELEGRAFIA', placa='SALA'))
 
     context = {
         'mapa': mapa, 
@@ -330,7 +338,11 @@ def alocar_funcionario_viatura(request, alocacao_viatura_id):
     if alocacao_viatura_id and int(alocacao_viatura_id) != 0:
         aloc_v = get_object_or_404(AlocacaoViatura, id=alocacao_viatura_id)
         mapa_aloc = aloc_v.mapa
-        if aloc_v.equipe.count() >= 15: return HttpResponse('<script>showToast("Limite de 15 atingido!", "error");</script>')
+        
+        # Limite diferenciado: Telegrafia (2) vs Outros (15)
+        limite = 2 if aloc_v.viatura.prefixo == 'TELEGRAFIA' else 15
+        if aloc_v.equipe.count() >= limite: 
+            return HttpResponse(f'<script>showToast("Limite de {limite} atingido para {aloc_v.viatura.prefixo}!", "error");</script>')
     else:
         aloc_v = None
         # Precisamos do mapa_id do POST para alocações avulsas
