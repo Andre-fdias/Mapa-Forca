@@ -543,7 +543,7 @@ def validar_mapa_final(request, mapa_id):
     return HttpResponse('''
         <script>
             showToast("MAPA FORÇA SALVO COM SUCESSO!", "success");
-            setTimeout(() => { window.location.href = "/escalas/historico/"; }, 2000);
+            setTimeout(() => { window.location.href = "/unidades/dashboard/"; }, 2000);
         </script>
     ''')
 
