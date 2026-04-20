@@ -73,7 +73,7 @@
                 <select name="funcao_id" class="flex-grow text-[10px] font-black border border-gray-300 dark:border-slate-700 rounded bg-white dark:bg-slate-800 text-slate-900 dark:text-white p-1" required>
                     <option value="">FUNÇÃO...</option>
                     {% for f in funcoes %}
-                        {% if f.nome|upper == "COMANDANTE" or f.nome|upper == "MOTORISTA" or f.nome|upper == "AUXILIAR" or f.nome|upper == "TELEGRAFISTA" or "OFICIAL" in f.nome|upper %}
+                        {% if f.nome|upper == "COMANDANTE" or f.nome|upper == "MOTORISTA" or f.nome|upper == "AUXILIAR" or f.nome|upper == "TELEGRAFISTA" or f.nome|upper == "OFICIAL DE ÁREA" %}
                         <option value="{{ f.id }}">{{ f.nome|upper }}</option>
                         {% endif %}
                     {% endfor %}
