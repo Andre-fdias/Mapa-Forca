@@ -97,82 +97,156 @@ def compor_mapa_view(request):
     categoria = request.GET.get('categoria')
     mapa = None
     
+    user = request.user
 
     # 1. IDENTIFICAÇÃO DE ACESSO E CATEGORIA (OPM)
     user_root_unit = None
-    if request.user.unidade:
-        user_root_unit = request.user.unidade.root_unit.nome
+    if user.unidade:
+        # Tenta pegar o nome do Batalhão (GB) ao qual a unidade pertence
+        curr = user.unidade
+        while curr:
+            if 'GB' in curr.nome.upper():
+                user_root_unit = curr.nome
+                break
+            curr = curr.parent
+        if not user_root_unit and user.unidade.root_unit:
+            user_root_unit = user.unidade.root_unit.nome
 
     # Lógica de Categorias (Grupamentos)
     qs_opm = Posto.objects.exclude(unidade__isnull=True).exclude(unidade='')
-    if request.user.role not in ['ADMIN', 'COBOM'] and user_root_unit:
+    
+    # Restrição de Categoria por Papel
+    is_restricted = not user.is_superuser and user.role not in ['ADMIN', 'COBOM']
+    
+    if is_restricted and user_root_unit:
         # Usuários regionais ficam presos ao seu Grupamento
         qs_opm = qs_opm.filter(unidade=user_root_unit)
-        categoria = user_root_unit
+        if not categoria:
+            categoria = user_root_unit
     
     lista_opm = list(qs_opm.values_list('unidade', flat=True).distinct().order_by('unidade'))
     
     if not categoria:
-        categoria = user_root_unit if user_root_unit else (lista_opm[0] if lista_opm else '15º GB')
+        if user_root_unit:
+            categoria = user_root_unit
+        elif u_id:
+            # Se veio unidade mas não categoria, tenta descobrir a categoria pela unidade
+            u_temp = Unidade.objects.filter(id=u_id).first()
+            if u_temp:
+                p_temp = Posto.objects.filter(Q(cod_secao=u_temp.codigo_secao) | Q(nome=u_temp.nome)).first()
+                if p_temp: categoria = p_temp.unidade
+        
+        if not categoria and lista_opm:
+            categoria = lista_opm[0]
 
     # 2. DEFINIÇÃO DA UNIDADE SELECIONADA E SEGURANÇA
     unidade_obj = None
     if u_id:
         unidade_obj = get_object_or_404(Unidade, id=u_id)
         # Bloqueio de segurança: impede que usuários regionais acessem unidades fora do seu escopo
-        if request.user.role not in ['ADMIN', 'COBOM']:
-            if request.user.role == 'BATALHAO' and unidade_obj.root_unit.nome != user_root_unit:
-                unidade_obj = request.user.unidade
-            elif request.user.role == 'SGB' and (unidade_obj != request.user.unidade and unidade_obj.parent != request.user.unidade):
-                unidade_obj = request.user.unidade
-            elif request.user.role == 'POSTO' and unidade_obj != request.user.unidade:
-                unidade_obj = request.user.unidade
+        if is_restricted:
+            if user.role == 'BATALHAO' and unidade_obj.root_unit.nome != user_root_unit:
+                unidade_obj = user.unidade
+            elif user.role == 'SGB' and (unidade_obj != user.unidade and unidade_obj.parent != user.unidade):
+                unidade_obj = user.unidade
+            elif user.role == 'POSTO' and unidade_obj != user.unidade:
+                unidade_obj = user.unidade
     else:
         # Se não houver ID na URL, tenta usar a unidade do usuário
-        if request.user.unidade:
-            unidade_obj = request.user.unidade
+        if user.unidade:
+            unidade_obj = user.unidade
 
     # 3. CRIAÇÃO/BUSCA DO MAPA
     if unidade_obj:
         mapa, created = MapaDiario.objects.get_or_create(
             data=hoje, 
             unidade=unidade_obj, 
-            defaults={'criado_por': request.user}
+            defaults={'criado_por': user}
         )
         if created:
             HistoricoAlteracao.objects.create(
-                mapa=mapa, usuario=request.user, tipo_acao='CREATE',
+                mapa=mapa, usuario=user, tipo_acao='CREATE',
                 descricao=f"Iniciou a composição do mapa força para {unidade_obj.nome}."
             )
 
     # 4. FILTRAGEM DA LISTA DE UNIDADES (O QUE APARECE NO SELETOR)
-    codigos_secao = list(Posto.objects.filter(unidade=categoria).values_list('cod_secao', flat=True))
-    qs_unidades = Unidade.objects.filter(
-        Q(codigo_secao__in=codigos_secao) | 
-        Q(parent__nome__icontains=categoria.replace('º', '').replace('°', '').strip())
-    ).distinct()
+    if is_restricted and user.role == 'SGB':
+        # --- NOVA LÓGICA SGB BASEADA NA PLANILHA ---
+        # Identifica o SGB e GB do usuário através da Unidade dele
+        user_unit_name = user.unidade.nome if user.unidade else ""
+        
+        # Busca o registro do Posto (planilha) correspondente à unidade do usuário para saber o SGB dele
+        p_user = Posto.objects.filter(Q(cod_secao=user.unidade.codigo_secao) | Q(nome=user_unit_name)).first()
+        
+        if p_user and p_user.sgb and p_user.unidade:
+            # Busca todos os postos (da planilha) que pertencem ao mesmo SGB e Grupamento
+            codigos_do_sgb = list(Posto.objects.filter(
+                unidade=p_user.unidade, 
+                sgb=p_user.sgb
+            ).values_list('cod_secao', flat=True))
+            
+            # Filtra as Unidades reais do sistema que possuem esses códigos
+            qs_unidades = Unidade.objects.filter(
+                Q(codigo_secao__in=codigos_do_sgb) | 
+                Q(nome__in=Posto.objects.filter(unidade=p_user.unidade, sgb=p_user.sgb).values_list('nome', flat=True))
+            ).distinct()
+        else:
+            # Fallback caso não encontre na planilha: tenta via hierarquia do banco
+            def get_all_descendant_ids(unit):
+                ids = [unit.id]
+                for child in unit.subunidades.all():
+                    ids.extend(get_all_descendant_ids(child))
+                return ids
+            
+            if user.unidade:
+                ids_permitidos = get_all_descendant_ids(user.unidade)
+                qs_unidades = Unidade.objects.filter(id__in=ids_permitidos)
+            else:
+                qs_unidades = Unidade.objects.none()
+    else:
+        # Lógica padrão para ADMIN, COBOM e BATALHAO (baseada na categoria/grupamento)
+        codigos_secao = list(Posto.objects.filter(unidade=categoria).values_list('cod_secao', flat=True))
+        qs_unidades = Unidade.objects.filter(
+            Q(codigo_secao__in=codigos_secao) | 
+            Q(parent__nome__icontains=categoria.replace('º', '').replace('°', '').strip())
+        ).distinct()
 
-    if request.user.role == 'SGB':
-        qs_unidades = qs_unidades.filter(Q(id=request.user.unidade.id) | Q(parent=request.user.unidade))
-    elif request.user.role == 'POSTO':
-        qs_unidades = qs_unidades.filter(id=request.user.unidade.id)
+        # Aplica restrição para nível POSTO (vê apenas a si mesmo)
+        if is_restricted and user.role == 'POSTO' and user.unidade:
+            qs_unidades = qs_unidades.filter(id=user.unidade.id)
 
     todas_unidades = qs_unidades.order_by('nome')
 
     # 5. PREPARAÇÃO DO CONTEXTO
     viaturas_disponiveis = []
     if categoria:
-        # Filtra todas as viaturas pertencentes ao Grupamento (OPM) selecionado
-        viaturas_disponiveis = list(Viatura.objects.filter(
-            opmcb__icontains=categoria.strip()
-        ).exclude(prefixo='TELEGRAFIA').order_by('prefixo'))
+        # Normalização da categoria para busca (remove espaços extras)
+        cat_clean = categoria.strip()
         
-        # Injeta a TELEGRAFIA virtual na lista de todas as unidades
+        # Tenta o filtro padrão
+        viats_qs = Viatura.objects.filter(
+            opmcb__icontains=cat_clean
+        ).exclude(prefixo='TELEGRAFIA')
+
+        # Se não achar nada, tenta extrair o número (ex: "15") e buscar por "15º GB"
+        if not viats_qs.exists():
+            match = re.search(r'(\d+)', cat_clean)
+            if match:
+                num = match.group(1)
+                viats_qs = Viatura.objects.filter(
+                    Q(opmcb__icontains=f"{num}º GB") | 
+                    Q(opmcb__icontains=f"{num}ºGB") |
+                    Q(opmcb__icontains=f"{num} GB") |
+                    Q(opmcb__icontains=f"0{num}º GB")
+                ).exclude(prefixo='TELEGRAFIA')
+
+        viaturas_disponiveis = list(viats_qs.order_by('prefixo'))
+        
+        # Injeta a TELEGRAFIA virtual (Sempre no topo)
         v_telegrafia = Viatura.objects.filter(prefixo='TELEGRAFIA').first()
         if v_telegrafia:
             viaturas_disponiveis.insert(0, v_telegrafia)
         else:
-            # Caso não exista, cria uma temporária para exibição (será salva no banco ao alocar)
             viaturas_disponiveis.insert(0, Viatura(prefixo='TELEGRAFIA', placa='SALA'))
 
     context = {
@@ -189,8 +263,7 @@ def compor_mapa_view(request):
     }
 
     # 6. SELEÇÃO DE TEMPLATE BASEADO NA ROLE
-    if request.user.role == 'COBOM':
-        # Lógica adicional para funções específicas do COBOM
+    if user.role == 'COBOM':
         f_names = ['Oficial de Operações DEJEM', 'Chefe de Equipe', 'Supervisor Despacho', 'Supervisor 193', 'Supervisor 7º GB', 'Cabine 7º GB', 'Supervisor 19º GB', 'Cabine 19º GB', 'Supervisor 15º GB', 'Cabine 15º GB', 'Supervisor 16º GB', 'Cabine 16º GB', 'Apoio Cabine 7º, 19º e 15º GB', 'Apoio Cabine 16º GB', 'Enfermeiro de Triagem', 'Inclusor', 'Supervisor COE Autoban', 'Atendente 193']
         funcoes_cobom = Dictionary.objects.filter(tipo='FUNCAO_OPERACIONAL', nome__in=f_names)
         
