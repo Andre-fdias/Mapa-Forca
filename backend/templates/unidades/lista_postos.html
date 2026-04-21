@@ -24,7 +24,13 @@
                 <h1 class="text-3xl font-black text-slate-900 dark:text-white uppercase tracking-tighter leading-tight italic">
                     Postos <span class="text-red-600">Atendimento</span>
                 </h1>
-                <p class="text-slate-500 dark:text-slate-400 font-bold uppercase tracking-[0.2em] text-[8px] ml-1">Consulta de unidades e municípios atendidos</p>
+                <p class="text-slate-500 dark:text-slate-400 font-bold uppercase tracking-[0.2em] text-[8px] ml-1">
+                    {% if user.role == 'ADMIN' or user.role == 'COBOM' or user.is_superuser %}
+                        Consulta de unidades e municípios atendidos
+                    {% else %}
+                        Consulta de unidades e municípios - {{ user.unidade.nome|default:"Sua Unidade" }}
+                    {% endif %}
+                </p>
             </div>
 
             <div class="flex flex-col items-end space-y-3">
@@ -33,6 +39,7 @@
                     <span class="text-2xl font-black text-slate-900 dark:text-white tabular-nums">{{ postos|length }}</span>
                 </div>
 
+                {% if user.role == 'ADMIN' or user.role == 'COBOM' or user.is_superuser %}
                 <div id="sync-target">
                     <button hx-get="{% url 'sync_postos_sheets' %}" 
                             hx-target="#sync-target"
@@ -42,6 +49,7 @@
                         <span>Sincronizar Postos</span>
                     </button>
                 </div>
+                {% endif %}
             </div>
         </div>
 

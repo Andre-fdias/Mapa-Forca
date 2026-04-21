@@ -378,14 +378,48 @@ def dashboard_cobom(request):
 
 @login_required
 def cadastro_viaturas_view(request):
+    user = request.user
     query = request.GET.get('q', '')
     status_filter = request.GET.get('status', '')
     sgb_filter = request.GET.get('sgb', '')
     garagem_filter = request.GET.get('garagem', '')
     unidade_filter = request.GET.get('unidade', '') # Filtro de OPMCB
-    
+
     viaturas = Viatura.objects.select_related('status_base', 'unidade_base').all()
-    
+
+    # --- LÓGICA DE PERMISSÕES ---
+    is_restricted = not user.is_superuser and user.role not in ['ADMIN', 'COBOM']
+
+    gb_unidade = None
+    if is_restricted:
+        if user.unidade:
+            # Sobe na hierarquia para encontrar o GB (Batalhão)
+            curr = user.unidade
+            while curr:
+                if 'GB' in curr.nome.upper():
+                    gb_unidade = curr
+                    break
+                curr = curr.parent
+
+            if gb_unidade:
+                # Extrai o número do GB (ex: "07") para match parcial seguro
+                match = re.search(r'(\d+)', gb_unidade.nome)
+                if match:
+                    unidade_num = match.group(1).lstrip('0')
+                    viaturas = viaturas.filter(
+                        Q(opmcb__icontains=f"{unidade_num}º GB") | 
+                        Q(opmcb__icontains=f"0{unidade_num}º GB")
+                    )
+                else:
+                    viaturas = viaturas.filter(opmcb__icontains=gb_unidade.nome)
+            else:
+                # Se não achou GB na hierarquia, filtra pelo nome da unidade do usuário
+                viaturas = viaturas.filter(opmcb__icontains=user.unidade.nome)
+        else:
+            # Usuário restrito sem unidade não vê nada
+            viaturas = viaturas.none()
+
+    # --- FILTROS DE BUSCA ---
     if query:
         viaturas = viaturas.filter(Q(prefixo__icontains=query) | Q(placa__icontains=query))
     if status_filter:
@@ -397,25 +431,38 @@ def cadastro_viaturas_view(request):
     if unidade_filter:
         viaturas = viaturas.filter(opmcb__icontains=unidade_filter)
 
-    # --- LÓGICA DE FILTROS DEPENDENTES ---
-    # A lista de Unidades (GBs) é sempre a lista completa disponível no banco
-    lista_unidades = Viatura.objects.exclude(opmcb__isnull=True).values_list('opmcb', flat=True).distinct().order_by('opmcb')
-    
+    # --- LÓGICA DE OPÇÕES DOS FILTROS (Restringidas pelas permissões) ---
+    # Usamos um QS base com as mesmas permissões para popular os selects
+    perm_based_qs = Viatura.objects.all()
+    if is_restricted:
+        if gb_unidade:
+            match = re.search(r'(\d+)', gb_unidade.nome)
+            if match:
+                unidade_num = match.group(1).lstrip('0')
+                perm_based_qs = perm_based_qs.filter(
+                    Q(opmcb__icontains=f"{unidade_num}º GB") | 
+                    Q(opmcb__icontains=f"0{unidade_num}º GB")
+                )
+            else:
+                perm_based_qs = perm_based_qs.filter(opmcb__icontains=gb_unidade.nome)
+        elif user.unidade:
+            perm_based_qs = perm_based_qs.filter(opmcb__icontains=user.unidade.nome)
+        else:
+            perm_based_qs = perm_based_qs.none()
+
+    # A lista de Unidades (GBs)
+    lista_unidades = perm_based_qs.exclude(opmcb__isnull=True).values_list('opmcb', flat=True).distinct().order_by('opmcb')
+
     # Base de consulta para SGB e Garagem depende da Unidade selecionada
-    base_filtros = Viatura.objects.all()
+    base_filtros = perm_based_qs
     if unidade_filter:
         base_filtros = base_filtros.filter(opmcb__icontains=unidade_filter)
-    
-    # Se um SGB for selecionado, a lista de Garagens pode ser filtrada por ele também (Opcional, mas melhora a experiência)
-    base_garagens = base_filtros
-    if sgb_filter:
-        base_garagens = base_garagens.filter(sgb=sgb_filter)
 
     lista_sgb = base_filtros.exclude(sgb__isnull=True).values_list('sgb', flat=True).distinct().order_by('sgb')
-    lista_garagem = base_garagens.exclude(garagem__isnull=True).values_list('garagem', flat=True).distinct().order_by('garagem')
-    
+    lista_garagem = base_filtros.exclude(garagem__isnull=True).values_list('garagem', flat=True).distinct().order_by('garagem')
+
     status_options = Dictionary.objects.filter(tipo='STATUS_VIATURA').order_by('ordem')
-    
+
     return render(request, 'unidades/cadastro_viaturas.html', {
         'viaturas': viaturas,
         'query': query,
@@ -428,7 +475,6 @@ def cadastro_viaturas_view(request):
         'lista_unidades': lista_unidades,
         'status_options': status_options
     })
-
 @login_required
 def sync_sheets_action(request):
     try:
@@ -439,12 +485,48 @@ def sync_sheets_action(request):
 
 @login_required
 def lista_postos_view(request):
+    user = request.user
     query = request.GET.get('q', '')
     unidade_filter = request.GET.get('unidade', '')
     sgb_filter = request.GET.get('sgb', '')
 
     postos = Posto.objects.prefetch_related('municipios').all().order_by('unidade', 'sgb', 'nome')
-    
+
+    # --- LÓGICA DE PERMISSÕES ---
+    is_restricted = not user.is_superuser and user.role not in ['ADMIN', 'COBOM']
+
+    gb_unidade = None
+    if is_restricted:
+        if user.unidade:
+            # Sobe na hierarquia para encontrar o GB (Batalhão)
+            curr = user.unidade
+            while curr:
+                if 'GB' in curr.nome.upper():
+                    gb_unidade = curr
+                    break
+                curr = curr.parent
+
+            if gb_unidade:
+                # Extrai o número do GB (ex: "07") para match parcial seguro
+                match = re.search(r'(\d+)', gb_unidade.nome)
+                if match:
+                    unidade_num = match.group(1).lstrip('0')
+                    # Filtra postos que pertencem a este GB (ex: "7º GB" ou "07º GB" no campo unidade do Posto)
+                    # Nota: O modelo Posto tem campo 'unidade' como CharField
+                    postos = postos.filter(
+                        Q(unidade__icontains=f"{unidade_num}º GB") | 
+                        Q(unidade__icontains=f"0{unidade_num}º GB")
+                    )
+                else:
+                    postos = postos.filter(unidade__icontains=gb_unidade.nome)
+            else:
+                # Se não achou GB na hierarquia, filtra pelo nome da unidade do usuário
+                postos = postos.filter(unidade__icontains=user.unidade.nome)
+        else:
+            # Usuário restrito sem unidade não vê nada
+            postos = postos.none()
+
+    # --- FILTROS DE BUSCA ---
     if query:
         postos = postos.filter(Q(nome__icontains=query) | Q(sgb__icontains=query) | Q(cidade_posto__icontains=query))
     if unidade_filter:
@@ -452,12 +534,29 @@ def lista_postos_view(request):
     if sgb_filter:
         postos = postos.filter(sgb=sgb_filter)
 
-    # --- LÓGICA DE FILTROS ---
-    # Unidades únicas
-    lista_unidades = Posto.objects.exclude(unidade__isnull=True).exclude(unidade='').values_list('unidade', flat=True).distinct().order_by('unidade')
+    # --- LÓGICA DE OPÇÕES DOS FILTROS (Restringidas pelas permissões) ---
+    perm_based_qs = Posto.objects.all()
+    if is_restricted:
+        if gb_unidade:
+            match = re.search(r'(\d+)', gb_unidade.nome)
+            if match:
+                unidade_num = match.group(1).lstrip('0')
+                perm_based_qs = perm_based_qs.filter(
+                    Q(unidade__icontains=f"{unidade_num}º GB") | 
+                    Q(unidade__icontains=f"0{unidade_num}º GB")
+                )
+            else:
+                perm_based_qs = perm_based_qs.filter(unidade__icontains=gb_unidade.nome)
+        elif user.unidade:
+            perm_based_qs = perm_based_qs.filter(unidade__icontains=user.unidade.nome)
+        else:
+            perm_based_qs = perm_based_qs.none()
+
+    # Unidades únicas baseadas nas permissões
+    lista_unidades = perm_based_qs.exclude(unidade__isnull=True).exclude(unidade='').values_list('unidade', flat=True).distinct().order_by('unidade')
     
-    # SGBs únicos filtrados pela unidade
-    base_sgbs = Posto.objects.all()
+    # SGBs únicos filtrados pela unidade e permissões
+    base_sgbs = perm_based_qs
     if unidade_filter:
         base_sgbs = base_sgbs.filter(unidade=unidade_filter)
     lista_sgb = base_sgbs.exclude(sgb__isnull=True).exclude(sgb='').values_list('sgb', flat=True).distinct().order_by('sgb')

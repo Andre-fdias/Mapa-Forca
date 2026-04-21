@@ -19,7 +19,13 @@
                 <h1 class="text-3xl font-black text-slate-900 dark:text-white uppercase tracking-tighter leading-tight italic">
                     Viaturas <span class="text-red-600">Sincronizadas</span>
                 </h1>
-                <p class="text-slate-500 dark:text-slate-400 font-bold uppercase tracking-[0.2em] text-[8px] ml-1">Consulta e monitoramento da frota (07, 15, 16, 19 GB)</p>
+                <p class="text-slate-500 dark:text-slate-400 font-bold uppercase tracking-[0.2em] text-[8px] ml-1">
+                    {% if user.role == 'ADMIN' or user.role == 'COBOM' or user.is_superuser %}
+                        Consulta e monitoramento da frota (07, 15, 16, 19 GB)
+                    {% else %}
+                        Consulta e monitoramento da frota - {{ user.unidade.nome|default:"Sua Unidade" }}
+                    {% endif %}
+                </p>
             </div>
 
             <div class="flex flex-col items-end space-y-3">
@@ -28,6 +34,7 @@
                     <span class="text-2xl font-black text-slate-900 dark:text-white tabular-nums">{{ viaturas|length }}</span>
                 </div>
 
+                {% if user.role == 'ADMIN' or user.role == 'COBOM' or user.is_superuser %}
                 <div id="sync-target">
                     <button hx-get="{% url 'sync_viaturas_sheets' %}" 
                             hx-target="#sync-target"
@@ -37,6 +44,7 @@
                         <span>Sincronizar Agora</span>
                     </button>
                 </div>
+                {% endif %}
             </div>
         </div>
 

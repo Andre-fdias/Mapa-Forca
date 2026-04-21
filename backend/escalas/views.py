@@ -563,6 +563,7 @@ def validar_mapa_final(request, mapa_id):
 
 @login_required
 def historico_view(request):
+    user = request.user
     data_str = request.GET.get('data')
     u_id = request.GET.get('unidade_id')
     sgb_id = request.GET.get('sgb_id')
@@ -582,6 +583,28 @@ def historico_view(request):
         
     # Lógica de Filtro de Mapas
     filtros = Q(data=data_selecionada)
+    
+    # --- SISTEMA DE PERMISSÕES ---
+    is_restricted = not user.is_superuser and user.role not in ['ADMIN', 'COBOM']
+    user_gb_root = None
+    
+    if is_restricted:
+        if user.unidade:
+            user_gb_root = user.unidade.root_unit
+            # Filtra mapas apenas de unidades que pertencem ao GB do usuário
+            # Buscamos todas as unidades que têm o mesmo root_unit
+            ids_permitidos = []
+            # Como Unidade é recursiva, pegamos todos os descendentes
+            def get_all_children_ids(unit):
+                ids = [unit.id]
+                for child in unit.subunidades.all():
+                    ids.extend(get_all_children_ids(child))
+                return ids
+            
+            ids_permitidos = get_all_children_ids(user_gb_root)
+            filtros &= Q(unidade_id__in=ids_permitidos)
+        else:
+            filtros &= Q(id__isnull=True) # Não vê nada se não tiver unidade vinculada
     
     if u_id:
         filtros &= Q(unidade_id=u_id)
@@ -628,12 +651,27 @@ def historico_view(request):
             'dejem_only': dejem_only
         })
     
-    # Contexto comum para a view
-    sgbs = Unidade.objects.filter(Q(nome__icontains='SGB') | Q(tipo_unidade__codigo='BATALHAO')).order_by('nome')
-    if sgb_id:
-        unidades_lista = Unidade.objects.filter(parent_id=sgb_id).order_by('nome')
+    # --- LÓGICA DE OPÇÕES DOS FILTROS (Restringidas) ---
+    if is_restricted and user_gb_root:
+        # Pega apenas SGBs que pertencem ao root do usuário
+        sgbs = user_gb_root.subunidades.filter(Q(nome__icontains='SGB') | Q(tipo_unidade__codigo='BATALHAO')).order_by('nome')
+        if sgb_id:
+            unidades_lista = Unidade.objects.filter(parent_id=sgb_id).order_by('nome')
+        else:
+            # Lista todas as unidades do GB root que são POSTOS
+            def get_all_posts(unit):
+                posts = list(unit.subunidades.filter(tipo_unidade__codigo='POSTO'))
+                for child in unit.subunidades.all():
+                    posts.extend(get_all_posts(child))
+                return posts
+            unidades_lista = sorted(get_all_posts(user_gb_root), key=lambda x: x.nome)
     else:
-        unidades_lista = Unidade.objects.filter(tipo_unidade__codigo='POSTO').order_by('nome')
+        # Comportamento original para Admin/COBOM
+        sgbs = Unidade.objects.filter(Q(nome__icontains='SGB') | Q(tipo_unidade__codigo='BATALHAO')).order_by('nome')
+        if sgb_id:
+            unidades_lista = Unidade.objects.filter(parent_id=sgb_id).order_by('nome')
+        else:
+            unidades_lista = Unidade.objects.filter(tipo_unidade__codigo='POSTO').order_by('nome')
 
     context = {
         'mapas': mapas,
