@@ -44,6 +44,11 @@ class Ticket(models.Model):
     descricao = models.TextField()
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='ABERTO')
     prioridade = models.CharField(max_length=20, choices=PRIORIDADE_CHOICES, default='MEDIA')
+    
+    # Flags de Notificação
+    lido_pelo_suporte = models.BooleanField(default=False)
+    lido_pelo_requisitante = models.BooleanField(default=True) # Começa True pois o user que cria já viu
+    
     criado_em = models.DateTimeField(auto_now_add=True)
     atualizado_em = models.DateTimeField(auto_now=True)
 
