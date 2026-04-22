@@ -177,7 +177,7 @@
                         </div>
                     </div>
 
-                    {% if item.unidade.id %}
+                    {% if item.unidade.id and item.pode_editar %}
                     <a href="{% url 'compor_mapa' %}?unidade_id={{ item.unidade.id }}" 
                        class="bg-red-600 hover:bg-red-700 text-white text-[8px] font-black px-4 py-2 rounded-xl uppercase tracking-widest transition-all duration-200 active:scale-95 flex items-center space-x-1.5 shadow-lg shadow-red-600/20">
                         <span>Editar</span>
