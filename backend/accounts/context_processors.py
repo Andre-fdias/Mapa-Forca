@@ -14,11 +14,11 @@ def notification_context(request):
         is_support = user.is_superuser or user.role in ['ADMIN', 'COBOM']
         
         if is_support:
-            # Suporte vê quantos chamados têm resposta nova do user ou são novos
-            unread_tickets_count = Ticket.objects.filter(lido_pelo_suporte=False).count()
+            # Suporte: conta chamados ABERTOS não lidos por ele
+            unread_tickets_count = Ticket.objects.filter(status='ABERTO', lido_pelo_suporte=False).count()
         else:
-            # User vê quantos chamados dele têm resposta nova do suporte
-            unread_tickets_count = Ticket.objects.filter(requisitante=user, lido_pelo_requisitante=False).count()
+            # User: conta seus chamados ABERTOS não lidos por ele
+            unread_tickets_count = Ticket.objects.filter(requisitante=user, status='ABERTO', lido_pelo_requisitante=False).count()
         
         return {
             'unread_notifications': unread_notifications,

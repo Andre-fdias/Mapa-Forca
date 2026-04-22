@@ -12,7 +12,7 @@
                 Voltar para lista
             </a>
             <h1 class="text-2xl font-black text-slate-900 dark:text-white uppercase tracking-tighter italic">
-                Chamado <span class="text-red-600">#{{ ticket.id }}</span>: {{ ticket.get_titulo_display }}
+                Chamado <span class="text-red-600">#{{ ticket.protocolo|default:ticket.id }}</span>: {{ ticket.get_titulo_display }}
             </h1>
         </div>
         

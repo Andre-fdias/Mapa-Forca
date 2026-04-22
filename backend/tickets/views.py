@@ -40,7 +40,7 @@ def ticket_create_view(request):
             lido_pelo_suporte=False, # Novo chamado: suporte precisa ver
             lido_pelo_requisitante=True # O user acabou de criar
         )
-        messages.success(request, f"Chamado #{ticket.id} aberto com sucesso! Prioridade: {ticket.get_prioridade_display()}")
+        messages.success(request, f"Chamado #{ticket.protocolo} aberto com sucesso! Prioridade: {ticket.get_prioridade_display()}")
         return redirect('tickets:ticket_detail', pk=ticket.id)
         
     return render(request, 'tickets/novo_ticket.html', {

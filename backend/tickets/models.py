@@ -40,6 +40,7 @@ class Ticket(models.Model):
     ]
 
     requisitante = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='tickets_criados')
+    protocolo = models.CharField(max_length=20, unique=True, blank=True, null=True)
     titulo = models.CharField(max_length=100, choices=ASSUNTO_CHOICES)
     descricao = models.TextField()
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='ABERTO')
@@ -58,13 +59,20 @@ class Ticket(models.Model):
         verbose_name_plural = 'Chamados'
 
     def save(self, *args, **kwargs):
-        # Define a prioridade automaticamente com base no assunto na primeira vez que o ticket é criado
+        # Define a prioridade automaticamente com base no assunto
         if not self.id:
             self.prioridade = self.PRIORIDADE_MAP.get(self.titulo, 'MEDIA')
+        
         super().save(*args, **kwargs)
+        
+        # Gera o protocolo após o primeiro save (para ter o ID)
+        if not self.protocolo:
+            data_str = self.criado_em.strftime('%Y%m%d')
+            self.protocolo = f"{data_str}-{self.id}"
+            Ticket.objects.filter(id=self.id).update(protocolo=self.protocolo)
 
     def __str__(self):
-        return f"#{self.id} - {self.get_titulo_display()} ({self.get_status_display()})"
+        return f"{self.protocolo or self.id} - {self.get_titulo_display()}"
 
 class TicketMessage(models.Model):
     ticket = models.ForeignKey(Ticket, on_delete=models.CASCADE, related_name='mensagens')
