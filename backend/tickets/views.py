@@ -36,7 +36,9 @@ def ticket_create_view(request):
         ticket = Ticket.objects.create(
             requisitante=request.user,
             titulo=titulo,
-            descricao=descricao
+            descricao=descricao,
+            lido_pelo_suporte=False, # Novo chamado: suporte precisa ver
+            lido_pelo_requisitante=True # O user acabou de criar
         )
         messages.success(request, f"Chamado #{ticket.id} aberto com sucesso! Prioridade: {ticket.get_prioridade_display()}")
         return redirect('tickets:ticket_detail', pk=ticket.id)
@@ -53,8 +55,16 @@ def ticket_detail_view(request, pk):
     
     if is_support_team:
         ticket = get_object_or_404(Ticket, pk=pk)
+        # Ao suporte abrir o detalhe, marca como lido por ele
+        if not ticket.lido_pelo_suporte:
+            ticket.lido_pelo_suporte = True
+            ticket.save()
     else:
         ticket = get_object_or_404(Ticket, pk=pk, requisitante=user)
+        # Ao user abrir o detalhe, marca como lido por ele
+        if not ticket.lido_pelo_requisitante:
+            ticket.lido_pelo_requisitante = True
+            ticket.save()
         
     if request.method == 'POST':
         # Adicionar mensagem
@@ -66,10 +76,16 @@ def ticket_detail_view(request, pk):
                 mensagem=mensagem_texto
             )
             
-            # Se o suporte respondeu, muda status para EM_ANDAMENTO
-            if is_support_team and ticket.status == 'ABERTO':
-                ticket.status = 'EM_ANDAMENTO'
-                ticket.save()
+            # Ajuste de flags de notificação
+            if is_support_team:
+                ticket.lido_pelo_requisitante = False # Requisitante precisa ver resposta
+                # Se o suporte respondeu, muda status para EM_ANDAMENTO
+                if ticket.status == 'ABERTO':
+                    ticket.status = 'EM_ANDAMENTO'
+            else:
+                ticket.lido_pelo_suporte = False # Suporte precisa ver resposta do user
+                
+            ticket.save()
                 
             messages.success(request, "Mensagem enviada.")
             return redirect('tickets:ticket_detail', pk=ticket.id)
@@ -90,6 +106,7 @@ def ticket_update_status(request, pk):
     new_status = request.POST.get('status')
     if new_status in dict(Ticket.STATUS_CHOICES):
         ticket.status = new_status
+        ticket.lido_pelo_requisitante = False # Status mudou, avisa o user
         ticket.save()
         messages.success(request, f"Status do chamado #{ticket.id} atualizado para {ticket.get_status_display()}.")
         
