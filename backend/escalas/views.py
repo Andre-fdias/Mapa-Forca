@@ -19,15 +19,20 @@ from .serializers import (
 )
 import re
 import csv
-
 import datetime
+
+def normalize_opm_name(name):
+    """Remove símbolos e espaços para comparação flexível."""
+    if not name: return ""
+    match = re.search(r'(\d+)', name)
+    if match: return match.group(1)
+    return re.sub(r'[^0-9]', '', name)
 
 def get_data_operacional():
     """Retorna a data operacional baseada no horário de reset (07:40)."""
     agora = timezone.localtime(timezone.now())
     horario_reset = agora.replace(hour=7, minute=40, second=0, microsecond=0)
-    if agora < horario_reset:
-        return (agora - datetime.timedelta(days=1)).date()
+    if agora < horario_reset: return (agora - datetime.timedelta(days=1)).date()
     return agora.date()
 
 def limpar_escalas_vencidas():
@@ -36,57 +41,21 @@ def limpar_escalas_vencidas():
     hoje = agora.date()
     ontem = hoje - datetime.timedelta(days=1)
     hora_atual = agora.time()
-    
-    # 1. 12hs (06:45 - 19:00): Limpa às 18:55 do próprio dia
     if hora_atual >= datetime.time(18, 55):
-        AlocacaoFuncionario.objects.filter(
-            mapa__unidade__nome='CBI-1',
-            mapa__data=hoje,
-            inicio_servico=datetime.time(6, 45),
-            termino_servico=datetime.time(19, 0)
-        ).delete()
-
-    # 2. 12hs (18:45 - 07:00): Limpa às 06:55 do dia seguinte (referente a ontem)
+        AlocacaoFuncionario.objects.filter(mapa__unidade__nome='CBI-1', mapa__data=hoje, inicio_servico=datetime.time(6, 45), termino_servico=datetime.time(19, 0)).delete()
     if hora_atual >= datetime.time(6, 55):
-        AlocacaoFuncionario.objects.filter(
-            mapa__unidade__nome='CBI-1',
-            mapa__data=ontem,
-            inicio_servico=datetime.time(18, 45),
-            termino_servico=datetime.time(7, 0)
-        ).delete()
-
-    # 3. 24hs (07:30 - 07:30): Limpa às 07:25 do dia do término (referente a ontem)
+        AlocacaoFuncionario.objects.filter(mapa__unidade__nome='CBI-1', mapa__data=ontem, inicio_servico=datetime.time(18, 45), termino_servico=datetime.time(7, 0)).delete()
     if hora_atual >= datetime.time(7, 25):
-        AlocacaoFuncionario.objects.filter(
-            mapa__data=ontem,
-            mapa__unidade__nome='CBI-1',
-            inicio_servico=datetime.time(7, 30),
-            termino_servico=datetime.time(7, 30)
-        ).delete()
+        AlocacaoFuncionario.objects.filter(mapa__data=ontem, mapa__unidade__nome='CBI-1', inicio_servico=datetime.time(7, 30), termino_servico=datetime.time(7, 30)).delete()
 
 @login_required
 def atualizar_horario_alocacao(request, aloc_func_id):
     af = get_object_or_404(AlocacaoFuncionario, id=aloc_func_id)
-    inicio = request.POST.get('inicio_servico')
-    termino = request.POST.get('termino_servico')
-    sub_funcao = request.POST.get('sub_funcao')
-    
-    if inicio and termino:
-        af.inicio_servico = inicio
-        af.termino_servico = termino
-    
-    if sub_funcao is not None:
-        af.sub_funcao = sub_funcao
-        
+    af.inicio_servico = request.POST.get('inicio_servico', af.inicio_servico)
+    af.termino_servico = request.POST.get('termino_servico', af.termino_servico)
+    af.sub_funcao = request.POST.get('sub_funcao', af.sub_funcao)
     af.save()
-        
-    HistoricoAlteracao.objects.create(
-        mapa=af.mapa,
-        usuario=request.user,
-        tipo_acao='UPDATE',
-        descricao=f"Atualizou dados de {af.funcionario.nome_guerra}."
-    )
-    
+    HistoricoAlteracao.objects.create(mapa=af.mapa, usuario=request.user, tipo_acao='UPDATE', descricao=f"Atualizou {af.funcionario.nome_guerra}.")
     return render(request, 'mapa_forca/partials/linha_funcionario_viatura.html', {'aloc_func': af, 'is_cobom': af.alocacao_viatura is None})
 
 @login_required
@@ -95,714 +64,196 @@ def compor_mapa_view(request):
     hoje = get_data_operacional()
     u_id = request.GET.get('unidade_id')
     categoria = request.GET.get('categoria')
+    sgb_param = request.GET.get('sgb')
     mapa = None
     
     user = request.user
+    is_restricted = not user.is_superuser and user.role not in ['ADMIN', 'COBOM']
 
-    # 1. IDENTIFICAÇÃO DE ACESSO E CATEGORIA (OPM)
     user_root_unit = None
     if user.unidade:
-        # Tenta pegar o nome do Batalhão (GB) ao qual a unidade pertence
         curr = user.unidade
         while curr:
-            if 'GB' in curr.nome.upper():
-                user_root_unit = curr.nome
-                break
+            if 'GB' in curr.nome.upper() and 'SGB' not in curr.nome.upper(): user_root_unit = curr.nome; break
             curr = curr.parent
-        if not user_root_unit and user.unidade.root_unit:
-            user_root_unit = user.unidade.root_unit.nome
+        if not user_root_unit and user.unidade.root_unit: user_root_unit = user.unidade.root_unit.nome
 
-    # Lógica de Categorias (Grupamentos)
-    qs_opm = Posto.objects.exclude(unidade__isnull=True).exclude(unidade='')
-    
-    # Restrição de Categoria por Papel
-    is_restricted = not user.is_superuser and user.role not in ['ADMIN', 'COBOM']
-    
-    if is_restricted and user_root_unit:
-        # Usuários regionais ficam presos ao seu Grupamento
-        qs_opm = qs_opm.filter(unidade=user_root_unit)
-        if not categoria:
-            categoria = user_root_unit
-    
-    lista_opm = list(qs_opm.values_list('unidade', flat=True).distinct().order_by('unidade'))
-    
-    if not categoria:
-        if user_root_unit:
-            categoria = user_root_unit
-        elif u_id:
-            # Se veio unidade mas não categoria, tenta descobrir a categoria pela unidade
-            u_temp = Unidade.objects.filter(id=u_id).first()
-            if u_temp:
-                p_temp = Posto.objects.filter(Q(cod_secao=u_temp.codigo_secao) | Q(nome=u_temp.nome)).first()
-                if p_temp: categoria = p_temp.unidade
-        
-        if not categoria and lista_opm:
-            categoria = lista_opm[0]
+    lista_opm = list(Posto.objects.exclude(unidade__isnull=True).exclude(unidade='').values_list('unidade', flat=True).distinct().order_by('unidade'))
+    if is_restricted and user_root_unit: categoria = user_root_unit
+    elif not categoria and lista_opm: categoria = lista_opm[0]
 
-    # 2. DEFINIÇÃO DA UNIDADE SELECIONADA E SEGURANÇA
     unidade_obj = None
     if u_id:
         unidade_obj = get_object_or_404(Unidade, id=u_id)
-        # Bloqueio de segurança: impede que usuários regionais acessem unidades fora do seu escopo
         if is_restricted:
-            if user.role == 'BATALHAO' and unidade_obj.root_unit.nome != user_root_unit:
-                unidade_obj = user.unidade
-            elif user.role == 'SGB' and (unidade_obj != user.unidade and unidade_obj.parent != user.unidade):
-                unidade_obj = user.unidade
-            elif user.role == 'POSTO' and unidade_obj != user.unidade:
-                unidade_obj = user.unidade
-    else:
-        # Se não houver ID na URL, tenta usar a unidade do usuário
-        if user.unidade:
-            unidade_obj = user.unidade
-
-    # 3. CRIAÇÃO/BUSCA DO MAPA
-    if unidade_obj:
-        mapa, created = MapaDiario.objects.get_or_create(
-            data=hoje, 
-            unidade=unidade_obj, 
-            defaults={'criado_por': user}
-        )
-        if created:
-            HistoricoAlteracao.objects.create(
-                mapa=mapa, usuario=user, tipo_acao='CREATE',
-                descricao=f"Iniciou a composição do mapa força para {unidade_obj.nome}."
-            )
-
-    # 4. FILTRAGEM DA LISTA DE UNIDADES (O QUE APARECE NO SELETOR)
-    if is_restricted and user.role == 'SGB':
-        # --- NOVA LÓGICA SGB BASEADA NA PLANILHA ---
-        # Identifica o SGB e GB do usuário através da Unidade dele
-        user_unit_name = user.unidade.nome if user.unidade else ""
-        
-        # Busca o registro do Posto (planilha) correspondente à unidade do usuário para saber o SGB dele
-        p_user = Posto.objects.filter(Q(cod_secao=user.unidade.codigo_secao) | Q(nome=user_unit_name)).first()
-        
-        if p_user and p_user.sgb and p_user.unidade:
-            # Busca todos os postos (da planilha) que pertencem ao mesmo SGB e Grupamento
-            codigos_do_sgb = list(Posto.objects.filter(
-                unidade=p_user.unidade, 
-                sgb=p_user.sgb
-            ).values_list('cod_secao', flat=True))
-            
-            # Filtra as Unidades reais do sistema que possuem esses códigos
-            qs_unidades = Unidade.objects.filter(
-                Q(codigo_secao__in=codigos_do_sgb) | 
-                Q(nome__in=Posto.objects.filter(unidade=p_user.unidade, sgb=p_user.sgb).values_list('nome', flat=True))
-            ).distinct()
-        else:
-            # Fallback caso não encontre na planilha: tenta via hierarquia do banco
-            def get_all_descendant_ids(unit):
-                ids = [unit.id]
-                for child in unit.subunidades.all():
-                    ids.extend(get_all_descendant_ids(child))
-                return ids
-            
-            if user.unidade:
-                ids_permitidos = get_all_descendant_ids(user.unidade)
-                qs_unidades = Unidade.objects.filter(id__in=ids_permitidos)
+            curr_target = unidade_obj
+            target_root = None
+            while curr_target:
+                if 'GB' in curr_target.nome.upper() and 'SGB' not in curr_target.nome.upper(): target_root = curr_target.nome; break
+                curr_target = curr_target.parent
+            if not target_root: target_root = unidade_obj.root_unit.nome if (unidade_obj.root_unit and unidade_obj.root_unit.nome) else unidade_obj.nome
+            if normalize_opm_name(target_root) != normalize_opm_name(user_root_unit): unidade_obj = user.unidade
             else:
-                qs_unidades = Unidade.objects.none()
-    else:
-        # Lógica padrão para ADMIN, COBOM e BATALHAO (baseada na categoria/grupamento)
-        codigos_secao = list(Posto.objects.filter(unidade=categoria).values_list('cod_secao', flat=True))
-        qs_unidades = Unidade.objects.filter(
-            Q(codigo_secao__in=codigos_secao) | 
-            Q(parent__nome__icontains=categoria.replace('º', '').replace('°', '').strip())
-        ).distinct()
+                if user.role == 'SGB':
+                    p_target = Posto.objects.filter(Q(cod_secao=unidade_obj.codigo_secao) | Q(nome=unidade_obj.nome)).first()
+                    p_user = Posto.objects.filter(Q(cod_secao=user.unidade.codigo_secao) | Q(nome=user.unidade.nome)).first()
+                    if p_target and p_user and p_target.sgb != p_user.sgb: unidade_obj = user.unidade
+                elif user.role == 'POSTO' and unidade_obj != user.unidade: unidade_obj = user.unidade
+    else: unidade_obj = user.unidade
 
-        # Aplica restrição para nível POSTO (vê apenas a si mesmo)
-        if is_restricted and user.role == 'POSTO' and user.unidade:
-            qs_unidades = qs_unidades.filter(id=user.unidade.id)
+    if unidade_obj:
+        mapa, created = MapaDiario.objects.get_or_create(data=hoje, unidade=unidade_obj, defaults={'criado_por': user})
 
+    lista_sgbs = []
+    qs_unidades = Unidade.objects.none()
+    if categoria:
+        match_gb = re.search(r'(\d+)', categoria)
+        gb_num = match_gb.group(1) if match_gb else ""
+        q_planilha = Q(unidade__icontains=categoria)
+        if gb_num: q_planilha |= Q(unidade__icontains=f"{gb_num}")
+        lista_sgbs = list(Posto.objects.filter(q_planilha).exclude(sgb__isnull=True).exclude(sgb='').values_list('sgb', flat=True).distinct().order_by('sgb'))
+        if is_restricted and user.role == 'SGB':
+            p_user = Posto.objects.filter(Q(cod_secao=user.unidade.codigo_secao) | Q(nome=user.unidade.nome)).first()
+            if p_user: sgb_param = p_user.sgb
+        filtro_postos_final = q_planilha
+        if sgb_param: filtro_postos_final &= Q(sgb=sgb_param)
+        dados_postos = Posto.objects.filter(filtro_postos_final).values('cod_secao', 'nome')
+        codigos = [d['cod_secao'] for d in dados_postos if d['cod_secao']]
+        nomes = [d['nome'] for d in dados_postos]
+        qs_unidades = Unidade.objects.filter(Q(codigo_secao__in=codigos) | Q(nome__in=nomes)).distinct()
+        if not qs_unidades.exists() and not sgb_param: qs_unidades = Unidade.objects.filter(Q(nome__icontains=gb_num) | Q(parent__nome__icontains=gb_num))
+    if is_restricted and user.role == 'POSTO': qs_unidades = Unidade.objects.filter(id=user.unidade.id)
     todas_unidades = qs_unidades.order_by('nome')
 
-    # 5. PREPARAÇÃO DO CONTEXTO
     viaturas_disponiveis = []
     if categoria:
-        # Normalização da categoria para busca (remove espaços extras)
-        cat_clean = categoria.strip()
-        
-        # Tenta o filtro padrão
-        viats_qs = Viatura.objects.filter(
-            opmcb__icontains=cat_clean
-        ).exclude(prefixo='TELEGRAFIA')
-
-        # Se não achar nada, tenta extrair o número (ex: "15") e buscar por "15º GB"
-        if not viats_qs.exists():
-            match = re.search(r'(\d+)', cat_clean)
-            if match:
-                num = match.group(1)
-                viats_qs = Viatura.objects.filter(
-                    Q(opmcb__icontains=f"{num}º GB") | 
-                    Q(opmcb__icontains=f"{num}ºGB") |
-                    Q(opmcb__icontains=f"{num} GB") |
-                    Q(opmcb__icontains=f"0{num}º GB")
-                ).exclude(prefixo='TELEGRAFIA')
-
+        match_gb_vtr = re.search(r'(\d+)', categoria)
+        gb_num_vtr = match_gb_vtr.group(1) if match_gb_vtr else ""
+        q_vtr = Q(opmcb__icontains=categoria)
+        if gb_num_vtr:
+            q_vtr |= Q(opmcb__icontains=f"{gb_num_vtr}º GB")
+            q_vtr |= Q(opmcb__icontains=f"{gb_num_vtr} GB")
+            q_vtr |= Q(opmcb__icontains=f"{gb_num_vtr}GB")
+            q_vtr |= Q(prefixo__startswith=f"{gb_num_vtr}")
+        viats_qs = Viatura.objects.filter(q_vtr).exclude(prefixo='TELEGRAFIA')
         viaturas_disponiveis = list(viats_qs.order_by('prefixo'))
-        
-        # Injeta a TELEGRAFIA virtual (Sempre no topo)
         v_telegrafia = Viatura.objects.filter(prefixo='TELEGRAFIA').first()
-        if v_telegrafia:
-            viaturas_disponiveis.insert(0, v_telegrafia)
-        else:
-            viaturas_disponiveis.insert(0, Viatura(prefixo='TELEGRAFIA', placa='SALA'))
+        if v_telegrafia: viaturas_disponiveis.insert(0, v_telegrafia)
+        else: viaturas_disponiveis.insert(0, Viatura(prefixo='TELEGRAFIA', placa='SALA'))
 
     context = {
-        'mapa': mapa, 
-        'todas_unidades': todas_unidades,
-        'unidade_selecionada': unidade_obj, 
-        'viaturas_disponiveis': viaturas_disponiveis,
-        'categorias_opm': lista_opm,
-        'categoria_selecionada': categoria,
+        'mapa': mapa, 'todas_unidades': todas_unidades, 'viaturas_disponiveis': viaturas_disponiveis,
+        'categorias_opm': lista_opm, 'categoria_selecionada': categoria, 'lista_sgbs': lista_sgbs,
+        'sgb_selecionado': sgb_param, 'user_gb': user_root_unit, 'hoje': hoje,
         'funcoes': Dictionary.objects.filter(tipo='FUNCAO_OPERACIONAL'),
-        'user_gb': user_root_unit,
-        'hoje': hoje,
-        'base_template': 'base/partial.html' if request.headers.get('HX-Request') else 'base/base.html'
     }
-
-    # 6. SELEÇÃO DE TEMPLATE BASEADO NA ROLE
+    if request.headers.get('HX-Request') and not u_id: return render(request, 'escalas/partials/filtros_unidade_compor.html', context)
+    
+    # Roteamento baseado no nível de acesso (Role)
     if user.role == 'COBOM':
-        f_names = ['Oficial de Operações DEJEM', 'Chefe de Equipe', 'Supervisor Despacho', 'Supervisor 193', 'Supervisor 7º GB', 'Cabine 7º GB', 'Supervisor 19º GB', 'Cabine 19º GB', 'Supervisor 15º GB', 'Cabine 15º GB', 'Supervisor 16º GB', 'Cabine 16º GB', 'Apoio Cabine 7º, 19º e 15º GB', 'Apoio Cabine 16º GB', 'Enfermeiro de Triagem', 'Inclusor', 'Supervisor COE Autoban', 'Atendente 193']
-        funcoes_cobom = Dictionary.objects.filter(tipo='FUNCAO_OPERACIONAL', nome__in=f_names)
-        
         funcs_com_alocacoes = []
-        for f in funcoes_cobom:
-            alocs = []
-            if mapa:
-                alocs = AlocacaoFuncionario.objects.filter(mapa=mapa, funcao=f)
-            funcs_com_alocacoes.append({'funcao': f, 'alocacoes': alocs})
+        if mapa:
+            # Para o COBOM, buscamos alocações que não estão vinculadas a viaturas
+            all_alocs = AlocacaoFuncionario.objects.filter(
+                mapa=mapa, 
+                alocacao_viatura__isnull=True
+            ).select_related('funcionario', 'funcao')
             
-        context['funcs_com_alocacoes'] = funcs_com_alocacoes
+            for fn in context['funcoes']:
+                funcs_com_alocacoes.append({
+                    'funcao': fn,
+                    'alocacoes': all_alocs.filter(funcao=fn)
+                })
+        
+        context.update({
+            'base_template': 'base.html',
+            'funcs_com_alocacoes': funcs_com_alocacoes,
+        })
         return render(request, 'mapa_forca/compor_mapa_cobom.html', context)
 
-    # Caso padrão (Escalas de Posto/Batalhão/Admin)
-    if request.headers.get('HX-Request') and not u_id:
-        return render(request, 'mapa_forca/partials/select_postos.html', context)
-        
     return render(request, 'escalas/compor_mapa.html', context)
 
 @login_required
 def buscar_funcionario_re(request):
     q = request.GET.get('funcionario_re', '').strip()
-    mapa_id = request.GET.get('mapa_id')
-    categoria = request.GET.get('categoria') # Captura a categoria (GB) selecionada
-    
     if len(q) < 2: return HttpResponse('')
-    
-    # Limpa o Q para busca numérica se parecer um RE
-    q_numeric = re.sub(r'\D', '', q)
-    
-    mapa_atual = get_object_or_404(MapaDiario, id=mapa_id) if mapa_id else None
-    data_escala = mapa_atual.data if mapa_atual else get_data_operacional()
-    
-    efetivo_real = []
-    funcs_locais = []
-
-    # 1. BUSCA NO EFETIVO (DADOS DA PLANILHA)
-    query_efetivo = Q(nome__icontains=q) | Q(nome_do_pm__icontains=q)
-    if q_numeric:
-        query_efetivo |= Q(re__icontains=q_numeric)
-    
-    ef_queryset = Efetivo.objects.filter(query_efetivo)
-    
-    # Aplica filtro de unidade se a categoria for informada e não for CBI-1 (COBOM)
-    if categoria and categoria != 'CBI-1':
-        ef_queryset = ef_queryset.filter(unidade__icontains=categoria.strip())
-    
-    efetivo_real = list(ef_queryset.order_by('nome')[:15])
-    
-    # 2. BUSCA NO LOCAL (FUNCIONARIOS JÁ CADASTRADOS)
-    query_func = Q(nome_completo__icontains=q) | Q(nome_guerra__icontains=q)
-    if q_numeric:
-        query_func |= Q(re__icontains=q_numeric)
-        
-    funcs_locais = list(Funcionario.objects.filter(query_func).select_related('posto_graduacao').order_by('nome_completo')[:5])
-    
-    return render_busca_results(request, efetivo_real, funcs_locais, data_escala, q)
-
-def render_busca_results(request, efetivo_real, funcs_locais, data_escala, query):
-    """Função auxiliar para processar disponibilidade e renderizar o template."""
-    # Verifica disponibilidade para cada resultado
-    for e in efetivo_real:
-        ja_alocado = AlocacaoFuncionario.objects.filter(
-            mapa__data=data_escala,
-            funcionario__nome_completo__iexact=e.nome_do_pm or e.nome
-        ).select_related('alocacao_viatura__viatura', 'mapa__unidade').first()
-        e.indisponivel = ja_alocado
-        
-    for f in funcs_locais:
-        ja_alocado = AlocacaoFuncionario.objects.filter(
-            mapa__data=data_escala,
-            funcionario=f
-        ).select_related('alocacao_viatura__viatura', 'mapa__unidade').first()
-        f.indisponivel = ja_alocado
-    
-    return render(request, 'mapa_forca/partials/lista_busca_funcionarios.html', {
-        'efetivo_extra': efetivo_real,
-        'funcionarios': funcs_locais,
-        'query': query
-    })
+    ef_queryset = Efetivo.objects.filter(Q(nome__icontains=q) | Q(nome_do_pm__icontains=q) | Q(re__icontains=re.sub(r'\D', '', q)))
+    cat = request.GET.get('categoria')
+    if cat and cat != 'CBI-1': ef_queryset = ef_queryset.filter(unidade__icontains=cat.replace('º','').replace('°','').strip())
+    efetivo = list(ef_queryset.order_by('nome')[:15])
+    for e in efetivo: e.indisponivel = AlocacaoFuncionario.objects.filter(mapa__data=get_data_operacional(), funcionario__nome_completo__iexact=e.nome_do_pm or e.nome).first()
+    return render(request, 'mapa_forca/partials/lista_busca_funcionarios.html', {'efetivo_extra': efetivo, 'query': q})
 
 @login_required
 def adicionar_viatura_mapa(request, mapa_id):
     pref = request.POST.get('prefixo')
     mapa = get_object_or_404(MapaDiario, id=mapa_id)
-    
-    # Busca a viatura. Se for TELEGRAFIA e não existir, cria.
     if pref == 'TELEGRAFIA':
-        status_op = Dictionary.objects.filter(tipo='STATUS_VIATURA', codigo='OPERANDO').first()
-        tipo_vtr = Dictionary.objects.filter(tipo='TIPO_VIATURA', codigo='OUTROS').first()
-        viat, _ = Viatura.objects.get_or_create(
-            prefixo='TELEGRAFIA',
-            defaults={
-                'placa': 'INTERNO',
-                'status_base': status_op,
-                'tipo': tipo_vtr,
-                'fonte': 'Sistema (Virtual)'
-            }
-        )
+        v, _ = Viatura.objects.get_or_create(prefixo='TELEGRAFIA', defaults={'placa': 'INTERNO'})
     else:
-        viat = get_object_or_404(Viatura, prefixo=pref)
+        v = get_object_or_404(Viatura, prefixo=pref)
+        ja = AlocacaoViatura.objects.filter(mapa__data=mapa.data, viatura=v).exclude(mapa=mapa).first()
+        if ja: return HttpResponse(f'<script>showToast("Viatura {v.prefixo} já está em {ja.mapa.unidade.nome}", "error");</script>')
     
-    # Validação: Viatura única por dia em todo o sistema (EXCETO TELEGRAFIA)
-    if viat.prefixo != 'TELEGRAFIA':
-        ja_alocada = AlocacaoViatura.objects.filter(
-            mapa__data=mapa.data, 
-            viatura=viat
-        ).exclude(mapa=mapa).select_related('mapa__unidade').first()
-        
-        if ja_alocada:
-            msg = f"A viatura {viat.prefixo} já está escalada hoje na unidade: {ja_alocada.mapa.unidade.nome}"
-            return HttpResponse(f'<script>showToast("{msg}", "error");</script>')
-
+    # Define status OPERANDO como padrão para novas alocações
     status_op = Dictionary.objects.filter(tipo='STATUS_VIATURA', codigo='OPERANDO').first()
-    aloc, created = AlocacaoViatura.objects.get_or_create(mapa=mapa, viatura=viat, defaults={'status_no_dia': status_op})
+    aloc, created = AlocacaoViatura.objects.get_or_create(mapa=mapa, viatura=v, defaults={'status_no_dia': status_op})
     
-    if not created:
-        # Se já existe no mapa, apenas avisa e não retorna novo HTML para evitar duplicidade na tela
-        return HttpResponse(f'<script>showToast("Viatura {viat.prefixo} já está no mapa.", "info");</script>', status=200)
-
-    HistoricoAlteracao.objects.create(
-        mapa=mapa,
-        usuario=request.user,
-        tipo_acao='UPDATE',
-        descricao=f"Adicionou viatura {viat.prefixo} ao mapa."
-    )
-        
     return render(request, 'mapa_forca/partials/card_viatura_alocada.html', {'alocacao': aloc, 'funcoes': Dictionary.objects.filter(tipo='FUNCAO_OPERACIONAL')})
 
 @login_required
 def alocar_funcionario_viatura(request, alocacao_viatura_id):
     re_in = request.POST.get('funcionario_re', '').strip()
-    nome_ex = request.POST.get('nome_extra', '').strip()
     efetivo_id = request.POST.get('efetivo_id')
     f_id = request.POST.get('funcao_id')
-    dejem_val = request.POST.get('dejem') == 'true'
-    is_cmt_prontidao = request.POST.get('is_cmt_prontidao') == 'on'
-    inicio_dejem = request.POST.get('inicio_dejem')
-    termino_dejem = request.POST.get('termino_dejem')
-    
-    # Horários COBOM
-    inicio_servico = request.POST.get('inicio_servico')
-    termino_servico = request.POST.get('termino_servico')
-    
-    if alocacao_viatura_id and int(alocacao_viatura_id) != 0:
-        aloc_v = get_object_or_404(AlocacaoViatura, id=alocacao_viatura_id)
-        mapa_aloc = aloc_v.mapa
-        
-        # Limite diferenciado: Telegrafia (2) vs Outros (15)
-        limite = 2 if aloc_v.viatura.prefixo == 'TELEGRAFIA' else 15
-        if aloc_v.equipe.count() >= limite: 
-            return HttpResponse(f'<script>showToast("Limite de {limite} atingido para {aloc_v.viatura.prefixo}!", "error");</script>')
-    else:
-        aloc_v = None
-        # Precisamos do mapa_id do POST para alocações avulsas
-        mapa_id = request.POST.get('mapa_id')
-        mapa_aloc = get_object_or_404(MapaDiario, id=mapa_id)
-
-    funcao = get_object_or_404(Dictionary, id=f_id)
-
-    # 1. Busca no Efetivo Real (Dados do Sheets)
-    efetivo_real = None
-    if efetivo_id:
-        efetivo_real = Efetivo.objects.filter(id=efetivo_id).first()
-    if not efetivo_real:
-        efetivo_real = Efetivo.objects.filter(Q(re=re_in) | Q(nome=nome_ex or re_in)).first()
-
-    # 2. Tenta achar o militar local
-    militar = None
-    if efetivo_real and efetivo_real.re:
-        militar = Funcionario.objects.filter(re=efetivo_real.re).first()
+    mapa_id = request.POST.get('mapa_id')
+    aloc_v = get_object_or_404(AlocacaoViatura, id=alocacao_viatura_id) if alocacao_viatura_id and int(alocacao_viatura_id) != 0 else None
+    mapa = aloc_v.mapa if aloc_v else get_object_or_404(MapaDiario, id=mapa_id)
+    militar = Funcionario.objects.filter(re=re_in).first()
     if not militar:
-        militar = Funcionario.objects.filter(re=re_in).first()
-    if not militar:
-        militar = Funcionario.objects.filter(nome_completo__iexact=nome_ex if nome_ex else re_in).first()
-
-    # 3. Cria ou atualiza o militar local com os dados reais
-    if efetivo_real:
-        nome_padrao = efetivo_real.nome 
-        re_match = re.search(r'(\d{6}-\d{1})', nome_padrao)
-        re_real = re_match.group(1) if re_match else (efetivo_real.re if efetivo_real.re else None)
-        
-        if not re_real:
-            import hashlib
-            re_real = f"T-{hashlib.md5(nome_padrao.encode()).hexdigest()[:6]}"
-
-        p_codigo = "SD_PM"
-        if 'SUB' in nome_padrao: p_codigo = 'SUBTEN_PM'
-        elif 'SGT' in nome_padrao: p_codigo = 'SGT_PM'
-        elif 'CB' in nome_padrao: p_codigo = 'CB_PM'
-        elif 'SD' in nome_padrao: p_codigo = 'SD_PM'
-        elif '1º TEN' in nome_padrao: p_codigo = 'TEN_PM'
-        elif '2º TEN' in nome_padrao: p_codigo = 'TEN_PM'
-        elif 'CAP' in nome_padrao: p_codigo = 'CAP_PM'
-        elif 'MAJ' in nome_padrao: p_codigo = 'MAJ_PM'
-        
-        posto_obj = Dictionary.objects.filter(tipo='POSTO_GRADUACAO', codigo=p_codigo).first()
-        nguerra = nome_padrao.split(')')[-1].strip() if ')' in nome_padrao else nome_padrao.split()[-1]
-
-        if not militar:
-            militar = Funcionario.objects.create(
-                re=re_real,
-                nome_completo=nome_padrao,
-                nome_guerra=nguerra,
-                posto_graduacao=posto_obj,
-                mergulho=efetivo_real.mergulho,
-                ovb=efetivo_real.ovb
-            )
-        else:
-            militar.nome_completo = nome_padrao
-            militar.mergulho = efetivo_real.mergulho
-            militar.ovb = efetivo_real.ovb
-            if posto_obj: militar.posto_graduacao = posto_obj
-            militar.save()
-
-    # 4. Finaliza a alocação
+        ef = Efetivo.objects.filter(Q(re=re_in) | Q(nome__icontains=re_in)).first()
+        if ef:
+            militar = Funcionario.objects.filter(re=ef.re).first()
+            if not militar:
+                p_grad = Dictionary.objects.filter(tipo='POSTO_GRADUACAO', nome__icontains=str(ef.posto_secao)[:3]).first()
+                nguerra = ef.nome.split()[-1] if ef.nome else "MILITAR"
+                militar = Funcionario.objects.create(re=ef.re or re_in, nome_completo=ef.nome, nome_guerra=nguerra, posto_graduacao=p_grad, mergulho=ef.mergulho, ovb=ef.ovb)
     if militar:
-        # Trava: Militar só pode ser escalado uma vez por dia (Unicidade Diária)
-        ja_alocado_hoje = AlocacaoFuncionario.objects.filter(
-            mapa__data=mapa_aloc.data, 
-            funcionario=militar
-        ).first()
-        
-        if ja_alocado_hoje:
-            msg = f"Militar já escalado hoje em {ja_alocado_hoje.mapa.unidade.nome}!"
-            return HttpResponse(f'<script>showToast("{msg}", "error");</script>')
-
-        # Define horários padrão se não informados (para GB é sempre 07:30 - 07:30)
-        if not inicio_servico:
-            inicio_servico = "07:30:00"
-            termino_servico = "07:30:00"
-
-        af = AlocacaoFuncionario.objects.create(
-            mapa=mapa_aloc, 
-            alocacao_viatura=aloc_v, 
-            funcionario=militar, 
-            funcao=funcao,
-            dejem=(dejem_val == True),
-            is_comandante_prontidao=is_cmt_prontidao,
-            inicio_dejem=inicio_dejem if dejem_val and inicio_dejem else None,
-            termino_dejem=termino_dejem if dejem_val and termino_dejem else None,
-            inicio_servico=inicio_servico,
-            termino_servico=termino_servico
-        )
-        
-        vtr_prefix = aloc_v.viatura.prefixo if aloc_v else "Avulso"
-        HistoricoAlteracao.objects.create(
-            mapa=mapa_aloc,
-            usuario=request.user,
-            tipo_acao='UPDATE',
-            descricao=f"Alocou {militar.nome_guerra} na viatura {vtr_prefix} como {funcao.nome}."
-        )
-        
+        if AlocacaoFuncionario.objects.filter(mapa__data=mapa.data, funcionario=militar).exists():
+            return HttpResponse(f'<script>showToast("Militar {militar.nome_guerra} já escalado hoje!", "error");</script>')
+        af = AlocacaoFuncionario.objects.create(mapa=mapa, alocacao_viatura=aloc_v, funcionario=militar, funcao_id=f_id, dejem=request.POST.get('dejem') == 'true', inicio_servico="07:30:00", termino_servico="07:30:00")
+        HistoricoAlteracao.objects.create(mapa=mapa, usuario=request.user, tipo_acao='UPDATE', descricao=f"Alocou {militar.nome_guerra}.")
         return render(request, 'mapa_forca/partials/linha_funcionario_viatura.html', {'aloc_func': af, 'is_cobom': aloc_v is None})
-    
-    return HttpResponse('<script>showToast("Erro ao processar militar!", "error");</script>')
+    return HttpResponse('<script>showToast("Erro: Militar não localizado na planilha!", "error");</script>')
 
 @login_required
 def remover_viatura_mapa(request, alocacao_id):
-    aloc = get_object_or_404(AlocacaoViatura, id=alocacao_id)
-    mapa = aloc.mapa
-    pref = aloc.viatura.prefixo
-    aloc.delete()
-    
-    HistoricoAlteracao.objects.create(
-        mapa=mapa,
-        usuario=request.user,
-        tipo_acao='DELETE',
-        descricao=f"Removeu viatura {pref} do mapa."
-    )
-    return HttpResponse("")
-
+    AlocacaoViatura.objects.filter(id=alocacao_id).delete(); return HttpResponse("")
 @login_required
 def remover_funcionario_viatura(request, aloc_func_id):
-    af = get_object_or_404(AlocacaoFuncionario, id=aloc_func_id)
-    mapa = af.mapa
-    nome = af.funcionario.nome_guerra
-    vtr = af.alocacao_viatura.viatura.prefixo if af.alocacao_viatura else "Avulso"
-    af.delete()
-    
-    HistoricoAlteracao.objects.create(
-        mapa=mapa,
-        usuario=request.user,
-        tipo_acao='DELETE',
-        descricao=f"Removeu {nome} da viatura {vtr}."
-    )
-    return HttpResponse("")
-
-@login_required
-def get_viaturas_por_unidade(request):
-    gb_nome = request.GET.get('categoria') # Ex: "15º GB"
-    
-    try:
-        # Filtra viaturas da OPM selecionada (opmcb na planilha)
-        query = Q()
-        if gb_nome:
-            # Busca exata ou parcial pelo nome normalizado
-            query = Q(opmcb__icontains=gb_nome.strip())
-        
-        viats = Viatura.objects.filter(query).exclude(prefixo='TELEGRAFIA').order_by('sgb', 'garagem', 'prefixo')
-        
-        data = []
-        
-        # Injeta TELEGRAFIA (Sempre disponível)
-        data.append({
-            'VIATURAS': 'TELEGRAFIA',
-            'SGB': 'INTERNO',
-            'STATUS': 'OPERANDO',
-            'PLACA': 'INTERNO',
-            'Garagem': 'BASE'
-        })
-        
-        for v in viats:
-            data.append({
-                'VIATURAS': v.prefixo,
-                'SGB': v.sgb or 'N/D',
-                'STATUS': v.status_base.nome if v.status_base else 'RESERVA',
-                'PLACA': v.placa or 'S/ PLACA',
-                'Garagem': v.garagem or '---'
-            })
-        
-        return JsonResponse(data, safe=False)
-    except Exception as e:
-        return JsonResponse({'error': str(e)}, status=500)
-
-
+    AlocacaoFuncionario.objects.filter(id=aloc_func_id).delete(); return HttpResponse("")
 @login_required
 def validar_mapa_final(request, mapa_id):
-    mapa = get_object_or_404(MapaDiario, id=mapa_id)
-    
-    if request.user.role == 'COBOM' or mapa.unidade.nome == 'CBI-1':
-        f_names = ['Oficial de Operações DEJEM', 'Chefe de Equipe', 'Supervisor Despacho', 'Supervisor 193', 'Supervisor 7º GB', 'Cabine 7º GB', 'Supervisor 19º GB', 'Cabine 19º GB', 'Supervisor 15º GB', 'Cabine 15º GB', 'Supervisor 16º GB', 'Cabine 16º GB', 'Apoio Cabine 7º, 19º e 15º GB', 'Apoio Cabine 16º GB', 'Enfermeiro de Triagem', 'Inclusor', 'Supervisor COE Autoban', 'Atendente 193']
-        funcoes = Dictionary.objects.filter(tipo='FUNCAO_OPERACIONAL', nome__in=f_names)
-        faltantes = []
-        for f in funcoes:
-            if not mapa.alocacoes_funcionarios.filter(funcao=f).exists():
-                faltantes.append(f.nome)
-        
-        if faltantes:
-            msg = "Falta preencher: " + ", ".join(faltantes)
-            return HttpResponse(f'<script>showToast("{msg}", "error");</script>')
-    else:
-        # 1. Verifica se há viaturas sem guarnição (Excluindo a TELEGRAFIA da obrigatoriedade)
-        vazias = [
-            al.viatura.prefixo for al in mapa.alocacoes_viaturas.all() 
-            if al.equipe.count() == 0 and al.viatura.prefixo != 'TELEGRAFIA'
-        ]
-        
-        if vazias:
-            return HttpResponse(f'<script>showToast("ERRO: Viaturas vazias: {", ".join(vazias)}", "error");</script>')
-    
-    # 2. Marca o mapa como finalizado
-    mapa.finalizado = True
-    mapa.save()
-    
-    HistoricoAlteracao.objects.create(
-        mapa=mapa,
-        usuario=request.user,
-        tipo_acao='FINISH',
-        descricao="Finalizou o mapa força do dia."
-    )
-    
-    # 3. Retorna sucesso e recarrega para atualizar status visual
-    return HttpResponse('''
-        <script>
-            showToast("MAPA FORÇA SALVO COM SUCESSO!", "success");
-            setTimeout(() => { window.location.href = "/unidades/dashboard/"; }, 2000);
-        </script>
-    ''')
-
+    mapa = get_object_or_404(MapaDiario, id=mapa_id); mapa.finalizado = True; mapa.save()
+    return HttpResponse('<script>showToast("MAPA FINALIZADO!", "success"); setTimeout(() => { window.location.href = "/unidades/dashboard/"; }, 2000);</script>')
 @login_required
-def historico_view(request):
-    user = request.user
-    data_str = request.GET.get('data')
-    u_id = request.GET.get('unidade_id')
-    sgb_id = request.GET.get('sgb_id')
-    v_prefixo = request.GET.get('viatura_prefixo')
-    dejem_only = request.GET.get('dejem') == 'true'
-    view_type = request.GET.get('view', 'cards') # 'cards' ou 'table'
-    export_format = request.GET.get('export') # 'csv' ou 'pdf'
-    
-    # Se não vier data, assume hoje
-    if data_str:
-        try:
-            data_selecionada = timezone.datetime.strptime(data_str, '%Y-%m-%d').date()
-        except ValueError:
-            data_selecionada = timezone.now().date()
-    else:
-        data_selecionada = timezone.now().date()
-        
-    # Lógica de Filtro de Mapas
-    filtros = Q(data=data_selecionada)
-    
-    # --- SISTEMA DE PERMISSÕES ---
-    is_restricted = not user.is_superuser and user.role not in ['ADMIN', 'COBOM']
-    user_gb_root = None
-    
-    if is_restricted:
-        if user.unidade:
-            user_gb_root = user.unidade.root_unit
-            # Filtra mapas apenas de unidades que pertencem ao GB do usuário
-            # Buscamos todas as unidades que têm o mesmo root_unit
-            ids_permitidos = []
-            # Como Unidade é recursiva, pegamos todos os descendentes
-            def get_all_children_ids(unit):
-                ids = [unit.id]
-                for child in unit.subunidades.all():
-                    ids.extend(get_all_children_ids(child))
-                return ids
-            
-            ids_permitidos = get_all_children_ids(user_gb_root)
-            filtros &= Q(unidade_id__in=ids_permitidos)
-        else:
-            filtros &= Q(id__isnull=True) # Não vê nada se não tiver unidade vinculada
-    
-    if u_id:
-        filtros &= Q(unidade_id=u_id)
-    elif sgb_id:
-        subunidades = Unidade.objects.filter(Q(id=sgb_id) | Q(parent_id=sgb_id)).values_list('id', flat=True)
-        filtros &= Q(unidade_id__in=subunidades)
-    
-    if v_prefixo:
-        filtros &= Q(alocacoes_viaturas__viatura__prefixo__icontains=v_prefixo)
-
-    # Busca os mapas
-    mapas = MapaDiario.objects.filter(filtros).distinct().select_related('unidade', 'criado_por').prefetch_related(
-        'alocacoes_viaturas__viatura',
-        'alocacoes_viaturas__equipe__funcionario__posto_graduacao',
-        'alocacoes_viaturas__equipe__funcao',
-        'historico__usuario'
-    )
-
-    # Lógica de Exportação CSV
-    if export_format == 'csv':
-        response = HttpResponse(content_type='text/csv')
-        response['Content-Disposition'] = f'attachment; filename="mapa-forca-{data_selecionada}.csv"'
-        writer = csv.writer(response)
-        writer.writerow(['Unidade', 'Viatura', 'Posto/Grad', 'Nome', 'Função', 'DEJEM', 'Horário'])
-        for m in mapas:
-            for aloc in m.alocacoes_viaturas.all():
-                for af in aloc.equipe.all():
-                    if not dejem_only or af.dejem:
-                        p_grad = af.funcionario.posto_graduacao.nome if af.funcionario.posto_graduacao else 'S/P'
-                        f_nome = af.funcao.nome if af.funcao else 'S/F'
-                        writer.writerow([
-                            m.unidade.nome, aloc.viatura.prefixo, 
-                            p_grad, af.funcionario.nome_guerra,
-                            f_nome, 'SIM' if af.dejem else 'NÃO',
-                            f"{af.inicio_dejem}-{af.termino_dejem}" if af.dejem else '-'
-                        ])
-        return response
-
-    # Lógica de Exportação PDF (Renderização otimizada para impressão)
-    if export_format == 'pdf':
-        return render(request, 'escalas/export/mapa_pdf.html', {
-            'mapas': mapas,
-            'data_selecionada': data_selecionada,
-            'dejem_only': dejem_only
-        })
-    
-    # --- LÓGICA DE OPÇÕES DOS FILTROS (Restringidas) ---
-    if is_restricted and user_gb_root:
-        # Pega apenas SGBs que pertencem ao root do usuário
-        sgbs = user_gb_root.subunidades.filter(Q(nome__icontains='SGB') | Q(tipo_unidade__codigo='BATALHAO')).order_by('nome')
-        if sgb_id:
-            unidades_lista = Unidade.objects.filter(parent_id=sgb_id).order_by('nome')
-        else:
-            # Lista todas as unidades do GB root que são POSTOS
-            def get_all_posts(unit):
-                posts = list(unit.subunidades.filter(tipo_unidade__codigo='POSTO'))
-                for child in unit.subunidades.all():
-                    posts.extend(get_all_posts(child))
-                return posts
-            unidades_lista = sorted(get_all_posts(user_gb_root), key=lambda x: x.nome)
-    else:
-        # Comportamento original para Admin/COBOM
-        sgbs = Unidade.objects.filter(Q(nome__icontains='SGB') | Q(tipo_unidade__codigo='BATALHAO')).order_by('nome')
-        if sgb_id:
-            unidades_lista = Unidade.objects.filter(parent_id=sgb_id).order_by('nome')
-        else:
-            unidades_lista = Unidade.objects.filter(tipo_unidade__codigo='POSTO').order_by('nome')
-
-    context = {
-        'mapas': mapas,
-        'data_selecionada': data_selecionada,
-        'sgbs': sgbs,
-        'unidades_lista': unidades_lista,
-        'sgb_selecionado': int(sgb_id) if sgb_id else None,
-        'unidade_selecionada_id': int(u_id) if u_id else None,
-        'v_prefixo': v_prefixo,
-        'dejem_only': dejem_only,
-        'view_type': view_type,
-    }
-
-    if request.headers.get('HX-Request'):
-        template = 'escalas/partials/conteudo_historico_tabela.html' if view_type == 'table' else 'escalas/partials/conteudo_historico.html'
-        return render(request, template, context)
-    
-    return render(request, 'escalas/historico.html', context)
-
-# === API REST ===
-class MapaDiarioViewSet(viewsets.ModelViewSet):
-    queryset = MapaDiario.objects.prefetch_related('alocacoes_viaturas','alocacoes_funcionarios','unidade').all()
-    serializer_class = MapaDiarioSerializer
-    filter_backends = [DjangoFilterBackend, filters.OrderingFilter]
-    filterset_fields = ['data', 'unidade']
-    ordering = ['-data', 'unidade']
-    def perform_create(self, serializer): serializer.save(criado_por=self.request.user)
-    @action(detail=False, methods=['post'], url_path='clone')
-    def clone(self, request):
-        s = CloneMapaSerializer(data=request.data)
-        if s.is_valid():
-            try: orig = MapaDiario.objects.get(data=s.validated_data['data_origem'], unidade_id=s.validated_data['unidade_id'])
-            except MapaDiario.DoesNotExist: return Response({"error": "Não encontrado"}, 404)
-            novo = MapaDiario.objects.create(data=s.validated_data['data_destino'], unidade_id=s.validated_data['unidade_id'], criado_por=request.user)
-            v_map = {av.id: AlocacaoViatura.objects.create(mapa=novo, viatura=av.viatura, status_no_dia=av.status_no_dia) for av in AlocacaoViatura.objects.filter(mapa=orig)}
-            for af in AlocacaoFuncionario.objects.filter(mapa=orig): AlocacaoFuncionario.objects.create(mapa=novo, funcionario=af.funcionario, alocacao_viatura=v_map.get(af.alocacao_viatura_id), funcao=af.funcao)
-            return Response(MapaDiarioSerializer(novo).data, 201)
-        return Response(s.errors, 400)
-
-class AlocacaoFuncionarioViewSet(viewsets.ModelViewSet):
-    queryset = AlocacaoFuncionario.objects.all()
-    serializer_class = AlocacaoFuncionarioSerializer
-
-class AlocacaoViaturaViewSet(viewsets.ModelViewSet):
-    queryset = AlocacaoViatura.objects.all()
-    serializer_class = AlocacaoViaturaSerializer
-
+def get_viaturas_por_unidade(request):
+    gb = request.GET.get('categoria', '')
+    viats = Viatura.objects.filter(opmcb__icontains=gb.replace('º','').replace('°','')).exclude(prefixo='TELEGRAFIA')
+    data = [{'VIATURAS': v.prefixo, 'SGB': v.sgb, 'STATUS': v.status_base.nome if v.status_base else 'RESERVA'} for v in viats]
+    return JsonResponse(data, safe=False)
 @login_required
 def update_mapa_cobom(request, mapa_id):
     mapa = get_object_or_404(MapaDiario, id=mapa_id)
-    if 'prontidao' in request.POST:
-        mapa.prontidao = request.POST.get('prontidao')
-    if 'equipe' in request.POST:
-        mapa.equipe = request.POST.get('equipe')
-    if 'periodo' in request.POST:
-        mapa.periodo = request.POST.get('periodo')
-    mapa.save()
-    # Retorna vazio para o HTMX não substituir nada (out-of-band updates se necessário, 
-    # mas aqui queremos apenas trigger silent)
-    return HttpResponse("")
-
+    for field in ['prontidao', 'equipe', 'periodo']:
+        if field in request.POST: setattr(mapa, field, request.POST.get(field))
+    mapa.save(); return HttpResponse("")
+@login_required
+def historico_view(request):
+    data_str = request.GET.get('data')
+    data_selecionada = timezone.datetime.strptime(data_str, '%Y-%m-%d').date() if data_str else timezone.now().date()
+    mapas = MapaDiario.objects.filter(data=data_selecionada).select_related('unidade')
+    return render(request, 'escalas/historico.html', {'mapas': mapas, 'data_selecionada': data_selecionada})
+class MapaDiarioViewSet(viewsets.ModelViewSet): queryset = MapaDiario.objects.all(); serializer_class = MapaDiarioSerializer
+class AlocacaoFuncionarioViewSet(viewsets.ModelViewSet): queryset = AlocacaoFuncionario.objects.all(); serializer_class = AlocacaoFuncionarioSerializer
+class AlocacaoViaturaViewSet(viewsets.ModelViewSet): queryset = AlocacaoViatura.objects.all(); serializer_class = AlocacaoViaturaSerializer
