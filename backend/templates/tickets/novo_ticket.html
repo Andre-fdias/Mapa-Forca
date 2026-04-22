@@ -22,31 +22,15 @@
             {% csrf_token %}
             
             <div>
-                <label for="titulo" class="block text-[10px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-[0.2em] mb-2">Assunto / Título</label>
-                <input type="text" name="titulo" id="titulo" required
-                       placeholder="Ex: Erro ao salvar viatura no Posto X"
-                       class="w-full bg-slate-50 dark:bg-white/5 border-slate-200 dark:border-white/10 rounded-xl px-4 py-3 text-slate-900 dark:text-white focus:ring-2 focus:ring-red-600 focus:border-transparent transition-all outline-none">
-            </div>
-
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div>
-                    <label for="categoria" class="block text-[10px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-[0.2em] mb-2">Categoria</label>
-                    <select name="categoria" id="categoria" 
-                            class="w-full bg-slate-50 dark:bg-white/5 border-slate-200 dark:border-white/10 rounded-xl px-4 py-3 text-slate-900 dark:text-white focus:ring-2 focus:ring-red-600 outline-none transition-all appearance-none">
-                        {% for code, label in categorias %}
-                        <option value="{{ code }}">{{ label }}</option>
-                        {% endfor %}
-                    </select>
-                </div>
-                <div>
-                    <label for="prioridade" class="block text-[10px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-[0.2em] mb-2">Prioridade</label>
-                    <select name="prioridade" id="prioridade" 
-                            class="w-full bg-slate-50 dark:bg-white/5 border-slate-200 dark:border-white/10 rounded-xl px-4 py-3 text-slate-900 dark:text-white focus:ring-2 focus:ring-red-600 outline-none transition-all appearance-none">
-                        {% for code, label in prioridades %}
-                        <option value="{{ code }}" {% if code == 'MEDIA' %}selected{% endif %}>{{ label }}</option>
-                        {% endfor %}
-                    </select>
-                </div>
+                <label for="titulo" class="block text-[10px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-[0.2em] mb-2">Assunto / Categoria do Problema</label>
+                <select name="titulo" id="titulo" required
+                        class="w-full bg-slate-50 dark:bg-white/5 border-slate-200 dark:border-white/10 rounded-xl px-4 py-3 text-slate-900 dark:text-white focus:ring-2 focus:ring-red-600 outline-none transition-all appearance-none">
+                    <option value="" disabled selected>Selecione o tipo de problema...</option>
+                    {% for code, label in assuntos %}
+                    <option value="{{ code }}">{{ label }}</option>
+                    {% endfor %}
+                </select>
+                <p class="mt-2 text-[9px] text-slate-500 font-bold uppercase tracking-tight">A prioridade será definida automaticamente com base no assunto selecionado.</p>
             </div>
 
             <div>

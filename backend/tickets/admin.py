@@ -8,7 +8,7 @@ class TicketMessageInline(admin.TabularInline):
 @admin.register(Ticket)
 class TicketAdmin(admin.ModelAdmin):
     list_display = ('id', 'titulo', 'requisitante', 'status', 'prioridade', 'criado_em')
-    list_filter = ('status', 'prioridade', 'categoria')
+    list_filter = ('status', 'prioridade')
     search_fields = ('titulo', 'descricao', 'requisitante__email')
     inlines = [TicketMessageInline]
     readonly_fields = ('criado_em', 'atualizado_em')
