@@ -61,6 +61,7 @@ INSTALLED_APPS = [
     'unidades',
     'escalas',
     'dictionaries',
+    'tickets',
     'tailwind',
     'theme',
     'django_browser_reload',
