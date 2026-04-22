@@ -165,33 +165,37 @@ def dashboard_batalhao(request):
 def dashboard_cobom(request):
     """Dashboard Geral (COBOM/Grande Comando) com mapeamento dinâmico e dados REAIS."""
     hoje = get_data_operacional()
+    user = request.user
     
-    # Seletor de Unidades (Aparece para Admin, COBOM e agora também para BATALHAO)
+    # --- LÓGICA DE PERMISSÕES DE ACESSO AO GRUPAMENTO (BATALHÃO) ---
+    is_global_user = user.is_superuser or user.role in ['ADMIN', 'COBOM']
+    
+    # Seletor de Unidades (Aparece apenas para usuários Globais)
     batalhoes = []
-    if request.user.is_superuser or request.user.role in ['ADMIN', 'COBOM', 'BATALHAO']:
+    if is_global_user:
         batalhoes = Unidade.objects.filter(tipo_unidade__codigo='BATALHAO').order_by('nome')
     
     batalhao_id = request.GET.get('batalhao_id')
     batalhao_selecionado = None
     
-    # Prioridade 1: Seleção na URL
-    if batalhao_id:
+    # Prioridade 1: Seleção na URL (Apenas para usuários Globais)
+    if batalhao_id and is_global_user:
         batalhao_selecionado = Unidade.objects.filter(id=batalhao_id).first()
     
     # Prioridade 2: Unidade de vínculo (Detecta Batalhão raiz para POSTO/SGB)
-    if not batalhao_selecionado and request.user.unidade:
-        root = request.user.unidade.root_unit
+    if not batalhao_selecionado and user.unidade:
+        root = user.unidade.root_unit
         if root.tipo_unidade and root.tipo_unidade.codigo == 'BATALHAO':
             batalhao_selecionado = root
-        elif request.user.unidade.tipo_unidade and request.user.unidade.tipo_unidade.codigo == 'BATALHAO':
-            batalhao_selecionado = request.user.unidade
+        elif user.unidade.tipo_unidade and user.unidade.tipo_unidade.codigo == 'BATALHAO':
+            batalhao_selecionado = user.unidade
             
-    # Prioridade 3: Padrão 15º GB
-    if not batalhao_selecionado:
+    # Prioridade 3: Padrão 15º GB (Apenas para usuários Globais sem vínculo)
+    if not batalhao_selecionado and is_global_user:
         batalhao_selecionado = Unidade.objects.filter(nome__icontains='15', tipo_unidade__codigo='BATALHAO').first()
 
-    # Prioridade 4: Primeiro que encontrar
-    if not batalhao_selecionado:
+    # Prioridade 4: Primeiro que encontrar (Apenas para usuários Globais)
+    if not batalhao_selecionado and is_global_user:
         batalhao_selecionado = Unidade.objects.filter(tipo_unidade__codigo='BATALHAO').first()
 
     total_unidades = 0
@@ -236,6 +240,16 @@ def dashboard_cobom(request):
                 esta_pronto = False
                 mapa_existe = False
                 
+                # --- VERIFICAÇÃO DE PERMISSÃO DE EDIÇÃO PARA ESTA UNIDADE ---
+                pode_editar = is_global_user
+                if not pode_editar:
+                    if user.role == 'BATALHAO' and user.unidade.root_unit == batalhao_selecionado:
+                        pode_editar = True
+                    elif user.role == 'SGB' and (user.unidade == sgb or user.unidade == unidade):
+                        pode_editar = True
+                    elif user.role == 'POSTO' and user.unidade == unidade:
+                        pode_editar = True
+
                 telegrafista_info = {
                     'nome': "AGUARDANDO...",
                     'nome_padrao': "AGUARDANDO...",
@@ -349,7 +363,8 @@ def dashboard_cobom(request):
                     'mapa_existe': mapa_existe,
                     'esta_pronto': esta_pronto,
                     'telegrafista': telegrafista_info,
-                    'stats': stats
+                    'stats': stats,
+                    'pode_editar': pode_editar
                 })
             
             if postos_result:
@@ -368,6 +383,7 @@ def dashboard_cobom(request):
         'vtrs_reserva_global': vtrs_reserva_global,
         'batalhoes': batalhoes,
         'batalhao_selecionado': batalhao_selecionado,
+        'is_global_user': is_global_user,
         'botoes_atalho': ['Aeroportos', 'Alarmes / Cód OPM', 'VTR Reserva', 'Normas do CB', 'Links / Intranet', 'Bairros', 'Pesquisa'],
         'oficiais': [
             {'cargo': 'Supervisor de Serviço', 'nome': 'CAP PM RODRIGUES', 'tipo': 'DIA'}, 
