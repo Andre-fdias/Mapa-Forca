@@ -33,6 +33,7 @@ urlpatterns = [
     path('escalas/', include('escalas.urls')),
     path('unidades/', include('unidades.urls')),
     path('efetivo/', include('efetivo.urls')),
+    path('tickets/', include('tickets.urls')),
     path('accounts/', include('accounts.urls')),
     
     # Auth
