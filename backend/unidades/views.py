@@ -168,6 +168,7 @@ def dashboard_cobom(request):
     user = request.user
     
     # --- LÓGICA DE PERMISSÕES DE ACESSO AO GRUPAMENTO (BATALHÃO) ---
+    # ADMIN e COBOM são usuários globais (veem todos os Batalhões)
     is_global_user = user.is_superuser or user.role in ['ADMIN', 'COBOM']
     
     # Seletor de Unidades (Aparece apenas para usuários Globais)
@@ -182,13 +183,19 @@ def dashboard_cobom(request):
     if batalhao_id and is_global_user:
         batalhao_selecionado = Unidade.objects.filter(id=batalhao_id).first()
     
-    # Prioridade 2: Unidade de vínculo (Detecta Batalhão raiz para POSTO/SGB)
+    # Prioridade 2: Unidade de vínculo (Detecta Batalhão raiz para POSTO/SGB/BATALHAO)
     if not batalhao_selecionado and user.unidade:
-        root = user.unidade.root_unit
-        if root.tipo_unidade and root.tipo_unidade.codigo == 'BATALHAO':
-            batalhao_selecionado = root
-        elif user.unidade.tipo_unidade and user.unidade.tipo_unidade.codigo == 'BATALHAO':
-            batalhao_selecionado = user.unidade
+        curr = user.unidade
+        while curr:
+            if curr.tipo_unidade and curr.tipo_unidade.codigo == 'BATALHAO':
+                batalhao_selecionado = curr
+                break
+            if 'GB' in curr.nome.upper() and 'SGB' not in curr.nome.upper():
+                batalhao_selecionado = curr
+                break
+            curr = curr.parent
+        if not batalhao_selecionado:
+            batalhao_selecionado = user.unidade.root_unit
             
     # Prioridade 3: Padrão 15º GB (Apenas para usuários Globais sem vínculo)
     if not batalhao_selecionado and is_global_user:
@@ -222,10 +229,8 @@ def dashboard_cobom(request):
             postos_unidades = sgb.subunidades.all().order_by('nome')
             
             for unidade in postos_unidades:
-                # Filtro Operacional (Vem da Planilha via modelo Posto)
                 posto_obj_real = Posto.objects.filter(Q(cod_secao=unidade.codigo_secao) | Q(nome=unidade.nome)).first()
                 
-                # Se não houver informação no Posto ou se estiver como OPERACIONAL (ou vazio), mostramos.
                 is_operacional = True
                 if posto_obj_real and posto_obj_real.operacional_adm:
                     status_op = str(posto_obj_real.operacional_adm).upper()
@@ -240,15 +245,16 @@ def dashboard_cobom(request):
                 esta_pronto = False
                 mapa_existe = False
                 
-                # --- VERIFICAÇÃO DE PERMISSÃO DE EDIÇÃO PARA ESTA UNIDADE ---
+                # --- VERIFICAÇÃO DE PERMISSÃO DE EDIÇÃO ---
+                # A regra é: ver todos do Batalhão, mas editar só o que compete ao nível
                 pode_editar = is_global_user
                 if not pode_editar:
-                    if user.role == 'BATALHAO' and user.unidade.root_unit == batalhao_selecionado:
-                        pode_editar = True
-                    elif user.role == 'SGB' and (user.unidade == sgb or user.unidade == unidade):
-                        pode_editar = True
-                    elif user.role == 'POSTO' and user.unidade == unidade:
-                        pode_editar = True
+                    if user.role == 'BATALHAO':
+                        pode_editar = (batalhao_selecionado == user.unidade or user.unidade.root_unit == batalhao_selecionado)
+                    elif user.role == 'SGB':
+                        pode_editar = (user.unidade == sgb)
+                    elif user.role == 'POSTO':
+                        pode_editar = (user.unidade == unidade)
 
                 telegrafista_info = {
                     'nome': "AGUARDANDO...",
@@ -273,7 +279,6 @@ def dashboard_cobom(request):
                     esta_pronto = True
                     total_completos += 1
                     
-                    # Contagem Global de Efetivo do Mapa (Independente de Viatura)
                     alocs_pms = AlocacaoFuncionario.objects.filter(mapa=mapa).select_related('funcionario', 'funcao')
                     stats['efetivo_total'] = alocs_pms.count()
                     global_stats['militares_escalados'] += stats['efetivo_total']
@@ -293,7 +298,6 @@ def dashboard_cobom(request):
                             if 'LEVE' in str(ef_info.ovb).upper(): stats['ovb_leve'] += 1
                             if 'PESADO' in str(ef_info.ovb).upper(): stats['ovb_pesado'] += 1
 
-                    # Processamento de Viaturas para exibição
                     prefixos_tel = ['TELEGRAFISTA', 'TELEGRAFIA']
                     alocacoes_vtr_lista = AlocacaoViatura.objects.filter(
                         mapa=mapa, 
@@ -404,18 +408,24 @@ def cadastro_viaturas_view(request):
     viaturas = Viatura.objects.select_related('status_base', 'unidade_base').all()
 
     # --- LÓGICA DE PERMISSÕES ---
-    is_restricted = not user.is_superuser and user.role not in ['ADMIN', 'COBOM']
+    is_global_user = user.is_superuser or user.role in ['ADMIN', 'COBOM']
 
     gb_unidade = None
-    if is_restricted:
+    if not is_global_user:
         if user.unidade:
             # Sobe na hierarquia para encontrar o GB (Batalhão)
             curr = user.unidade
             while curr:
-                if 'GB' in curr.nome.upper():
+                if curr.tipo_unidade and curr.tipo_unidade.codigo == 'BATALHAO':
+                    gb_unidade = curr
+                    break
+                if 'GB' in curr.nome.upper() and 'SGB' not in curr.nome.upper():
                     gb_unidade = curr
                     break
                 curr = curr.parent
+
+            if not gb_unidade:
+                gb_unidade = user.unidade.root_unit
 
             if gb_unidade:
                 # Extrai o número do GB (ex: "07") para match parcial seguro
@@ -424,15 +434,12 @@ def cadastro_viaturas_view(request):
                     unidade_num = match.group(1).lstrip('0')
                     viaturas = viaturas.filter(
                         Q(opmcb__icontains=f"{unidade_num}º GB") | 
-                        Q(opmcb__icontains=f"0{unidade_num}º GB")
+                        Q(opmcb__icontains=f"0{unidade_num}º GB") |
+                        Q(opmcb__icontains=f"{unidade_num} GB")
                     )
                 else:
                     viaturas = viaturas.filter(opmcb__icontains=gb_unidade.nome)
-            else:
-                # Se não achou GB na hierarquia, filtra pelo nome da unidade do usuário
-                viaturas = viaturas.filter(opmcb__icontains=user.unidade.nome)
         else:
-            # Usuário restrito sem unidade não vê nada
             viaturas = viaturas.none()
 
     # --- FILTROS DE BUSCA ---
@@ -447,36 +454,29 @@ def cadastro_viaturas_view(request):
     if unidade_filter:
         viaturas = viaturas.filter(opmcb__icontains=unidade_filter)
 
-    # --- LÓGICA DE OPÇÕES DOS FILTROS (Restringidas pelas permissões) ---
-    # Usamos um QS base com as mesmas permissões para popular os selects
+    # --- LÓGICA DE OPÇÕES DOS FILTROS ---
     perm_based_qs = Viatura.objects.all()
-    if is_restricted:
-        if gb_unidade:
-            match = re.search(r'(\d+)', gb_unidade.nome)
-            if match:
-                unidade_num = match.group(1).lstrip('0')
-                perm_based_qs = perm_based_qs.filter(
-                    Q(opmcb__icontains=f"{unidade_num}º GB") | 
-                    Q(opmcb__icontains=f"0{unidade_num}º GB")
-                )
-            else:
-                perm_based_qs = perm_based_qs.filter(opmcb__icontains=gb_unidade.nome)
-        elif user.unidade:
-            perm_based_qs = perm_based_qs.filter(opmcb__icontains=user.unidade.nome)
+    if not is_global_user and gb_unidade:
+        match = re.search(r'(\d+)', gb_unidade.nome)
+        if match:
+            unidade_num = match.group(1).lstrip('0')
+            perm_based_qs = perm_based_qs.filter(
+                Q(opmcb__icontains=f"{unidade_num}º GB") | 
+                Q(opmcb__icontains=f"0{unidade_num}º GB") |
+                Q(opmcb__icontains=f"{unidade_num} GB")
+            )
         else:
-            perm_based_qs = perm_based_qs.none()
+            perm_based_qs = perm_based_qs.filter(opmcb__icontains=gb_unidade.nome)
+    elif not is_global_user:
+        perm_based_qs = perm_based_qs.none()
 
-    # A lista de Unidades (GBs)
     lista_unidades = perm_based_qs.exclude(opmcb__isnull=True).values_list('opmcb', flat=True).distinct().order_by('opmcb')
-
-    # Base de consulta para SGB e Garagem depende da Unidade selecionada
     base_filtros = perm_based_qs
     if unidade_filter:
         base_filtros = base_filtros.filter(opmcb__icontains=unidade_filter)
 
     lista_sgb = base_filtros.exclude(sgb__isnull=True).values_list('sgb', flat=True).distinct().order_by('sgb')
     lista_garagem = base_filtros.exclude(garagem__isnull=True).values_list('garagem', flat=True).distinct().order_by('garagem')
-
     status_options = Dictionary.objects.filter(tipo='STATUS_VIATURA').order_by('ordem')
 
     return render(request, 'unidades/cadastro_viaturas.html', {
@@ -491,6 +491,7 @@ def cadastro_viaturas_view(request):
         'lista_unidades': lista_unidades,
         'status_options': status_options
     })
+
 @login_required
 def sync_sheets_action(request):
     try:
@@ -509,37 +510,36 @@ def lista_postos_view(request):
     postos = Posto.objects.prefetch_related('municipios').all().order_by('unidade', 'sgb', 'nome')
 
     # --- LÓGICA DE PERMISSÕES ---
-    is_restricted = not user.is_superuser and user.role not in ['ADMIN', 'COBOM']
+    is_global_user = user.is_superuser or user.role in ['ADMIN', 'COBOM']
 
     gb_unidade = None
-    if is_restricted:
+    if not is_global_user:
         if user.unidade:
-            # Sobe na hierarquia para encontrar o GB (Batalhão)
             curr = user.unidade
             while curr:
-                if 'GB' in curr.nome.upper():
+                if curr.tipo_unidade and curr.tipo_unidade.codigo == 'BATALHAO':
+                    gb_unidade = curr
+                    break
+                if 'GB' in curr.nome.upper() and 'SGB' not in curr.nome.upper():
                     gb_unidade = curr
                     break
                 curr = curr.parent
 
+            if not gb_unidade:
+                gb_unidade = user.unidade.root_unit
+
             if gb_unidade:
-                # Extrai o número do GB (ex: "07") para match parcial seguro
                 match = re.search(r'(\d+)', gb_unidade.nome)
                 if match:
                     unidade_num = match.group(1).lstrip('0')
-                    # Filtra postos que pertencem a este GB (ex: "7º GB" ou "07º GB" no campo unidade do Posto)
-                    # Nota: O modelo Posto tem campo 'unidade' como CharField
                     postos = postos.filter(
                         Q(unidade__icontains=f"{unidade_num}º GB") | 
-                        Q(unidade__icontains=f"0{unidade_num}º GB")
+                        Q(unidade__icontains=f"0{unidade_num}º GB") |
+                        Q(unidade__icontains=f"{unidade_num} GB")
                     )
                 else:
                     postos = postos.filter(unidade__icontains=gb_unidade.nome)
-            else:
-                # Se não achou GB na hierarquia, filtra pelo nome da unidade do usuário
-                postos = postos.filter(unidade__icontains=user.unidade.nome)
         else:
-            # Usuário restrito sem unidade não vê nada
             postos = postos.none()
 
     # --- FILTROS DE BUSCA ---
@@ -550,28 +550,23 @@ def lista_postos_view(request):
     if sgb_filter:
         postos = postos.filter(sgb=sgb_filter)
 
-    # --- LÓGICA DE OPÇÕES DOS FILTROS (Restringidas pelas permissões) ---
+    # --- LÓGICA DE OPÇÕES DOS FILTROS ---
     perm_based_qs = Posto.objects.all()
-    if is_restricted:
-        if gb_unidade:
-            match = re.search(r'(\d+)', gb_unidade.nome)
-            if match:
-                unidade_num = match.group(1).lstrip('0')
-                perm_based_qs = perm_based_qs.filter(
-                    Q(unidade__icontains=f"{unidade_num}º GB") | 
-                    Q(unidade__icontains=f"0{unidade_num}º GB")
-                )
-            else:
-                perm_based_qs = perm_based_qs.filter(unidade__icontains=gb_unidade.nome)
-        elif user.unidade:
-            perm_based_qs = perm_based_qs.filter(unidade__icontains=user.unidade.nome)
+    if not is_global_user and gb_unidade:
+        match = re.search(r'(\d+)', gb_unidade.nome)
+        if match:
+            unidade_num = match.group(1).lstrip('0')
+            perm_based_qs = perm_based_qs.filter(
+                Q(unidade__icontains=f"{unidade_num}º GB") | 
+                Q(unidade__icontains=f"0{unidade_num}º GB") |
+                Q(unidade__icontains=f"{unidade_num} GB")
+            )
         else:
-            perm_based_qs = perm_based_qs.none()
+            perm_based_qs = perm_based_qs.filter(unidade__icontains=gb_unidade.nome)
+    elif not is_global_user:
+        perm_based_qs = perm_based_qs.none()
 
-    # Unidades únicas baseadas nas permissões
     lista_unidades = perm_based_qs.exclude(unidade__isnull=True).exclude(unidade='').values_list('unidade', flat=True).distinct().order_by('unidade')
-    
-    # SGBs únicos filtrados pela unidade e permissões
     base_sgbs = perm_based_qs
     if unidade_filter:
         base_sgbs = base_sgbs.filter(unidade=unidade_filter)

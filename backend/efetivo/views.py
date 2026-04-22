@@ -49,19 +49,25 @@ def lista_efetivo_importado(request):
     efetivo_qs = Efetivo.objects.all().order_by('nome')
 
     # --- LÓGICA DE PERMISSÕES ---
-    is_restricted = not user.is_superuser and user.role not in ['ADMIN', 'COBOM']
+    is_global_user = user.is_superuser or user.role in ['ADMIN', 'COBOM']
     
     gb_unidade = None
-    if is_restricted:
+    if not is_global_user:
         if user.unidade:
             # Sobe na hierarquia para encontrar o GB (Batalhão)
             curr = user.unidade
             while curr:
-                if 'GB' in curr.nome.upper():
+                if curr.tipo_unidade and curr.tipo_unidade.codigo == 'BATALHAO':
+                    gb_unidade = curr
+                    break
+                if 'GB' in curr.nome.upper() and 'SGB' not in curr.nome.upper():
                     gb_unidade = curr
                     break
                 curr = curr.parent
             
+            if not gb_unidade:
+                gb_unidade = user.unidade.root_unit
+
             if gb_unidade:
                 # Extrai o número do GB (ex: "07" ou "7")
                 match = re.search(r'(\d+)', gb_unidade.nome)
@@ -69,13 +75,11 @@ def lista_efetivo_importado(request):
                     unidade_num = match.group(1).lstrip('0')
                     efetivo_qs = efetivo_qs.filter(
                         Q(unidade__icontains=f"{unidade_num}º GB") | 
-                        Q(unidade__icontains=f"0{unidade_num}º GB")
+                        Q(unidade__icontains=f"0{unidade_num}º GB") |
+                        Q(unidade__icontains=f"{unidade_num} GB")
                     )
                 else:
                     efetivo_qs = efetivo_qs.filter(unidade__icontains=gb_unidade.nome)
-            else:
-                # Se não achou GB na hierarquia, tenta filtrar pelo nome da unidade do usuário mesmo
-                efetivo_qs = efetivo_qs.filter(unidade__icontains=user.unidade.nome)
         else:
             efetivo_qs = efetivo_qs.none()
     
@@ -97,21 +101,19 @@ def lista_efetivo_importado(request):
 
     # --- LÓGICA DE OPÇÕES DOS FILTROS ---
     perm_based_qs = Efetivo.objects.all()
-    if is_restricted:
-        if gb_unidade:
-            match = re.search(r'(\d+)', gb_unidade.nome)
-            if match:
-                unidade_num = match.group(1).lstrip('0')
-                perm_based_qs = perm_based_qs.filter(
-                    Q(unidade__icontains=f"{unidade_num}º GB") | 
-                    Q(unidade__icontains=f"0{unidade_num}º GB")
-                )
-            else:
-                perm_based_qs = perm_based_qs.filter(unidade__icontains=gb_unidade.nome)
-        elif user.unidade:
-            perm_based_qs = perm_based_qs.filter(unidade__icontains=user.unidade.nome)
+    if not is_global_user and gb_unidade:
+        match = re.search(r'(\d+)', gb_unidade.nome)
+        if match:
+            unidade_num = match.group(1).lstrip('0')
+            perm_based_qs = perm_based_qs.filter(
+                Q(unidade__icontains=f"{unidade_num}º GB") | 
+                Q(unidade__icontains=f"0{unidade_num}º GB") |
+                Q(unidade__icontains=f"{unidade_num} GB")
+            )
         else:
-            perm_based_qs = perm_based_qs.none()
+            perm_based_qs = perm_based_qs.filter(unidade__icontains=gb_unidade.nome)
+    elif not is_global_user:
+        perm_based_qs = perm_based_qs.none()
 
     lista_unidades = perm_based_qs.exclude(unidade__isnull=True).exclude(unidade='').values_list('unidade', flat=True).distinct().order_by('unidade')
     

@@ -68,42 +68,67 @@ def compor_mapa_view(request):
     mapa = None
     
     user = request.user
-    is_restricted = not user.is_superuser and user.role not in ['ADMIN', 'COBOM']
+    is_global_user = user.is_superuser or user.role in ['ADMIN', 'COBOM']
 
-    user_root_unit = None
+    # --- IDENTIFICAÇÃO DO BATALHÃO VINCULADO ---
+    user_gb_name = None
+    batalhao_vinculado = None
     if user.unidade:
         curr = user.unidade
         while curr:
-            if 'GB' in curr.nome.upper() and 'SGB' not in curr.nome.upper(): user_root_unit = curr.nome; break
+            if curr.tipo_unidade and curr.tipo_unidade.codigo == 'BATALHAO':
+                batalhao_vinculado = curr
+                user_gb_name = curr.nome
+                break
+            if 'GB' in curr.nome.upper() and 'SGB' not in curr.nome.upper():
+                batalhao_vinculado = curr
+                user_gb_name = curr.nome
+                break
             curr = curr.parent
-        if not user_root_unit and user.unidade.root_unit: user_root_unit = user.unidade.root_unit.nome
+        
+        if not batalhao_vinculado:
+            batalhao_vinculado = user.unidade.root_unit
+            user_gb_name = batalhao_vinculado.nome
 
+    # --- LÓGICA DE FILTRAGEM DE VISUALIZAÇÃO (GLOBAL DENTRO DO BATALHÃO) ---
     lista_opm = list(Posto.objects.exclude(unidade__isnull=True).exclude(unidade='').values_list('unidade', flat=True).distinct().order_by('unidade'))
-    if is_restricted and user_root_unit: categoria = user_root_unit
-    elif not categoria and lista_opm: categoria = lista_opm[0]
+    
+    if not is_global_user and user_gb_name:
+        categoria = user_gb_name
+    elif not categoria and lista_opm:
+        categoria = lista_opm[0]
 
+    # --- LÓGICA DE SEGURANÇA DE EDIÇÃO ---
     unidade_obj = None
     if u_id:
         unidade_obj = get_object_or_404(Unidade, id=u_id)
-        if is_restricted:
-            curr_target = unidade_obj
-            target_root = None
-            while curr_target:
-                if 'GB' in curr_target.nome.upper() and 'SGB' not in curr_target.nome.upper(): target_root = curr_target.nome; break
-                curr_target = curr_target.parent
-            if not target_root: target_root = unidade_obj.root_unit.nome if (unidade_obj.root_unit and unidade_obj.root_unit.nome) else unidade_obj.nome
-            if normalize_opm_name(target_root) != normalize_opm_name(user_root_unit): unidade_obj = user.unidade
+        
+        if not is_global_user:
+            # Verifica se a unidade pertence ao Batalhão do usuário
+            unit_gb = unidade_obj.root_unit
+            if normalize_opm_name(unit_gb.nome) != normalize_opm_name(user_gb_name):
+                # Tentativa de burlar: força para a unidade do usuário
+                unidade_obj = user.unidade
             else:
+                # Dentro do Batalhão, verifica permissões específicas de edição
                 if user.role == 'SGB':
+                    # Verifica se a unidade alvo pertence ao mesmo SGB do usuário
                     p_target = Posto.objects.filter(Q(cod_secao=unidade_obj.codigo_secao) | Q(nome=unidade_obj.nome)).first()
                     p_user = Posto.objects.filter(Q(cod_secao=user.unidade.codigo_secao) | Q(nome=user.unidade.nome)).first()
-                    if p_target and p_user and p_target.sgb != p_user.sgb: unidade_obj = user.unidade
-                elif user.role == 'POSTO' and unidade_obj != user.unidade: unidade_obj = user.unidade
-    else: unidade_obj = user.unidade
+                    if p_target and p_user and p_target.sgb != p_user.sgb:
+                        unidade_obj = user.unidade
+                elif user.role == 'POSTO':
+                    # Posto edita apenas sua própria unidade
+                    if unidade_obj != user.unidade:
+                        unidade_obj = user.unidade
+    else:
+        # Se não informou ID, carrega a unidade do usuário
+        unidade_obj = user.unidade
 
     if unidade_obj:
         mapa, created = MapaDiario.objects.get_or_create(data=hoje, unidade=unidade_obj, defaults={'criado_por': user})
 
+    # --- POPULAÇÃO DOS FILTROS (Visualiza tudo do Batalhão) ---
     lista_sgbs = []
     qs_unidades = Unidade.objects.none()
     if categoria:
@@ -111,18 +136,18 @@ def compor_mapa_view(request):
         gb_num = match_gb.group(1) if match_gb else ""
         q_planilha = Q(unidade__icontains=categoria)
         if gb_num: q_planilha |= Q(unidade__icontains=f"{gb_num}")
+        
         lista_sgbs = list(Posto.objects.filter(q_planilha).exclude(sgb__isnull=True).exclude(sgb='').values_list('sgb', flat=True).distinct().order_by('sgb'))
-        if is_restricted and user.role == 'SGB':
-            p_user = Posto.objects.filter(Q(cod_secao=user.unidade.codigo_secao) | Q(nome=user.unidade.nome)).first()
-            if p_user: sgb_param = p_user.sgb
+        
         filtro_postos_final = q_planilha
         if sgb_param: filtro_postos_final &= Q(sgb=sgb_param)
+        
         dados_postos = Posto.objects.filter(filtro_postos_final).values('cod_secao', 'nome')
         codigos = [d['cod_secao'] for d in dados_postos if d['cod_secao']]
         nomes = [d['nome'] for d in dados_postos]
+        
         qs_unidades = Unidade.objects.filter(Q(codigo_secao__in=codigos) | Q(nome__in=nomes)).distinct()
-        if not qs_unidades.exists() and not sgb_param: qs_unidades = Unidade.objects.filter(Q(nome__icontains=gb_num) | Q(parent__nome__icontains=gb_num))
-    if is_restricted and user.role == 'POSTO': qs_unidades = Unidade.objects.filter(id=user.unidade.id)
+    
     todas_unidades = qs_unidades.order_by('nome')
 
     viaturas_disponiveis = []
@@ -131,10 +156,8 @@ def compor_mapa_view(request):
         gb_num_vtr = match_gb_vtr.group(1) if match_gb_vtr else ""
         q_vtr = Q(opmcb__icontains=categoria)
         if gb_num_vtr:
-            q_vtr |= Q(opmcb__icontains=f"{gb_num_vtr}º GB")
-            q_vtr |= Q(opmcb__icontains=f"{gb_num_vtr} GB")
-            q_vtr |= Q(opmcb__icontains=f"{gb_num_vtr}GB")
-            q_vtr |= Q(prefixo__startswith=f"{gb_num_vtr}")
+            q_vtr |= Q(opmcb__icontains=f"{gb_num_vtr}º GB") | Q(opmcb__icontains=f"{gb_num_vtr} GB") | Q(prefixo__startswith=f"{gb_num_vtr}")
+        
         viats_qs = Viatura.objects.filter(q_vtr).exclude(prefixo='TELEGRAFIA')
         viaturas_disponiveis = list(viats_qs.order_by('prefixo'))
         v_telegrafia = Viatura.objects.filter(prefixo='TELEGRAFIA').first()
@@ -144,10 +167,23 @@ def compor_mapa_view(request):
     context = {
         'mapa': mapa, 'todas_unidades': todas_unidades, 'viaturas_disponiveis': viaturas_disponiveis,
         'categorias_opm': lista_opm, 'categoria_selecionada': categoria, 'lista_sgbs': lista_sgbs,
-        'sgb_selecionado': sgb_param, 'user_gb': user_root_unit, 'hoje': hoje,
+        'sgb_selecionado': sgb_param, 'user_gb': user_gb_name, 'hoje': hoje,
         'funcoes': Dictionary.objects.filter(tipo='FUNCAO_OPERACIONAL'),
     }
+    
     if request.headers.get('HX-Request') and not u_id: return render(request, 'escalas/partials/filtros_unidade_compor.html', context)
+    
+    # Roteamento baseado no nível de acesso (Role) para COBOM
+    if user.role == 'COBOM':
+        funcs_com_alocacoes = []
+        if mapa:
+            all_alocs = AlocacaoFuncionario.objects.filter(mapa=mapa, alocacao_viatura__isnull=True).select_related('funcionario', 'funcao')
+            for fn in context['funcoes']:
+                funcs_com_alocacoes.append({'funcao': fn, 'alocacoes': all_alocs.filter(funcao=fn)})
+        context.update({'base_template': 'base.html', 'funcs_com_alocacoes': funcs_com_alocacoes})
+        return render(request, 'mapa_forca/compor_mapa_cobom.html', context)
+
+    return render(request, 'escalas/compor_mapa.html', context)
     
     # Roteamento baseado no nível de acesso (Role)
     if user.role == 'COBOM':
