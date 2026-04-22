@@ -50,8 +50,7 @@
                 <thead>
                     <tr class="bg-slate-50 dark:bg-white/5 text-[10px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-[0.2em]">
                         <th class="px-6 py-4">ID</th>
-                        <th class="px-6 py-4">Assunto</th>
-                        <th class="px-6 py-4">Categoria</th>
+                        <th class="px-6 py-4">Assunto / Categoria</th>
                         <th class="px-6 py-4">Status</th>
                         <th class="px-6 py-4">Prioridade</th>
                         <th class="px-6 py-4">Data</th>
@@ -64,16 +63,11 @@
                         <td class="px-6 py-4 text-xs font-black text-slate-400">#{{ ticket.id }}</td>
                         <td class="px-6 py-4">
                             <div class="flex flex-col">
-                                <span class="text-sm font-bold text-slate-900 dark:text-white">{{ ticket.titulo }}</span>
+                                <span class="text-sm font-bold text-slate-900 dark:text-white">{{ ticket.get_titulo_display }}</span>
                                 {% if is_support_team %}
                                 <span class="text-[9px] text-slate-500 uppercase font-bold">{{ ticket.requisitante.email }}</span>
                                 {% endif %}
                             </div>
-                        </td>
-                        <td class="px-6 py-4">
-                            <span class="text-[10px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-widest bg-slate-100 dark:bg-white/5 px-2 py-1 rounded-md">
-                                {{ ticket.get_categoria_display }}
-                            </span>
                         </td>
                         <td class="px-6 py-4">
                             <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-widest border

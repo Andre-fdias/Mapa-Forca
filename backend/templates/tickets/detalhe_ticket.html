@@ -3,7 +3,7 @@
 {% block title %}Chamado #{{ ticket.id }} — Mapa Força{% endblock %}
 
 {% block content %}
-<div class="max-w-5xl mx-auto py-8 px-4 sm:px-6 lg:px-8 animate-fade-in">
+<div class="max-w-5xl mx-auto py-8 px-4 sm:px-6 lg:px-8 animate-fade-in text-[var(--text-primary)]">
     <!-- Breadcrumb e Status -->
     <div class="flex flex-col md:flex-row md:items-center justify-between mb-8 gap-4">
         <div>
@@ -12,7 +12,7 @@
                 Voltar para lista
             </a>
             <h1 class="text-2xl font-black text-slate-900 dark:text-white uppercase tracking-tighter italic">
-                Chamado <span class="text-red-600">#{{ ticket.id }}</span>: {{ ticket.titulo }}
+                Chamado <span class="text-red-600">#{{ ticket.id }}</span>: {{ ticket.get_titulo_display }}
             </h1>
         </div>
         
@@ -28,9 +28,10 @@
             {% if is_support_team %}
             <form method="POST" action="{% url 'tickets:ticket_update_status' ticket.id %}" class="flex items-center space-x-2">
                 {% csrf_token %}
-                <select name="status" onchange="this.form.submit()" class="bg-slate-100 dark:bg-white/5 border-none rounded-xl text-[10px] font-black uppercase px-3 py-2 outline-none">
+                <select name="status" onchange="this.form.submit()" class="bg-slate-100 dark:bg-white/5 border border-slate-200 dark:border-white/10 rounded-xl text-[10px] font-black uppercase px-3 py-2 outline-none focus:ring-2 focus:ring-red-600 transition-all cursor-pointer">
+                    <option value="" disabled>Alterar Status</option>
                     {% for code, label in ticket.STATUS_CHOICES %}
-                    <option value="{{ code }}" {% if ticket.status == code %}selected{% endif %}>Mudar para {{ label }}</option>
+                    <option value="{{ code }}" {% if ticket.status == code %}selected{% endif %}>{{ label }}</option>
                     {% endfor %}
                 </select>
             </form>
@@ -53,12 +54,10 @@
                         <p class="text-sm font-bold text-slate-900 dark:text-white">{{ ticket.requisitante.unidade.nome|default:"S/ UNIDADE" }}</p>
                     </div>
                     <div>
-                        <p class="text-[9px] font-bold text-slate-500 uppercase">Categoria</p>
-                        <p class="text-sm font-bold text-slate-900 dark:text-white">{{ ticket.get_categoria_display }}</p>
-                    </div>
-                    <div>
                         <p class="text-[9px] font-bold text-slate-500 uppercase">Prioridade</p>
-                        <p class="text-sm font-black {% if ticket.prioridade == 'URGENTE' %}text-red-600{% else %}text-slate-900 dark:text-white{% endif %}">{{ ticket.get_prioridade_display }}</p>
+                        <p class="text-sm font-black {% if ticket.prioridade == 'URGENTE' %}text-red-600{% elif ticket.prioridade == 'ALTA' %}text-orange-500{% else %}text-slate-900 dark:text-white{% endif %}">
+                            {{ ticket.get_prioridade_display }}
+                        </p>
                     </div>
                     <div>
                         <p class="text-[9px] font-bold text-slate-500 uppercase">Data de Abertura</p>

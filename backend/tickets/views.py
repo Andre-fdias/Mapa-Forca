@@ -28,26 +28,21 @@ def ticket_list_view(request):
 
 @login_required
 def ticket_create_view(request):
-    """Abre um novo chamado."""
+    """Abre um novo chamado com assunto padronizado."""
     if request.method == 'POST':
         titulo = request.POST.get('titulo')
         descricao = request.POST.get('descricao')
-        categoria = request.POST.get('categoria', 'OUTRO')
-        prioridade = request.POST.get('prioridade', 'MEDIA')
         
         ticket = Ticket.objects.create(
             requisitante=request.user,
             titulo=titulo,
-            descricao=descricao,
-            categoria=categoria,
-            prioridade=prioridade
+            descricao=descricao
         )
-        messages.success(request, f"Chamado #{ticket.id} aberto com sucesso!")
+        messages.success(request, f"Chamado #{ticket.id} aberto com sucesso! Prioridade: {ticket.get_prioridade_display()}")
         return redirect('tickets:ticket_detail', pk=ticket.id)
         
     return render(request, 'tickets/novo_ticket.html', {
-        'categorias': Ticket.CATEGORIA_CHOICES,
-        'prioridades': Ticket.PRIORIDADE_CHOICES
+        'assuntos': Ticket.ASSUNTO_CHOICES
     })
 
 @login_required
