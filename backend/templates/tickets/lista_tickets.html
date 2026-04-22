@@ -49,7 +49,7 @@
             <table class="w-full text-left border-collapse">
                 <thead>
                     <tr class="bg-slate-50 dark:bg-white/5 text-[10px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-[0.2em]">
-                        <th class="px-6 py-4">ID</th>
+                        <th class="px-6 py-4">Protocolo</th>
                         <th class="px-6 py-4">Assunto / Categoria</th>
                         <th class="px-6 py-4">Status</th>
                         <th class="px-6 py-4">Prioridade</th>
@@ -60,7 +60,7 @@
                 <tbody class="divide-y divide-slate-100 dark:divide-white/5">
                     {% for ticket in tickets %}
                     <tr class="hover:bg-slate-50 dark:hover:bg-white/5 transition-colors group">
-                        <td class="px-6 py-4 text-xs font-black text-slate-400">#{{ ticket.id }}</td>
+                        <td class="px-6 py-4 text-xs font-black text-slate-400">{{ ticket.protocolo|default:ticket.id }}</td>
                         <td class="px-6 py-4">
                             <div class="flex flex-col">
                                 <span class="text-sm font-bold text-slate-900 dark:text-white">{{ ticket.get_titulo_display }}</span>
