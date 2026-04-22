@@ -166,22 +166,31 @@ def dashboard_cobom(request):
     """Dashboard Geral (COBOM/Grande Comando) com mapeamento dinâmico e dados REAIS."""
     hoje = get_data_operacional()
     
-    # Seletor de Unidades (Apenas Admin, Superuser ou COBOM)
-    # Filtramos por BATALHAO para garantir que apenas os Grupamentos reais apareçam
+    # Seletor de Unidades (Aparece para Admin, COBOM e agora também para BATALHAO)
     batalhoes = []
-    if request.user.is_superuser or request.user.role in ['ADMIN', 'COBOM']:
+    if request.user.is_superuser or request.user.role in ['ADMIN', 'COBOM', 'BATALHAO']:
         batalhoes = Unidade.objects.filter(tipo_unidade__codigo='BATALHAO').order_by('nome')
     
     batalhao_id = request.GET.get('batalhao_id')
+    batalhao_selecionado = None
+    
+    # Prioridade 1: Seleção na URL
     if batalhao_id:
         batalhao_selecionado = Unidade.objects.filter(id=batalhao_id).first()
-    else:
-        # Default: Unidade do usuário se for Batalhão, ou 15º GB
-        if request.user.unidade and request.user.unidade.tipo_unidade and request.user.unidade.tipo_unidade.codigo == 'BATALHAO':
+    
+    # Prioridade 2: Unidade de vínculo (Detecta Batalhão raiz para POSTO/SGB)
+    if not batalhao_selecionado and request.user.unidade:
+        root = request.user.unidade.root_unit
+        if root.tipo_unidade and root.tipo_unidade.codigo == 'BATALHAO':
+            batalhao_selecionado = root
+        elif request.user.unidade.tipo_unidade and request.user.unidade.tipo_unidade.codigo == 'BATALHAO':
             batalhao_selecionado = request.user.unidade
-        else:
-            batalhao_selecionado = Unidade.objects.filter(nome__icontains='15', tipo_unidade__codigo='BATALHAO').first()
+            
+    # Prioridade 3: Padrão 15º GB
+    if not batalhao_selecionado:
+        batalhao_selecionado = Unidade.objects.filter(nome__icontains='15', tipo_unidade__codigo='BATALHAO').first()
 
+    # Prioridade 4: Primeiro que encontrar
     if not batalhao_selecionado:
         batalhao_selecionado = Unidade.objects.filter(tipo_unidade__codigo='BATALHAO').first()
 
@@ -206,7 +215,6 @@ def dashboard_cobom(request):
         for sgb in sgbs:
             postos_result = []
             # Postos são subunidades do SGB
-            # Tentamos buscar tanto por subunidades quanto por Posto real da planilha
             postos_unidades = sgb.subunidades.all().order_by('nome')
             
             for unidade in postos_unidades:
@@ -214,7 +222,6 @@ def dashboard_cobom(request):
                 posto_obj_real = Posto.objects.filter(Q(cod_secao=unidade.codigo_secao) | Q(nome=unidade.nome)).first()
                 
                 # Se não houver informação no Posto ou se estiver como OPERACIONAL (ou vazio), mostramos.
-                # Só ocultamos se estiver explicitamente como ADM e não contiver OPERACIONAL.
                 is_operacional = True
                 if posto_obj_real and posto_obj_real.operacional_adm:
                     status_op = str(posto_obj_real.operacional_adm).upper()
@@ -252,18 +259,38 @@ def dashboard_cobom(request):
                     esta_pronto = True
                     total_completos += 1
                     
-                    prefixos_tel = ['TELEGRAFISTA', 'TELEGRAFIA']
+                    # Contagem Global de Efetivo do Mapa (Independente de Viatura)
+                    alocs_pms = AlocacaoFuncionario.objects.filter(mapa=mapa).select_related('funcionario', 'funcao')
+                    stats['efetivo_total'] = alocs_pms.count()
+                    global_stats['militares_escalados'] += stats['efetivo_total']
+                    
+                    for m in alocs_pms:
+                        if m.dejem: 
+                            stats['dejem'] += 1
+                            global_stats['dejem'] += 1
+                        if m.funcao and m.funcao.codigo == 'MOTORISTA':
+                            global_stats['motoristas'] += 1
+                        
+                        ef_info = Efetivo.objects.filter(Q(re=m.funcionario.re) | Q(nome__icontains=m.funcionario.nome_guerra)).first()
+                        if ef_info:
+                            if 'SIM' in str(ef_info.mergulho).upper(): 
+                                stats['mergulhadores'] += 1
+                                global_stats['mergulhadores'] += 1
+                            if 'LEVE' in str(ef_info.ovb).upper(): stats['ovb_leve'] += 1
+                            if 'PESADO' in str(ef_info.ovb).upper(): stats['ovb_pesado'] += 1
 
-                    alocacoes_vtr = AlocacaoViatura.objects.filter(
+                    # Processamento de Viaturas para exibição
+                    prefixos_tel = ['TELEGRAFISTA', 'TELEGRAFIA']
+                    alocacoes_vtr_lista = AlocacaoViatura.objects.filter(
                         mapa=mapa, 
                         status_no_dia__codigo__in=['OPERANDO', 'RESERVA']
                     ).select_related('viatura', 'status_no_dia').exclude(viatura__prefixo__in=prefixos_tel)
                     
-                    stats['vtrs_total'] = alocacoes_vtr.count()
+                    stats['vtrs_total'] = alocacoes_vtr_lista.count()
                     
                     aloc_tel = AlocacaoViatura.objects.filter(mapa=mapa, viatura__prefixo__in=prefixos_tel).first()
                     if aloc_tel:
-                        tel_func = AlocacaoFuncionario.objects.filter(alocacao_viatura=aloc_tel).select_related('funcionario__posto_graduacao').first()
+                        tel_func = alocs_pms.filter(alocacao_viatura=aloc_tel).first()
                         if tel_func:
                             ef_tel = Efetivo.objects.filter(Q(re=tel_func.funcionario.re) | Q(nome__icontains=tel_func.funcionario.nome_guerra)).first()
                             telegrafista_info['nome_padrao'] = ef_tel.nome if ef_tel else format_militar_display(tel_func.funcionario, ef_tel)
@@ -271,13 +298,8 @@ def dashboard_cobom(request):
                             telegrafista_info['is_dejem'] = tel_func.dejem
                             if tel_func.dejem and tel_func.inicio_dejem:
                                 telegrafista_info['horario'] = f"{tel_func.inicio_dejem.strftime('%H:%M')} > {tel_func.termino_dejem.strftime('%H:%M')}"
-                            
-                            global_stats['militares_escalados'] += 1
-                            stats['efetivo_total'] += 1
-                            if tel_func.dejem:
-                                global_stats['dejem'] += 1
 
-                    for aloc in alocacoes_vtr:
+                    for aloc in alocacoes_vtr_lista:
                         if aloc.status_no_dia.codigo == 'OPERANDO':
                             stats['vtrs_operando'] += 1
                             global_stats['vtrs_operando'] += 1
@@ -288,22 +310,12 @@ def dashboard_cobom(request):
                                 'sgb': sgb.nome
                             })
 
-                        equipe = AlocacaoFuncionario.objects.filter(alocacao_viatura=aloc).select_related('funcionario__posto_graduacao', 'funcao')
-                        cmt = equipe.filter(funcao__codigo='COMANDANTE').first()
-                        if not cmt:
-                            cmt = equipe.first()
+                        equipe_vtr = alocs_pms.filter(alocacao_viatura=aloc)
+                        cmt = equipe_vtr.filter(funcao__codigo='COMANDANTE').first() or equipe_vtr.first()
                         
                         membros = []
-                        for m in equipe:
-                            if m.dejem: 
-                                stats['dejem'] += 1
-                                global_stats['dejem'] += 1
-                            
-                            if m.funcao and m.funcao.codigo == 'MOTORISTA':
-                                global_stats['motoristas'] += 1
-
+                        for m in equipe_vtr:
                             efetivo_info = Efetivo.objects.filter(Q(re=m.funcionario.re) | Q(nome__icontains=m.funcionario.nome_guerra)).first()
-                            
                             membros.append({
                                 'nome': m.funcionario.nome_curto,
                                 'nome_padrao': efetivo_info.nome if efetivo_info else m.funcionario.nome_curto.upper(),
@@ -313,30 +325,18 @@ def dashboard_cobom(request):
                                 'dejem': m.dejem,
                                 'horario': f"{m.inicio_dejem.strftime('%H:%M')} > {m.termino_dejem.strftime('%H:%M')}" if m.dejem and m.inicio_dejem else ""
                             })
-                            
-                            if efetivo_info:
-                                if 'SIM' in str(efetivo_info.mergulho).upper(): 
-                                    stats['mergulhadores'] += 1
-                                    global_stats['mergulhadores'] += 1
-                                if 'LEVE' in str(efetivo_info.ovb).upper(): stats['ovb_leve'] += 1
-                                if 'PESADO' in str(efetivo_info.ovb).upper(): stats['ovb_pesado'] += 1
-                            
-                            stats['efetivo_total'] += 1
-                            global_stats['militares_escalados'] += 1
 
-                        enc_nome_sheets = 'S/ CMT'
+                        enc_nome = 'S/ CMT'
                         if cmt:
                             ef_cmt = Efetivo.objects.filter(Q(re=cmt.funcionario.re) | Q(nome__icontains=cmt.funcionario.nome_guerra)).first()
-                            enc_nome_sheets = ef_cmt.nome if ef_cmt else format_militar_display(cmt.funcionario, ef_cmt)
+                            enc_nome = ef_cmt.nome if ef_cmt else format_militar_display(cmt.funcionario, ef_cmt)
                         
-                        encarregado_vtr = {'nome_padrao': enc_nome_sheets}
-
                         viaturas_data.append({
                             'prefixo': aloc.viatura.prefixo, 
                             'status': aloc.status_no_dia.nome,
                             'status_codigo': aloc.status_no_dia.codigo,
-                            'num_pm': equipe.count(),
-                            'encarregado': encarregado_vtr,
+                            'num_pm': equipe_vtr.count(),
+                            'encarregado': {'nome_padrao': enc_nome},
                             'equipe_completa': membros,
                             'vol_agua': aloc.viatura.vol_agua,
                             'combustivel': aloc.viatura.combustivel,

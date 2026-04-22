@@ -1,0 +1,70 @@
+<div class="flex flex-col md:flex-row items-end gap-4">
+    <!-- Grupamento (Fixo ou Seletor) -->
+    {% if user.role == 'ADMIN' or user.role == 'COBOM' %}
+    <div class="flex flex-col w-full md:w-1/4">
+        <label for="categoria-select" class="text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-1 ml-1">Grupamento (OPM)</label>
+        <select id="categoria-select" 
+                name="categoria" 
+                class="bg-white dark:bg-gray-700 text-gray-900 dark:text-white border-gray-300 dark:border-gray-600 rounded-md text-sm focus:ring-red-500 focus:border-red-500 block w-full p-2 shadow-sm"
+                hx-get="{% url 'compor_mapa' %}"
+                hx-target="#filtros-unidade-container"
+                hx-trigger="change">
+            {% for cat in categorias_opm %}
+            <option value="{{ cat }}" {% if cat == categoria_selecionada %}selected{% endif %}>
+                {{ cat }}
+            </option>
+            {% endfor %}
+        </select>
+    </div>
+    {% else %}
+    <!-- Se for Batalhão ou SGB, mantém o valor oculto para o HTMX -->
+    <input type="hidden" name="categoria" id="categoria-select" value="{{ categoria_selecionada }}">
+    {% endif %}
+
+    <!-- Seletor de SGB -->
+    {% if user.role != 'SGB' %}
+    <div class="flex flex-col w-full md:w-1/4" id="sgb-select-container">
+        <label for="sgb-select" class="text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-1 ml-1">Subgrupamento (SGB)</label>
+        <select id="sgb-select" 
+                name="sgb" 
+                class="bg-white dark:bg-gray-700 text-gray-900 dark:text-white border-gray-300 dark:border-gray-600 rounded-md text-sm focus:ring-red-500 focus:border-red-500 block w-full p-2 shadow-sm"
+                hx-get="{% url 'compor_mapa' %}"
+                hx-target="#filtros-unidade-container"
+                hx-trigger="change"
+                hx-include="#categoria-select">
+            <option value="">Todos os SGBs</option>
+            {% for s in lista_sgbs %}
+            <option value="{{ s }}" {% if s == sgb_selecionado %}selected{% endif %}>
+                {{ s }}
+            </option>
+            {% endfor %}
+        </select>
+    </div>
+    {% else %}
+    <!-- Se for SGB, mantém o valor fixo -->
+    <input type="hidden" name="sgb" id="sgb-select" value="{{ sgb_selecionado }}">
+    {% endif %}
+
+    <!-- Seletor de Posto Operacional -->
+    <div class="flex flex-col w-full md:w-1/3" id="posto-select-container">
+        <label for="posto-select" class="text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-1 ml-1">Posto Operacional</label>
+        <select id="posto-select" 
+                name="unidade_id" 
+                class="bg-white dark:bg-gray-700 text-gray-900 dark:text-white border-gray-300 dark:border-gray-600 rounded-md text-sm focus:ring-red-500 focus:border-red-500 block w-full p-2 shadow-sm"
+                onchange="window.location.href='?unidade_id=' + this.value + '&categoria=' + document.getElementById('categoria-select').value + '&sgb=' + document.getElementById('sgb-select').value">
+            <option value="">Selecione o Posto...</option>
+            {% for u in todas_unidades %}
+            <option value="{{ u.id }}" {% if u.id == mapa.unidade.id %}selected{% endif %}>
+                {{ u.nome }}
+            </option>
+            {% endfor %}
+        </select>
+    </div>
+
+    {% if user_gb %}
+    <div class="hidden md:block flex-grow text-right self-center">
+        <span class="text-[9px] font-black text-red-600 uppercase tracking-widest block leading-none">Vínculo Atual</span>
+        <span class="text-sm font-bold text-gray-800 dark:text-gray-200">{{ user_gb }}</span>
+    </div>
+    {% endif %}
+</div>
