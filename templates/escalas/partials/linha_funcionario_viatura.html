@@ -1,0 +1,26 @@
+<div id="aloc-func-{{ aloc_func.id }}" class="flex items-center justify-between bg-gray-50 dark:bg-slate-800 border border-gray-100 dark:border-slate-700 px-2 py-1 rounded transition-colors group">
+    <div class="flex items-center space-x-2 overflow-hidden">
+        <!-- Posto/Graduação -->
+        <span class="text-[8px] font-black bg-gray-200 dark:bg-slate-700 text-gray-700 dark:text-slate-300 px-1 rounded uppercase flex-shrink-0">
+            {{ aloc_func.funcionario.posto_graduacao.nome|default:"PM" }}
+        </span>
+        
+        <!-- Nome de Guerra e RE -->
+        <div class="flex items-center space-x-1 overflow-hidden">
+            <span class="text-[10px] font-bold text-gray-900 dark:text-slate-100 truncate uppercase">{{ aloc_func.funcionario.nome_guerra }}</span>
+            <span class="text-[8px] text-gray-400 dark:text-slate-500 font-mono">{{ aloc_func.funcionario.re }}</span>
+        </div>
+
+        <!-- Função Badge -->
+        <span class="text-[8px] font-black text-red-600 dark:text-red-400 border border-red-200 dark:border-red-900/50 px-1 rounded uppercase flex-shrink-0">
+            {{ aloc_func.funcao.nome }}
+        </span>
+    </div>
+
+    <button hx-delete="{% url 'remover_funcionario_viatura' aloc_func.id %}"
+            hx-target="#aloc-func-{{ aloc_func.id }}"
+            hx-swap="outerHTML"
+            class="text-gray-300 dark:text-slate-600 hover:text-red-600 transition-colors ml-1">
+        <svg class="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M6 18L18 6M6 6l12 12" /></svg>
+    </button>
+</div>

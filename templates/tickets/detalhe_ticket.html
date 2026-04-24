@@ -1,0 +1,140 @@
+{% extends "base/base.html" %}
+
+{% block title %}Chamado #{{ ticket.id }} — Mapa Força{% endblock %}
+
+{% block content %}
+<div class="max-w-5xl mx-auto py-8 px-4 sm:px-6 lg:px-8 animate-fade-in text-[var(--text-primary)]">
+    <!-- Breadcrumb e Status -->
+    <div class="flex flex-col md:flex-row md:items-center justify-between mb-8 gap-4">
+        <div>
+            <a href="{% url 'tickets:ticket_list' %}" class="inline-flex items-center text-xs font-black text-slate-500 hover:text-red-600 uppercase tracking-widest transition-colors mb-4">
+                <svg class="w-4 h-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="3"><path d="M15 19l-7-7 7-7"/></svg>
+                Voltar para lista
+            </a>
+            <h1 class="text-2xl font-black text-slate-900 dark:text-white uppercase tracking-tighter italic">
+                Chamado <span class="text-red-600">#{{ ticket.protocolo|default:ticket.id }}</span>: {{ ticket.get_titulo_display }}
+            </h1>
+        </div>
+        
+        <div class="flex items-center space-x-3">
+            <span class="inline-flex items-center px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest border
+                {% if ticket.status == 'ABERTO' %}bg-amber-500/10 text-amber-500 border-amber-500/20
+                {% elif ticket.status == 'EM_ANDAMENTO' %}bg-blue-500/10 text-blue-500 border-blue-500/20
+                {% elif ticket.status == 'RESOLVIDO' %}bg-emerald-500/10 text-emerald-500 border-emerald-500/20
+                {% else %}bg-slate-500/10 text-slate-500 border-slate-500/20{% endif %}">
+                Status: {{ ticket.get_status_display }}
+            </span>
+            
+            {% if is_support_team %}
+            <form method="POST" action="{% url 'tickets:ticket_update_status' ticket.id %}" class="flex items-center space-x-2">
+                {% csrf_token %}
+                <div class="relative">
+                    <select name="status" onchange="this.form.submit()" class="bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-white/10 rounded-xl text-[10px] font-black uppercase pl-3 pr-8 py-2 outline-none focus:ring-2 focus:ring-red-600 transition-all cursor-pointer appearance-none">
+                        <option value="" disabled>Alterar Status</option>
+                        {% for code, label in ticket.STATUS_CHOICES %}
+                        <option value="{{ code }}" {% if ticket.status == code %}selected{% endif %} class="dark:bg-slate-900">{{ label }}</option>
+                        {% endfor %}
+                    </select>
+                    <div class="absolute inset-y-0 right-0 flex items-center px-2 pointer-events-none text-slate-400">
+                        <svg class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="3"><path d="M19 9l-7 7-7-7"/></svg>
+                    </div>
+                </div>
+            </form>
+            {% endif %}
+        </div>
+    </div>
+
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+        <!-- Coluna de Informações -->
+        <div class="lg:col-span-1 space-y-6">
+            <div class="bg-white dark:bg-slate-900 rounded-2xl shadow-xl border border-slate-200 dark:border-white/5 p-6">
+                <h3 class="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-4">Informações Gerais</h3>
+                <div class="space-y-4">
+                    <div>
+                        <p class="text-[9px] font-bold text-slate-500 uppercase">Requisitante</p>
+                        <p class="text-sm font-bold text-slate-900 dark:text-white">{{ ticket.requisitante.get_full_name|default:ticket.requisitante.email }}</p>
+                    </div>
+                    <div>
+                        <p class="text-[9px] font-bold text-slate-500 uppercase">Unidade</p>
+                        <p class="text-sm font-bold text-slate-900 dark:text-white">{{ ticket.requisitante.unidade.nome|default:"S/ UNIDADE" }}</p>
+                    </div>
+                    <div>
+                        <p class="text-[9px] font-bold text-slate-500 uppercase">Prioridade</p>
+                        <p class="text-sm font-black {% if ticket.prioridade == 'URGENTE' %}text-red-600{% elif ticket.prioridade == 'ALTA' %}text-orange-500{% else %}text-slate-900 dark:text-white{% endif %}">
+                            {{ ticket.get_prioridade_display }}
+                        </p>
+                    </div>
+                    <div>
+                        <p class="text-[9px] font-bold text-slate-500 uppercase">Data de Abertura</p>
+                        <p class="text-sm font-bold text-slate-900 dark:text-white">{{ ticket.criado_em|date:"d/m/Y H:i" }}</p>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="bg-red-600/5 border border-red-600/20 rounded-2xl p-6">
+                <h4 class="text-[10px] font-black text-red-600 uppercase tracking-widest mb-2">Instrução</h4>
+                <p class="text-[11px] text-red-600/80 leading-relaxed font-bold">
+                    Utilize este espaço para interagir com a equipe de suporte. Mantenha o histórico centralizado aqui para facilitar a resolução.
+                </p>
+            </div>
+        </div>
+
+        <!-- Coluna de Mensagens -->
+        <div class="lg:col-span-2 space-y-6">
+            <!-- Descrição Original -->
+            <div class="bg-white dark:bg-slate-900 rounded-2xl shadow-xl border border-slate-200 dark:border-white/5 p-6">
+                <div class="flex items-center space-x-2 mb-4">
+                    <div class="h-1.5 w-6 bg-red-600 rounded-full"></div>
+                    <span class="text-[10px] font-black text-slate-500 uppercase tracking-widest">Descrição Inicial</span>
+                </div>
+                <div class="prose dark:prose-invert max-w-none text-slate-700 dark:text-slate-300 text-sm leading-relaxed">
+                    {{ ticket.descricao|linebreaks }}
+                </div>
+            </div>
+
+            <!-- Thread de Mensagens -->
+            <div class="space-y-4">
+                <h3 class="text-[10px] font-black text-slate-500 uppercase tracking-[0.2em] px-2">Histórico de Interações</h3>
+                
+                {% for msg in ticket.mensagens.all %}
+                <div class="flex flex-col {% if msg.autor == request.user %}items-end{% else %}items-start{% endif %}">
+                    <div class="max-w-[85%] rounded-2xl p-4 shadow-sm border 
+                         {% if msg.autor == request.user %}bg-slate-900 dark:bg-white text-white dark:text-slate-900 border-transparent
+                         {% else %}bg-white dark:bg-slate-800 text-slate-900 dark:text-white border-slate-100 dark:border-white/5{% endif %}">
+                        <div class="flex items-center justify-between space-x-4 mb-2 opacity-60">
+                            <span class="text-[8px] font-black uppercase tracking-tighter">{{ msg.autor.email }}</span>
+                            <span class="text-[8px] font-bold">{{ msg.criado_em|date:"H:i — d/m" }}</span>
+                        </div>
+                        <p class="text-xs font-medium leading-relaxed">{{ msg.mensagem|linebreaksbr }}</p>
+                    </div>
+                </div>
+                {% empty %}
+                <div class="text-center py-8 opacity-30 italic text-xs uppercase font-bold tracking-widest">Aguardando primeira interação...</div>
+                {% endfor %}
+            </div>
+
+            <!-- Campo de Resposta -->
+            {% if ticket.status != 'FECHADO' %}
+            <div class="bg-white dark:bg-slate-900 rounded-2xl shadow-xl border border-slate-200 dark:border-white/5 p-4">
+                <form method="POST">
+                    {% csrf_token %}
+                    <textarea name="mensagem" rows="3" required
+                              placeholder="Digite sua resposta..."
+                              class="w-full bg-slate-50 dark:bg-white/5 border-none rounded-xl px-4 py-3 text-slate-900 dark:text-white focus:ring-2 focus:ring-red-600 outline-none transition-all resize-none text-sm"></textarea>
+                    <div class="flex justify-end mt-3">
+                        <button type="submit" 
+                                class="bg-red-600 hover:bg-red-700 text-white text-[10px] font-black uppercase tracking-widest px-6 py-2.5 rounded-lg shadow-lg shadow-red-600/20 transition-all transform active:scale-95">
+                            Enviar Mensagem
+                        </button>
+                    </div>
+                </form>
+            </div>
+            {% else %}
+            <div class="bg-slate-100 dark:bg-white/5 rounded-2xl p-6 text-center border-2 border-dashed border-slate-200 dark:border-white/10">
+                <p class="text-xs font-black text-slate-400 uppercase tracking-widest">Este chamado foi encerrado e não aceita mais mensagens.</p>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}

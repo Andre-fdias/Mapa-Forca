@@ -1,0 +1,12 @@
+<label for="posto-select" class="text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-1 ml-1">Posto Operacional</label>
+<select id="posto-select" 
+        name="unidade_id" 
+        class="bg-white dark:bg-gray-700 text-gray-900 dark:text-white border-gray-300 dark:border-gray-600 rounded-md text-sm focus:ring-red-500 focus:border-red-500 block w-full p-2 shadow-sm"
+        onchange="window.location.href='?unidade_id=' + this.value + '&categoria=' + document.getElementById('categoria-select').value">
+    <option value="">Selecione o Posto...</option>
+    {% for u in todas_unidades %}
+    <option value="{{ u.id }}" {% if u.id == unidade_selecionada.id %}selected{% endif %}>
+        {{ u.nome }}
+    </option>
+    {% endfor %}
+</select>
