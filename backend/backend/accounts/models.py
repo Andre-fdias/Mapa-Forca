@@ -1,0 +1,116 @@
+from django.contrib.auth.models import AbstractUser, BaseUserManager
+from django.db import models
+from unidades.models import Unidade
+
+class UserManager(BaseUserManager):
+    def create_user(self, email, password=None, **extra_fields):
+        if not email:
+            raise ValueError('O campo Email deve ser definido')
+        email = self.normalize_email(email)
+        user = self.model(email=email, **extra_fields)
+        user.set_password(password)
+        user.save(using=self._db)
+        return user
+
+    def create_superuser(self, email, password=None, **extra_fields):
+        extra_fields.setdefault('is_staff', True)
+        extra_fields.setdefault('is_superuser', True)
+        extra_fields.setdefault('role', 'ADMIN')
+        return self.create_user(email, password, **extra_fields)
+
+class User(AbstractUser):
+    ROLE_CHOICES = (
+        ('ADMIN', 'Administrador'),
+        ('COBOM', 'Central (COBOM)'),
+        ('BATALHAO', 'Batalhão (Total)'),
+        ('SGB', 'SGB (Subgrupamento)'),
+        ('POSTO', 'Posto Operacional'),
+    )
+    
+    STATUS_CHOICES = (
+        ('pending', 'Pendente'),
+        ('approved', 'Aprovado'),
+        ('rejected', 'Rejeitado'),
+    )
+
+    username = None
+    email = models.EmailField(unique=True)
+    
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='pending')
+    
+    role = models.CharField(
+        max_length=20, 
+        choices=ROLE_CHOICES, 
+        default='POSTO'
+    )
+    
+    unidade = models.ForeignKey(
+        Unidade, 
+        on_delete=models.SET_NULL, 
+        null=True, 
+        blank=True,
+        related_name='usuarios',
+        help_text='Unidade principal à qual este usuário pertence'
+    )
+
+    # Campos para solicitações de alteração
+    requested_role = models.CharField(
+        max_length=20, 
+        choices=ROLE_CHOICES, 
+        null=True, 
+        blank=True,
+        help_text='Nova função solicitada'
+    )
+    requested_unidade = models.ForeignKey(
+        Unidade, 
+        on_delete=models.SET_NULL, 
+        null=True, 
+        blank=True,
+        related_name='solicitacoes_vinculo',
+        help_text='Nova unidade solicitada'
+    )
+    is_change_pending = models.BooleanField(
+        default=False,
+        help_text='Define se há uma alteração de perfil aguardando aprovação'
+    )
+    
+    USERNAME_FIELD = 'email'
+    REQUIRED_FIELDS = []
+
+    objects = UserManager()
+
+    def __str__(self):
+        return f"{self.email} ({self.get_role_display()})"
+
+    @property
+    def is_posto(self):
+        return self.role == 'POSTO'
+
+    @property
+    def is_batalhao(self):
+        return self.role == 'BATALHAO'
+
+    @property
+    def is_admin(self):
+        return self.role == 'ADMIN' or self.is_superuser
+
+class Notification(models.Model):
+    TYPE_CHOICES = (
+        ('success', 'Sucesso'),
+        ('warning', 'Alerta'),
+        ('info', 'Informação'),
+        ('danger', 'Crítico'),
+    )
+
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='notifications')
+    mensagem = models.TextField()
+    tipo = models.CharField(max_length=20, choices=TYPE_CHOICES, default='info')
+    lida = models.BooleanField(default=False)
+    exibida_em_modal = models.BooleanField(default=False)
+    criada_em = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['-criada_em']
+
+    def __str__(self):
+        return f"Notif for {self.user.email}: {self.mensagem[:20]}"

@@ -1,0 +1,419 @@
+{% extends "base/base.html" %}
+{% load static %}
+
+{% block title %}COBOM — 15º Grupamento de Bombeiros{% endblock %}
+
+{% block extra_head %}
+<style>
+    :root {
+        --bg-primary: #f8fafc;
+        --bg-secondary: #ffffff;
+        --bg-tertiary: #f1f5f9;
+        --bg-card: #ffffff;
+        --border-subtle: #e2e8f0;
+        --border-active: #cbd5e1;
+        --text-primary: #0f172a;
+        --text-secondary: #64748b;
+        --accent-red: #dc2626;
+    }
+
+    .dark {
+        --bg-primary: #0a0f1c;
+        --bg-secondary: #111827;
+        --bg-tertiary: #1a2332;
+        --bg-card: #151e2d;
+        --border-subtle: #1e293b;
+        --border-active: #2d3a4f;
+        --text-primary: #f1f5f9;
+        --text-secondary: #94a3b8;
+    }
+
+    body {
+        background-color: var(--bg-primary) !important;
+        color: var(--text-primary);
+        transition: background-color 0.3s ease, color 0.3s ease;
+    }
+
+    /* Densidade de Informação COBOM */
+    .war-room-grid {
+        display: grid;
+        grid-template-columns: repeat(5, minmax(280px, 1fr));
+        gap: 1rem;
+    }
+    .vtr-badge {
+        font-size: 0.55rem;
+        padding: 0.1rem 0.3rem;
+        border-radius: 0.2rem;
+        font-weight: 900;
+    }
+    .vtr-row:hover {
+        background: var(--bg-tertiary);
+    }
+    .sidebar-cobom {
+        width: 280px;
+    }
+    [x-cloak] { display: none !important; }
+
+    .glass-morphism {
+        background: var(--bg-card);
+        border: 1px solid var(--border-subtle);
+        backdrop-filter: blur(8px);
+    }
+
+    .metric-card {
+        background: var(--bg-card);
+        border: 1px solid var(--border-subtle);
+        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div x-data="{ activeModal: null }" class="flex flex-col space-y-4 h-full animate-fade-in text-[var(--text-primary)]">
+    
+    <!-- MODAL AEROPORTOS -->
+    <div x-show="activeModal === 'aeroportos'" 
+         x-cloak
+         x-transition:enter="transition ease-out duration-200"
+         x-transition:enter-start="opacity-0 scale-95"
+         x-transition:enter-end="opacity-100 scale-100"
+         x-transition:leave="transition ease-in duration-150"
+         x-transition:leave-start="opacity-100 scale-100"
+         x-transition:leave-end="opacity-0 scale-95"
+         class="fixed inset-0 z-[100] flex items-center justify-center p-3 bg-slate-900/60 backdrop-blur-sm">
+        
+        <div @click.away="activeModal = null" class="bg-[var(--bg-card)] w-full max-w-xl rounded-xl shadow-2xl border border-[var(--border-subtle)] overflow-hidden">
+            <div class="bg-red-600 p-4 flex justify-between items-center text-white">
+                <div class="flex items-center space-x-2">
+                    <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"/></svg>
+                    <h2 class="text-lg font-black uppercase tracking-tighter italic">Contatos — Aeroportos</h2>
+                </div>
+                <button @click="activeModal = null" class="text-white/80 hover:text-white">
+                    <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M6 18L18 6M6 6l12 12"/></svg>
+                </button>
+            </div>
+            
+            <div class="p-4 space-y-3 max-h-[60vh] overflow-y-auto custom-scrollbar">
+                <div class="bg-[var(--bg-tertiary)] p-3 rounded-lg border border-[var(--border-subtle)]">
+                    <h3 class="text-xs font-black text-red-600 uppercase mb-0.5">Sorocaba (SOD / SDRK)</h3>
+                    <p class="text-[8px] font-bold text-[var(--text-secondary)] uppercase mb-1.5">Av. Santos Dumont, s/nº - Vila Valença</p>
+                    <div class="grid grid-cols-2 gap-1.5 text-[10px] font-black">
+                        <div class="flex items-center space-x-1.5 bg-[var(--bg-secondary)] p-1.5 rounded-lg"><span class="text-[var(--text-secondary)]">Torre:</span><span class="text-[var(--text-primary)]">(15) 3223-1133</span></div>
+                        <div class="flex items-center space-x-1.5 bg-[var(--bg-secondary)] p-1.5 rounded-lg"><span class="text-[var(--text-secondary)]">ADM:</span><span class="text-[var(--text-primary)]">(15) 3223-2633</span></div>
+                    </div>
+                </div>
+                <div class="bg-[var(--bg-tertiary)] p-3 rounded-lg border border-[var(--border-subtle)]">
+                    <h3 class="text-xs font-black text-red-600 uppercase mb-0.5">Jundiaí (SBJD)</h3>
+                    <p class="text-[8px] font-bold text-[var(--text-secondary)] uppercase mb-1.5">Av. Emílio Antonon, s/nº - Chácara Aeroporto</p>
+                    <div class="grid grid-cols-2 gap-1.5 text-[10px] font-black">
+                        <div class="flex items-center space-x-1.5 bg-[var(--bg-secondary)] p-1.5 rounded-lg"><span class="text-[var(--text-secondary)]">Torre:</span><span class="text-[var(--text-primary)]">(11) 4585-2311</span></div>
+                        <div class="flex items-center space-x-1.5 bg-[var(--bg-secondary)] p-1.5 rounded-lg"><span class="text-[var(--text-secondary)]">Operações:</span><span class="text-[var(--text-primary)]">(11) 4585-2315</span></div>
+                    </div>
+                </div>
+                <div class="bg-[var(--bg-tertiary)] p-3 rounded-lg border border-[var(--border-subtle)]">
+                    <h3 class="text-xs font-black text-red-600 uppercase mb-0.5">Viracopos (VCP / SBKP)</h3>
+                    <p class="text-[8px] font-bold text-[var(--text-secondary)] uppercase mb-1.5">Rodovia Santos Dumont, km 66 - Campinas</p>
+                    <div class="grid grid-cols-2 gap-1.5 text-[10px] font-black">
+                        <div class="flex items-center space-x-1.5 bg-[var(--bg-secondary)] p-1.5 rounded-lg"><span class="text-[var(--text-secondary)]">Centro Op:</span><span class="text-[var(--text-primary)]">(19) 3725-5000</span></div>
+                        <div class="flex items-center space-x-1.5 bg-[var(--bg-secondary)] p-1.5 rounded-lg"><span class="text-[var(--text-secondary)]">Bombeiros:</span><span class="text-[var(--text-primary)]">(19) 3725-5022</span></div>
+                    </div>
+                </div>
+            </div>
+            <div class="p-3 bg-[var(--bg-tertiary)] text-center">
+                <p class="text-[7px] font-black text-[var(--text-secondary)] uppercase italic tracking-widest">Informações de uso restrito ao Centro de Operações (COBOM)</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL VTRS RESERVA -->
+    <div x-show="activeModal === 'vtrs_reserva'" 
+         x-cloak
+         x-transition:enter="transition ease-out duration-200"
+         x-transition:enter-start="opacity-0 scale-95"
+         x-transition:enter-end="opacity-100 scale-100"
+         x-transition:leave="transition ease-in duration-150"
+         x-transition:leave-start="opacity-100 scale-100"
+         x-transition:leave-end="opacity-0 scale-95"
+         class="fixed inset-0 z-[100] flex items-center justify-center p-3 bg-slate-900/60 backdrop-blur-sm">
+        
+        <div @click.away="activeModal = null" class="bg-[var(--bg-card)] w-full max-w-2xl rounded-xl shadow-2xl border border-[var(--border-subtle)] overflow-hidden">
+            <div class="bg-[var(--bg-tertiary)] p-4 flex justify-between items-center border-b border-[var(--border-subtle)] text-[var(--text-primary)]">
+                <div class="flex items-center space-x-2">
+                    <svg class="h-5 w-5 text-emerald-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M9 17a2 2 0 11-4 0 2 2 0 014 0zM19 17a2 2 0 11-4 0 2 2 0 014 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16V6a1 1 0 00-1-1H4a1 1 0 00-1 1v10a1 1 0 001 1h1m8-1a1 1 0 01-1 1H9m4-1V8a1 1 0 011-1h2.586a1 1 0 01.707.293l3.414 3.414a1 1 0 01.293.707V16a1 1 0 01-1 1h-1m-6-1a1 1 0 001 1h1M5 17a2 2 0 104 0m-4 0a2 2 0 114 0m6 0a2 2 0 104 0m-4 0a2 2 0 114 0"/></svg>
+                    <h2 class="text-lg font-black uppercase tracking-tighter italic">Viaturas em Reserva</h2>
+                </div>
+                <button @click="activeModal = null" class="text-[var(--text-secondary)] hover:text-[var(--text-primary)]">
+                    <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M6 18L18 6M6 6l12 12"/></svg>
+                </button>
+            </div>
+            
+            <div class="p-4 max-h-[50vh] overflow-y-auto custom-scrollbar">
+                {% if vtrs_reserva_global %}
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+                    {% for vtr in vtrs_reserva_global %}
+                    <div class="flex items-center justify-between p-3 bg-[var(--bg-tertiary)] rounded-lg border border-[var(--border-subtle)]">
+                        <div class="flex flex-col">
+                            <span class="text-base font-black text-[var(--text-primary)]">{{ vtr.prefixo }}</span>
+                            <span class="text-[7px] font-bold text-[var(--text-secondary)] uppercase">{{ vtr.sgb }}</span>
+                        </div>
+                        <div class="text-right">
+                            <span class="text-[8px] font-black text-emerald-500 uppercase bg-emerald-500/10 px-1.5 py-0.5 rounded-md border border-emerald-500/20">Disponível</span>
+                            <p class="text-[7px] font-bold text-[var(--text-secondary)] mt-0.5 uppercase">{{ vtr.unidade }}</p>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+                {% else %}
+                <div class="text-center py-8">
+                    <p class="text-[var(--text-secondary)] font-black uppercase tracking-widest text-[10px]">Nenhuma viatura reserva alocada.</p>
+                </div>
+                {% endif %}
+            </div>
+            <div class="p-3 bg-[var(--bg-tertiary)] flex justify-between items-center px-6">
+                <p class="text-[7px] font-black text-[var(--text-secondary)] uppercase">Total de Reservas: {{ vtrs_reserva_global|length|stringformat:"02d" }}</p>
+                <p class="text-[7px] font-black text-[var(--text-secondary)]/60 uppercase italic">Dados consolidados do 15º GB</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL ALARMES / COD OPM -->
+    <div x-show="activeModal === 'alarmes'" 
+         x-cloak
+         x-transition:enter="transition ease-out duration-200"
+         x-transition:enter-start="opacity-0 scale-95"
+         x-transition:enter-end="opacity-100 scale-100"
+         x-transition:leave="transition ease-in duration-150"
+         x-transition:leave-start="opacity-100 scale-100"
+         x-transition:leave-end="opacity-0 scale-95"
+         class="fixed inset-0 z-[100] flex items-center justify-center p-3 bg-slate-900/60 backdrop-blur-sm">
+        
+        <div @click.away="activeModal = null" class="bg-[var(--bg-card)] w-full max-w-3xl rounded-xl shadow-2xl border border-[var(--border-subtle)] overflow-hidden">
+            <div class="bg-amber-600 p-4 flex justify-between items-center text-white">
+                <div class="flex items-center space-x-2">
+                    <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>
+                    <h2 class="text-lg font-black uppercase tracking-tighter italic">Referência — Alarmes e OPM</h2>
+                </div>
+                <button @click="activeModal = null" class="text-white/80 hover:text-white">
+                    <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M6 18L18 6M6 6l12 12"/></svg>
+                </button>
+            </div>
+            
+            <div class="p-4 grid grid-cols-1 md:grid-cols-2 gap-4 max-h-[60vh] overflow-y-auto custom-scrollbar">
+                <div class="space-y-3">
+                    <h3 class="text-xs font-black text-amber-600 uppercase border-b border-amber-500/20 pb-1.5">Naturezas (Alarmes)</h3>
+                    <div class="space-y-0.5 text-[8px] font-bold uppercase">
+                        <div class="flex justify-between p-1.5 bg-[var(--bg-tertiary)] rounded"><span>A-01</span><span>Incêndio Edificação</span></div>
+                        <div class="flex justify-between p-1.5 bg-[var(--bg-secondary)] rounded"><span>A-02</span><span>Incêndio Veículo</span></div>
+                        <div class="flex justify-between p-1.5 bg-[var(--bg-tertiary)] rounded"><span>A-03</span><span>Incêndio Vegetação</span></div>
+                        <div class="flex justify-between p-1.5 bg-[var(--bg-secondary)] rounded"><span>B-01</span><span>Atropelamento</span></div>
+                        <div class="flex justify-between p-1.5 bg-[var(--bg-tertiary)] rounded"><span>B-02</span><span>Colisão / Choque</span></div>
+                        <div class="flex justify-between p-1.5 bg-[var(--bg-secondary)] rounded"><span>C-01</span><span>Afogamento</span></div>
+                    </div>
+                </div>
+                <div class="space-y-3">
+                    <h3 class="text-xs font-black text-amber-600 uppercase border-b border-amber-500/20 pb-1.5">Unidades (OPM)</h3>
+                    <div class="space-y-0.5 text-[8px] font-bold uppercase">
+                        <div class="flex justify-between p-1.5 bg-[var(--bg-tertiary)] rounded"><span>15-GB</span><span>Sede Sorocaba</span></div>
+                        <div class="flex justify-between p-1.5 bg-[var(--bg-secondary)] rounded"><span>1-SGB</span><span>Sorocaba / Votorantim</span></div>
+                        <div class="flex justify-between p-1.5 bg-[var(--bg-tertiary)] rounded"><span>2-SGB</span><span>Itu / Salto</span></div>
+                        <div class="flex justify-between p-1.5 bg-[var(--bg-secondary)] rounded"><span>3-SGB</span><span>Itapeva / Itararé</span></div>
+                        <div class="flex justify-between p-1.5 bg-[var(--bg-tertiary)] rounded"><span>4-SGB</span><span>Itapetininga</span></div>
+                        <div class="flex justify-between p-1.5 bg-[var(--bg-secondary)] rounded"><span>5-SGB</span><span>Botucatu / Avaré</span></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL LINKS / INTRANET -->
+    <div x-show="activeModal === 'links_intranet'" 
+         x-cloak
+         x-transition:enter="transition ease-out duration-200"
+         x-transition:enter-start="opacity-0 scale-95"
+         x-transition:enter-end="opacity-100 scale-100"
+         x-transition:leave="transition ease-in duration-150"
+         x-transition:leave-start="opacity-100 scale-100"
+         x-transition:leave-end="opacity-0 scale-95"
+         class="fixed inset-0 z-[100] flex items-center justify-center p-3 bg-slate-900/60 backdrop-blur-sm">
+        
+        <div @click.away="activeModal = null" class="bg-[var(--bg-card)] w-full max-w-4xl rounded-xl shadow-2xl border border-[var(--border-subtle)] overflow-hidden">
+            <div class="bg-[var(--bg-tertiary)] p-4 flex justify-between items-center border-b border-[var(--border-subtle)] text-[var(--text-primary)]">
+                <div class="flex items-center space-x-2">
+                    <svg class="h-5 w-5 text-blue-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.828a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1"/></svg>
+                    <h2 class="text-lg font-black uppercase tracking-tighter italic">Links Úteis & Intranet</h2>
+                </div>
+                <button @click="activeModal = null" class="text-[var(--text-secondary)] hover:text-[var(--text-primary)]">
+                    <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M6 18L18 6M6 6l12 12"/></svg>
+                </button>
+            </div>
+            
+            <div class="p-5 max-h-[60vh] overflow-y-auto custom-scrollbar">
+                <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-4">
+                    <a href="http://prdwiang.ccb.policiamilitar.sp.gov.br/intranetCB/#/" target="_blank" class="group flex flex-col items-center p-3 rounded-lg bg-[var(--bg-tertiary)] hover:bg-red-600/10 border border-[var(--border-subtle)] transition-all duration-200">
+                        <img src="{% static 'img/brasao.png' %}" class="w-12 h-12 object-contain mb-2 group-hover:scale-110 transition-transform" alt="CB">
+                        <span class="text-[8px] font-black uppercase text-[var(--text-secondary)] group-hover:text-red-600 text-center">Intranet CB</span>
+                    </a>
+                    <a href="http://intranet.policiamilitar.sp.gov.br/" target="_blank" class="group flex flex-col items-center p-3 rounded-lg bg-[var(--bg-tertiary)] hover:bg-blue-600/10 border border-[var(--border-subtle)] transition-all duration-200">
+                        <img src="{% static 'img/brasaopm.png' %}" class="w-12 h-12 object-contain mb-2 group-hover:scale-110 transition-transform" alt="PMESP">
+                        <span class="text-[8px] font-black uppercase text-[var(--text-secondary)] group-hover:text-blue-600 text-center">Intranet PMESP</span>
+                    </a>
+                    <a href="https://minhaarea.sp.gov.br/plataformasp" target="_blank" class="group flex flex-col items-center p-3 rounded-lg bg-[var(--bg-tertiary)] hover:bg-emerald-600/10 border border-[var(--border-subtle)] transition-all duration-200">
+                        <img src="{% static 'img/sei.jpg' %}" class="w-12 h-12 rounded-md object-cover mb-2 group-hover:scale-110 transition-transform" alt="Minha Área">
+                        <span class="text-[8px] font-black uppercase text-[var(--text-secondary)] group-hover:text-emerald-600 text-center">Minha Área SP</span>
+                    </a>
+                    <a href="http://cobomonline.ccb.policiamilitar.sp.gov.br/Singes/login" target="_blank" class="group flex flex-col items-center p-3 rounded-lg bg-[var(--bg-tertiary)] hover:bg-red-600/10 border border-[var(--border-subtle)] transition-all duration-200">
+                        <img src="{% static 'img/brasao.png' %}" class="w-12 h-12 object-contain mb-2 group-hover:scale-110 transition-transform" alt="Cobom">
+                        <span class="text-[8px] font-black uppercase text-[var(--text-secondary)] group-hover:text-red-600 text-center">Cobom Online</span>
+                    </a>
+                    <a href="https://www.rh.intranet.policiamilitar.sp.gov.br/" target="_blank" class="group flex flex-col items-center p-3 rounded-lg bg-[var(--bg-tertiary)] hover:bg-blue-600/10 border border-[var(--border-subtle)] transition-all duration-200">
+                        <img src="{% static 'img/sgp.png' %}" class="w-12 h-12 object-contain mb-2 group-hover:scale-110 transition-transform" alt="SGP">
+                        <span class="text-[8px] font-black uppercase text-[var(--text-secondary)] group-hover:text-blue-600 text-center">SGP (RH)</span>
+                    </a>
+                    <a href="https://doe.sp.gov.br/" target="_blank" class="group flex flex-col items-center p-3 rounded-lg bg-[var(--bg-tertiary)] hover:bg-slate-600/10 border border-[var(--border-subtle)] transition-all duration-200">
+                        <img src="{% static 'img/logo_DO.jpeg' %}" class="w-12 h-12 rounded-md object-cover mb-2 group-hover:scale-110 transition-transform" alt="DOE">
+                        <span class="text-[8px] font-black uppercase text-[var(--text-secondary)] group-hover:text-[var(--text-primary)] text-center">DOE SP</span>
+                    </a>
+                    <a href="https://ead.pmesp.org/login/index.php" target="_blank" class="group flex flex-col items-center p-3 rounded-lg bg-[var(--bg-tertiary)] hover:bg-blue-600/10 border border-[var(--border-subtle)] transition-all duration-200">
+                        <img src="https://ead.pmesp.org/pluginfile.php/1/core_admin/logo/0x200/1739404529/Logo-EAD_Fundo-Quadrado-Claro_Alfa.png" class="w-12 h-12 object-contain mb-2 group-hover:scale-110 transition-transform" alt="EAD">
+                        <span class="text-[8px] font-black uppercase text-[var(--text-secondary)] group-hover:text-blue-600 text-center">EAD PMESP</span>
+                    </a>
+                    <a href="http://www.intranet.ciaf.policiamilitar.sp.gov.br/" target="_blank" class="group flex flex-col items-center p-3 rounded-lg bg-[var(--bg-tertiary)] hover:bg-emerald-600/10 border border-[var(--border-subtle)] transition-all duration-200">
+                        <img src="{% static 'img/brasao_ciaf.png' %}" class="w-12 h-12 object-contain mb-2 group-hover:scale-110 transition-transform" alt="CIAF">
+                        <span class="text-[8px] font-black uppercase text-[var(--text-secondary)] group-hover:text-emerald-600 text-center">CIAF</span>
+                    </a>
+                    <a href="https://dtic.policiamilitar.sp.gov.br/formularios-pm/" target="_blank" class="group flex flex-col items-center p-3 rounded-lg bg-[var(--bg-tertiary)] hover:bg-blue-600/10 border border-[var(--border-subtle)] transition-all duration-200">
+                        <img src="{% static 'img/dtic.png' %}" class="w-12 h-12 object-contain mb-2 group-hover:scale-110 transition-transform" alt="DTIC">
+                        <span class="text-[8px] font-black uppercase text-[var(--text-secondary)] group-hover:text-blue-600 text-center">Formulários DTIC</span>
+                    </a>
+                    <a href="http://seccom.intranet.policiamilitar.sp.gov.br/#/home" target="_blank" class="group flex flex-col items-center p-3 rounded-lg bg-[var(--bg-tertiary)] hover:bg-blue-600/10 border border-[var(--border-subtle)] transition-all duration-200">
+                        <img src="{% static 'img/cpp.png' %}" class="w-12 h-12 object-contain mb-2 group-hover:scale-110 transition-transform" alt="CPP">
+                        <span class="text-[8px] font-black uppercase text-[var(--text-secondary)] group-hover:text-blue-600 text-center">CPO / CPP</span>
+                    </a>
+                    <a href="http://intranet.dp.policiamilitar.sp.gov.br/" target="_blank" class="group flex flex-col items-center p-3 rounded-lg bg-[var(--bg-tertiary)] hover:bg-blue-600/10 border border-[var(--border-subtle)] transition-all duration-200">
+                        <img src="{% static 'img/dp.png' %}" class="w-12 h-12 object-contain mb-2 group-hover:scale-110 transition-transform" alt="DP">
+                        <span class="text-[8px] font-black uppercase text-[var(--text-secondary)] group-hover:text-blue-600 text-center">Diretoria Pessoal</span>
+                    </a>
+                    <a href="https://www.ciaf.policiamilitar.sp.gov.br/folhadepagamento/autenticacaosegura.aspx" target="_blank" class="group flex flex-col items-center p-3 rounded-lg bg-[var(--bg-tertiary)] hover:bg-amber-600/10 border border-[var(--border-subtle)] transition-all duration-200">
+                        <img src="{% static 'img/holerite.jpg' %}" class="w-12 h-12 rounded-md object-cover mb-2 group-hover:scale-110 transition-transform" alt="Holerite">
+                        <span class="text-[8px] font-black uppercase text-[var(--text-secondary)] group-hover:text-amber-600 text-center">Holerite</span>
+                    </a>
+                    <a href="https://www7.intranet.policiamilitar.sp.gov.br/unidades/1empm/1empm_v3/" target="_blank" class="group flex flex-col items-center p-3 rounded-lg bg-[var(--bg-tertiary)] hover:bg-blue-600/10 border border-[var(--border-subtle)] transition-all duration-200">
+                        <img src="{% static 'img/brasaopm.png' %}" class="w-12 h-12 object-contain mb-2 group-hover:scale-110 transition-transform" alt="Normas">
+                        <span class="text-[8px] font-black uppercase text-[var(--text-secondary)] group-hover:text-blue-600 text-center">Normas EM</span>
+                    </a>
+                    <a href="https://www.policiamilitar.sp.gov.br/servico-ao-pm/login" target="_blank" class="group flex flex-col items-center p-3 rounded-lg bg-[var(--bg-tertiary)] hover:bg-emerald-600/10 border border-[var(--border-subtle)] transition-all duration-200">
+                        <img src="{% static 'img/brasao.png' %}" class="w-12 h-12 object-contain mb-2 group-hover:scale-110 transition-transform" alt="Serviços">
+                        <span class="text-[8px] font-black uppercase text-[var(--text-secondary)] group-hover:text-emerald-600 text-center">Serviços PM</span>
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Mensagem de Conclusão Total -->
+    {% if mapa_completo %}
+    <div class="bg-emerald-500 text-white p-4 rounded-xl shadow-xl shadow-emerald-500/20 flex items-center justify-center space-x-2 animate-bounce mb-3">
+        <svg class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="3">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7" />
+        </svg>
+        <span class="text-base font-black uppercase tracking-widest italic">O Mapa Força do dia está pronto!</span>
+    </div>
+    {% endif %}
+
+    <!-- CABEÇALHO TÉCNICO FIXO -->
+    <div class="glass-morphism rounded-xl p-3 flex flex-wrap items-center justify-between gap-3 shadow-sm">
+        <div class="flex items-center space-x-3">
+            <div class="h-9 w-9 bg-red-600 rounded-lg flex items-center justify-center shadow-lg shadow-red-600/20">
+                <svg class="h-4 w-4 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
+            </div>
+            <div>
+                <h1 class="text-lg font-black text-[var(--text-primary)] uppercase tracking-tighter">COBOM <span class="text-red-600">{{ batalhao_selecionado.nome|default:"15º GB" }}</span></h1>
+                <p class="text-[7px] font-bold text-[var(--text-secondary)] uppercase tracking-widest">Painel de Gerenciamento de Crise</p>
+            </div>
+        </div>
+
+        <!-- Seletor de Unidades (Admin Only) -->
+        {% if batalhoes %}
+        <div class="flex items-center bg-[var(--bg-tertiary)] rounded-lg p-0.5 border border-[var(--border-subtle)] min-w-[180px]">
+            <form method="GET" action="" class="flex items-center space-x-1.5 w-full">
+                <select name="batalhao_id" onchange="this.form.submit()" class="appearance-none bg-transparent border-none text-[10px] font-black uppercase text-[var(--text-primary)] focus:ring-0 cursor-pointer py-0.5 pl-2 pr-1 flex-1">
+                    {% for bat in batalhoes %}
+                        <option value="{{ bat.id }}" class="bg-[var(--bg-card)] text-[var(--text-primary)] text-[10px]" {% if bat.id == batalhao_selecionado.id %}selected{% endif %}>{{ bat.nome }}</option>
+                    {% endfor %}
+                </select>
+                <div class="pr-2 text-[var(--text-secondary)] pointer-events-none">
+                    <svg class="h-2.5 w-2.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M19 9l-7 7-7-7"/></svg>
+                </div>
+            </form>
+        </div>
+        {% endif %}
+
+        <div class="flex flex-wrap items-center gap-1.5">
+            {% for btn in botoes_atalho %}
+            <button 
+                @click="{% if btn == 'Aeroportos' %}activeModal = 'aeroportos'{% elif btn == 'VTR Reserva' %}activeModal = 'vtrs_reserva'{% elif btn == 'Alarmes / Cód OPM' %}activeModal = 'alarmes'{% elif btn == 'Links / Intranet' %}activeModal = 'links_intranet'{% else %}null{% endif %}"
+                class="px-3 py-1.5 bg-[var(--bg-tertiary)] text-[var(--text-primary)] text-[8px] font-black uppercase tracking-tight rounded-lg hover:bg-red-600 hover:text-white transition-all duration-200 shadow-sm border border-[var(--border-subtle)]">
+                {{ btn }}
+            </button>
+            {% endfor %}
+        </div>
+
+        <div class="flex items-center space-x-2 pr-1">
+            <div class="text-right">
+                <p class="text-[8px] font-black text-[var(--text-secondary)] uppercase">Plantão Atual</p>
+                <p class="text-[10px] font-black text-red-600">07:30 — 15:30 (DEJEM)</p>
+            </div>
+            <div class="h-8 w-px bg-[var(--border-subtle)]"></div>
+            <div class="bg-emerald-500/10 p-1.5 rounded-lg border border-emerald-500/20">
+                <div class="h-1.5 w-1.5 bg-emerald-500 rounded-full animate-pulse"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- MÉTRICAS GLOBAIS (ESTILO TÁTICO) -->
+    <div class="grid grid-cols-2 md:grid-cols-5 gap-3">
+        <div class="metric-card rounded-lg p-3 border-l-4 border-emerald-500">
+            <p class="text-[7px] font-black text-[var(--text-secondary)] uppercase tracking-widest">Viaturas Operando</p>
+            <p class="text-xl font-black text-[var(--text-primary)] tabular-nums">{{ global_stats.vtrs_operando|stringformat:"02d" }}</p>
+        </div>
+        <div class="metric-card rounded-lg p-3 border-l-4 border-blue-500">
+            <p class="text-[7px] font-black text-[var(--text-secondary)] uppercase tracking-widest">Militares Escalados</p>
+            <p class="text-xl font-black text-[var(--text-primary)] tabular-nums">{{ global_stats.militares_escalados|stringformat:"02d" }}</p>
+        </div>
+        <div class="metric-card rounded-lg p-3 border-l-4 border-cyan-400">
+            <p class="text-[7px] font-black text-[var(--text-secondary)] uppercase tracking-widest">Mergulhadores</p>
+            <p class="text-xl font-black text-[var(--text-primary)] tabular-nums">{{ global_stats.mergulhadores|stringformat:"02d" }}</p>
+        </div>
+        <div class="metric-card rounded-lg p-3 border-l-4 border-amber-500">
+            <p class="text-[7px] font-black text-[var(--text-secondary)] uppercase tracking-widest">Total DEJEM</p>
+            <p class="text-xl font-black text-[var(--text-primary)] tabular-nums">{{ global_stats.dejem|stringformat:"02d" }}</p>
+        </div>
+        <div class="metric-card rounded-lg p-3 border-l-4 border-red-600">
+            <p class="text-[7px] font-black text-[var(--text-secondary)] uppercase tracking-widest">Motoristas</p>
+            <p class="text-xl font-black text-[var(--text-primary)] tabular-nums">{{ global_stats.motoristas|stringformat:"02d" }}</p>
+        </div>
+    </div>
+
+    <!-- MAIN DASHBOARD AREA -->
+    <div class="flex space-x-4 flex-1 overflow-hidden">
+        <div class="flex-1 overflow-x-auto pb-3 custom-scrollbar">
+            <div class="h-full min-w-full" 
+                 style="display: grid; grid-template-columns: repeat({{ sgbs|length }}, minmax(300px, 1fr)); gap: 1rem;">
+                {% for sgb in sgbs %}
+                    {% include "dashboard/partials/sgb_column.html" with sgb=sgb %}
+                {% endfor %}
+            </div>
+        </div>
+        <div class="sidebar-cobom hidden 2xl:flex flex-col space-y-4">
+            {% include "dashboard/partials/sidebar_oficiais.html" %}
+        </div>
+    </div>
+</div>
+
+<style>
+    .custom-scrollbar::-webkit-scrollbar { height: 8px; }
+    .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
+    .custom-scrollbar::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 20px; border: 2px solid transparent; background-clip: content-box; }
+    .dark .custom-scrollbar::-webkit-scrollbar-thumb { background: #334155; }
+</style>
+{% endblock %}

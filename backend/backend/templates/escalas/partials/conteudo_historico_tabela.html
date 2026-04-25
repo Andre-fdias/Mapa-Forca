@@ -1,0 +1,81 @@
+<div class="bg-white dark:bg-slate-900 rounded-2xl shadow-xl border border-slate-100 dark:border-slate-800 overflow-hidden animate-fade-in">
+    <div class="overflow-x-auto">
+        <table class="w-full text-left border-collapse">
+            <thead>
+                <tr class="bg-slate-950 text-white">
+                    <th class="p-4 text-[8px] font-black uppercase tracking-widest border-b border-slate-900">Unidade / SGB</th>
+                    <th class="p-4 text-[8px] font-black uppercase tracking-widest border-b border-slate-900">Viatura</th>
+                    <th class="p-4 text-[8px] font-black uppercase tracking-widest border-b border-slate-900">Militar</th>
+                    <th class="p-4 text-[8px] font-black uppercase tracking-widest border-b border-slate-900">Função</th>
+                    <th class="p-4 text-[8px] font-black uppercase tracking-widest border-b border-slate-900">Status</th>
+                    <th class="p-4 text-[8px] font-black uppercase tracking-widest border-b border-slate-900">Auditoria</th>
+                </table>
+            </thead>
+            <tbody class="divide-y divide-slate-100 dark:divide-slate-800">
+                {% for mapa in mapas %}
+                    {% for aloc in mapa.alocacoes_viaturas.all %}
+                        {% if not v_prefixo or v_prefixo.upper in aloc.viatura.prefixo.upper %}
+                            {% for af in aloc.equipe.all %}
+                                {% if not dejem_only or af.dejem %}
+                                <tr class="hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors duration-200">
+                                    <td class="p-4">
+                                        <div class="flex flex-col">
+                                            <span class="text-[11px] font-black text-slate-900 dark:text-white uppercase">{{ mapa.unidade.nome }}</span>
+                                            <span class="text-[7px] font-bold text-slate-400 uppercase tracking-tighter">{{ mapa.unidade.parent.nome|default:"-" }}</span>
+                                        </div>
+                                    </td>
+                                    <td class="p-4">
+                                        <span class="text-[11px] font-black text-red-600 uppercase">{{ aloc.viatura.prefixo }}</span>
+                                    </td>
+                                    <td class="p-4">
+                                        <div class="flex items-center space-x-1.5">
+                                            <div class="flex flex-col">
+                                                <span class="text-[11px] font-black text-slate-800 dark:text-slate-200 uppercase">
+                                                    {{ af.funcionario.posto_graduacao.nome }} {{ af.funcionario.nome_guerra }}
+                                                </span>
+                                                <span class="text-[7px] font-bold text-slate-400 uppercase">RE: {{ af.funcionario.re }}</span>
+                                            </div>
+                                            {% if af.dejem %}
+                                            <span class="bg-red-600 text-[6px] font-black text-white px-1 py-0.5 rounded uppercase tracking-tighter">DEJEM</span>
+                                            {% endif %}
+                                        </div>
+                                    </td>
+                                    <td class="p-4">
+                                        <span class="text-[8px] font-black text-slate-500 uppercase italic">{{ af.funcao.nome }}</span>
+                                    </td>
+                                    <td class="p-4">
+                                        {% if af.dejem %}
+                                            <span class="text-[7px] font-bold text-slate-400 uppercase">{{ af.inicio_dejem|time:"H:i" }} - {{ af.termino_dejem|time:"H:i" }}</span>
+                                        {% else %}
+                                            <span class="text-[7px] font-black px-1.5 py-0.5 bg-emerald-500/10 text-emerald-500 rounded uppercase">Operacional</span>
+                                        {% endif %}
+                                    </td>
+                                    <td class="p-4">
+                                        <div class="flex flex-col text-[7px]">
+                                            <span class="font-bold text-slate-400 uppercase">Criado por: <span class="text-slate-600 dark:text-slate-300">{{ mapa.criado_por.username }}</span></span>
+                                            <span class="text-slate-400">{{ mapa.criado_em|date:"d/m/y H:i" }}</span>
+                                        </div>
+                                    </td>
+                                </tr>
+                                {% endif %}
+                            {% endfor %}
+                            {% if not aloc.equipe.all %}
+                            <tr class="bg-red-500/5">
+                                <td class="p-4 italic text-[8px] text-slate-400">{{ mapa.unidade.nome }}</td>
+                                <td class="p-4 font-black text-red-600 text-[11px]">{{ aloc.viatura.prefixo }}</td>
+                                <td colspan="4" class="p-4 text-center text-[8px] font-black text-red-400 uppercase tracking-widest">Viatura sem guarnição escalada</td>
+                            </tr>
+                            {% endif %}
+                        {% endif %}
+                    {% endfor %}
+                {% empty %}
+                <tr>
+                    <td colspan="6" class="p-12 text-center">
+                        <p class="text-[11px] font-black text-slate-400 uppercase tracking-[0.2em] italic">Nenhum registro encontrado para os filtros aplicados.</p>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>

@@ -67,7 +67,9 @@ class Ticket(models.Model):
         
         # Gera o protocolo após o primeiro save (para ter o ID)
         if not self.protocolo:
-            data_str = self.criado_em.strftime('%Y%m%d')
+            from django.utils import timezone
+            data_hoje = self.criado_em or timezone.now()
+            data_str = data_hoje.strftime('%Y%m%d')
             self.protocolo = f"{data_str}-{self.id}"
             Ticket.objects.filter(id=self.id).update(protocolo=self.protocolo)
 

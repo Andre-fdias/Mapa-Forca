@@ -1,0 +1,24 @@
+services:
+  - type: web
+    name: mapa-forca
+    env: python
+    rootDir: backend
+    buildCommand: ./build.sh
+    startCommand: gunicorn core.wsgi:application
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.12.0
+      - key: DEBUG
+        value: "False"
+      - key: ALLOWED_HOSTS
+        value: ".onrender.com"
+      - key: SECRET_KEY
+        generateValue: true
+      - key: DATABASE_URL
+        fromDatabase:
+          name: mapa-forca-db
+          property: connectionString
+
+databases:
+  - name: mapa-forca-db
+    plan: free
