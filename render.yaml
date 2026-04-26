@@ -14,11 +14,4 @@ services:
         value: ".onrender.com"
       - key: SECRET_KEY
         generateValue: true
-      - key: DATABASE_URL
-        fromDatabase:
-          name: mapa-forca-db
-          property: connectionString
-
-databases:
-  - name: mapa-forca-db
-    plan: free
+      # DATABASE_URL deve ser configurada manualmente no painel do Render
