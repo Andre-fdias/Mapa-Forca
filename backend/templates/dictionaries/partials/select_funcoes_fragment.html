@@ -1,0 +1,6 @@
+<select name="funcao_id" class="w-[90px] text-[10px] font-black border border-slate-300 dark:border-slate-700 rounded bg-white dark:bg-slate-800 text-slate-900 dark:text-white p-1 shadow-sm" required>
+    <option value="">FUNÇÃO</option>
+    {% for f in funcoes %}
+        <option value="{{ f.id }}">{{ f.nome|upper }}</option>
+    {% endfor %}
+</select>

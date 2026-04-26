@@ -1,0 +1,30 @@
+<div class="p-6 bg-white dark:bg-slate-900 rounded-2xl shadow-2xl border border-slate-200 dark:border-slate-800 w-full max-w-md animate-pop-in">
+    <div class="flex justify-between items-center mb-6">
+        <h3 class="text-lg font-black text-slate-900 dark:text-white uppercase tracking-tight">Nova Função Operacional ({{ tipo_contexto }})</h3>
+        <button @click="document.getElementById('modal-container').classList.add('hidden')" class="text-slate-400 hover:text-red-500 transition-colors">
+            <svg class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" /></svg>
+        </button>
+    </div>
+
+    <form hx-post="{% url 'salvar_nova_funcao' %}" 
+          hx-target="#select-funcao-container" 
+          hx-swap="innerHTML"
+          onsubmit="document.getElementById('modal-container').classList.add('hidden')">
+        {% csrf_token %}
+        <input type="hidden" name="contexto" value="{{ tipo_contexto }}">
+        
+        <div class="space-y-4">
+            <div>
+                <label class="block text-[10px] font-black text-slate-500 uppercase mb-1">Nome da Função</label>
+                <input type="text" name="nome" required autofocus
+                       placeholder="Ex: ENCARREGADO, CHEFE DE EQUIPE..."
+                       class="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-3 text-sm font-bold text-slate-900 dark:text-white focus:ring-2 focus:ring-red-500 focus:border-red-500 transition-all outline-none">
+            </div>
+
+            <button type="submit" 
+                    class="w-full bg-red-600 hover:bg-red-700 text-white font-black py-3 rounded-xl shadow-lg shadow-red-600/20 transition-all transform active:scale-95 uppercase text-xs tracking-widest">
+                Salvar Função
+            </button>
+        </div>
+    </form>
+</div>

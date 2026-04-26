@@ -164,11 +164,22 @@ def compor_mapa_view(request):
         if v_telegrafia: viaturas_disponiveis.insert(0, v_telegrafia)
         else: viaturas_disponiveis.insert(0, Viatura(prefixo='TELEGRAFIA', placa='SALA'))
 
+    # Define o contexto das funções baseado no papel do usuário com separação rigorosa
+    if user.role == 'COBOM':
+        funcoes_qs = Dictionary.objects.filter(tipo='FUNCAO_OPERACIONAL_COBOM', ativo=True).order_by('ordem', 'nome')
+    else:
+        # GB vê as funções padrão (Comandante, Motorista...) + as customizadas de GB
+        funcoes_qs = Dictionary.objects.filter(
+            Q(tipo='FUNCAO_OPERACIONAL') | Q(tipo='FUNCAO_OPERACIONAL_GB'),
+            ativo=True
+        ).order_by('ordem', 'nome')
+
     context = {
         'mapa': mapa, 'todas_unidades': todas_unidades, 'viaturas_disponiveis': viaturas_disponiveis,
         'categorias_opm': lista_opm, 'categoria_selecionada': categoria, 'lista_sgbs': lista_sgbs,
         'sgb_selecionado': sgb_param, 'user_gb': user_gb_name, 'hoje': hoje,
-        'funcoes': Dictionary.objects.filter(tipo='FUNCAO_OPERACIONAL'),
+        'funcoes': funcoes_qs,
+        'tipo_contexto': 'COBOM' if user.role == 'COBOM' else 'GB',
     }
     
     if request.headers.get('HX-Request') and not u_id: return render(request, 'escalas/partials/filtros_unidade_compor.html', context)

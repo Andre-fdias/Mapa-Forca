@@ -11,8 +11,89 @@
     <!-- Subunidades / Postos -->
     <div class="space-y-6 overflow-y-auto pr-2 custom-scrollbar">
         {% for item in sgb.postos %}
-        <div x-data="{ showDetails: null }" class="tactical-card flex flex-col bg-[var(--bg-card)] border shadow-xl overflow-hidden transition-all duration-300 rounded-2xl
+        <div x-data="{ showDetails: null }" class="tactical-card relative flex flex-col bg-[var(--bg-card)] border shadow-xl overflow-hidden transition-all duration-300 rounded-2xl
             {% if item.esta_pronto %}border-[var(--border-subtle)] hover:border-emerald-500/50{% else %}border-red-600/50 animate-pulse-subtle{% endif %}">
+            
+            <!-- Overlay de Detalhes (Adaptativo Dark/Light) -->
+            {% for vtr in item.viaturas %}
+            <template x-if="showDetails === '{{ vtr.prefixo }}'">
+                <div class="absolute inset-0 bg-white/98 dark:bg-slate-950/98 backdrop-blur-xl z-[60] p-4 animate-fade-in flex flex-col rounded-2xl border border-slate-200 dark:border-red-600/30 shadow-2xl">
+                    <div class="flex justify-between items-center mb-4 border-b border-slate-100 dark:border-white/10 pb-3">
+                        <div class="flex flex-col">
+                            <div class="flex items-center gap-2">
+                                <span class="w-2 h-2 rounded-full bg-red-600 animate-pulse"></span>
+                                <span class="text-sm font-black text-slate-900 dark:text-white uppercase tracking-tighter italic">GUARNIÇÃO: {{ vtr.prefixo }}</span>
+                            </div>
+                            <span class="text-[9px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-[0.2em] ml-4">{{ vtr.placa|default:"S/ PLACA" }}</span>
+                        </div>
+                        <button @click="showDetails = null" class="p-2 hover:bg-slate-100 dark:hover:bg-white/10 rounded-xl text-slate-400 hover:text-red-600 dark:hover:text-white transition-all border border-slate-200 dark:border-white/5">
+                            <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M6 18L18 6M6 6l12 12"/></svg>
+                        </button>
+                    </div>
+                    
+                    <div class="space-y-2 overflow-y-auto custom-scrollbar flex-1 pr-1">
+                        {% for m in vtr.equipe_completa %}
+                        <div class="flex flex-col bg-slate-50 dark:bg-white/5 p-3 rounded-xl border border-slate-200 dark:border-white/5 hover:bg-slate-100 dark:hover:bg-white/10 transition-colors">
+                            <!-- Linha 1: Nome -->
+                            <div class="flex items-center mb-1">
+                                <span class="font-black text-slate-900 dark:text-white uppercase text-[11px] tracking-tight">{{ m.nome_padrao|default:"-" }}</span>
+                            </div>
+
+                            <!-- Linha 2: Função e Contato (WhatsApp + Telefone + Copiar) -->
+                            <div class="flex items-center gap-2 mb-2">
+                                <span class="text-[8.5px] text-red-600 dark:text-red-500 font-black uppercase tracking-widest">{{ m.funcao }}</span>
+                                <div class="h-3 w-[1px] bg-slate-300 dark:bg-slate-700"></div>
+                                <div class="flex items-center gap-1.5" x-data="{ copied: false }">
+                                    {% if m.whatsapp_link %}
+                                    <a href="{{ m.whatsapp_link }}" target="_blank" class="text-emerald-500 hover:text-emerald-600 transition-colors" title="Abrir WhatsApp">
+                                        <svg class="w-2.5 h-2.5" fill="currentColor" viewBox="0 0 24 24"><path d="M.057 24l1.687-6.163c-1.041-1.804-1.588-3.849-1.587-5.946.003-6.556 5.338-11.891 11.893-11.891 3.181.001 6.167 1.24 8.413 3.488 2.245 2.248 3.481 5.236 3.48 8.414-.003 6.557-5.338 11.892-11.893 11.892-1.99-.001-3.951-.5-5.688-1.448l-6.305 1.654zm6.597-3.807c1.676.995 3.276 1.591 5.392 1.592 5.448 0 9.886-4.438 9.889-9.885.002-5.462-4.415-9.89-9.881-9.892-5.452 0-9.887 4.434-9.889 9.884-.001 2.225.651 3.891 1.746 5.634l-.999 3.648 3.742-.981zm11.387-5.464c-.074-.124-.272-.198-.57-.347-.297-.149-1.758-.868-2.031-.967-.272-.099-.47-.149-.669.149-.198.297-.768.967-.941 1.165-.173.198-.347.223-.644.074-.297-.149-1.255-.462-2.39-1.397-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.297-.347.446-.521.151-.172.2-.296.3-.495.099-.198.05-.372-.025-.521-.075-.148-.669-1.611-.916-2.206-.242-.579-.487-.501-.669-.526-.173-.005-.371-.007-.569-.007-.198 0-.52.074-.793.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 1.599 5.078 2.896.708.308 1.262.491 1.694.629.712.226 1.36.194 1.872.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413z"/></svg>
+                                    </a>
+                                    {% endif %}
+                                    {% if m.telefone %}
+                                    <span class="text-[8.5px] font-mono text-slate-500 dark:text-slate-400 font-bold select-all">{{ m.telefone }}</span>
+                                    <button @click="navigator.clipboard.writeText('{{ m.telefone }}'); copied = true; setTimeout(() => copied = false, 2000)" 
+                                            class="text-slate-400 hover:text-blue-500 transition-colors p-0.5" title="Copiar Telefone">
+                                        <svg x-show="!copied" class="w-2.5 h-2.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M8 7v8a2 2 0 002 2h6M8 7V5a2 2 0 012-2h4.586a1 1 0 01.707.293l4.414 4.414a1 1 0 01.293.707V15a2 2 0 01-2 2h-2M8 7H6a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2v-2"/></svg>
+                                        <svg x-show="copied" x-cloak class="w-2.5 h-2.5 text-emerald-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7"/></svg>
+                                    </button>
+                                    {% endif %}
+                                </div>
+                            </div>
+
+                            <!-- Linha 3: Mergulho, OVB e DEJEM Interativo -->
+                            <div class="flex items-center gap-3">
+                                <div class="flex items-center text-[7.5px] font-bold text-slate-500 dark:text-slate-400">
+                                    <span class="mr-1">MERGULHO:</span>
+                                    <span class="{% if m.is_mergulhador %}text-blue-600 dark:text-blue-400{% else %}text-slate-400 dark:text-slate-500{% endif %} font-black">{{ m.mergulho|upper }}</span>
+                                </div>
+                                <div class="flex items-center text-[7.5px] font-bold text-slate-500 dark:text-slate-400">
+                                    <span class="mr-1">OVB:</span>
+                                    <span class="text-slate-700 dark:text-slate-200 font-black">{{ m.ovb|upper }}</span>
+                                </div>
+                                
+                                {% if m.dejem %}
+                                    <div x-data="{ showTime: false }" 
+                                         @mouseenter="showTime = true" 
+                                         @mouseleave="showTime = false"
+                                         class="flex items-center justify-center bg-amber-500/20 px-2 py-0.5 rounded border border-amber-500/30 transition-all duration-300 min-w-[70px]">
+                                        <span x-show="!showTime" class="text-[7px] font-black text-amber-600 uppercase">DEJEM</span>
+                                        <span x-show="showTime" x-cloak class="text-[7px] font-black text-amber-600 dark:text-amber-400 font-mono">
+                                            {{ m.horario|default:"S/ HORÁRIO" }}
+                                        </span>
+                                    </div>
+                                {% endif %}
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+
+                    <div class="mt-4 pt-3 border-t border-slate-100 dark:border-white/10 flex justify-between items-center text-[9px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest">
+                        <span>Total Efetivo</span>
+                        <span class="text-white bg-red-600 px-2 py-0.5 rounded-lg shadow-sm">{{ vtr.equipe_completa|length }}</span>
+                    </div>
+                </div>
+            </template>
+            {% endfor %}
 
             <!-- 1. HEADER SUPERIOR (PELOTÃO) -->
             <div class="bg-[var(--bg-tertiary)] px-3 py-3 flex justify-between items-center border-b border-[var(--border-subtle)]">

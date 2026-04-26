@@ -190,16 +190,26 @@ def dashboard_cobom(request):
             if curr.tipo_unidade and curr.tipo_unidade.codigo == 'BATALHAO':
                 batalhao_selecionado = curr
                 break
-            if 'GB' in curr.nome.upper() and 'SGB' not in curr.nome.upper():
+            # Fallback: Se o nome contiver "GB" mas não "SGB", provavelmente é um Batalhão
+            u_nome = curr.nome.upper()
+            if 'GB' in u_nome and 'SGB' not in u_nome:
                 batalhao_selecionado = curr
                 break
+            # Se não tiver pai e ainda não achamos, usa o root_unit
+            if not curr.parent:
+                if curr.tipo_unidade and curr.tipo_unidade.codigo == 'BATALHAO':
+                    batalhao_selecionado = curr
+                else:
+                    batalhao_selecionado = curr.root_unit
+                break
             curr = curr.parent
-        if not batalhao_selecionado:
-            batalhao_selecionado = user.unidade.root_unit
             
     # Prioridade 3: Padrão 15º GB (Apenas para usuários Globais sem vínculo)
     if not batalhao_selecionado and is_global_user:
-        batalhao_selecionado = Unidade.objects.filter(nome__icontains='15', tipo_unidade__codigo='BATALHAO').first()
+        # Busca mais flexível para o 15º GB
+        batalhao_selecionado = Unidade.objects.filter(
+            Q(nome__icontains='15') & Q(tipo_unidade__codigo='BATALHAO')
+        ).first() or Unidade.objects.filter(nome__icontains='15º GB').first()
 
     # Prioridade 4: Primeiro que encontrar (Apenas para usuários Globais)
     if not batalhao_selecionado and is_global_user:
@@ -334,14 +344,30 @@ def dashboard_cobom(request):
                         membros = []
                         for m in equipe_vtr:
                             efetivo_info = Efetivo.objects.filter(Q(re=m.funcionario.re) | Q(nome__icontains=m.funcionario.nome_guerra)).first()
+                            tel_raw = efetivo_info.telefone if efetivo_info else None
+                            tel_link = normalize_phone_for_whatsapp(tel_raw)
+                            
+                            # Garantir que o horário do DEJEM seja capturado corretamente
+                            horario_formatado = ""
+                            if m.dejem:
+                                h_inicio = m.inicio_dejem or m.inicio_servico
+                                h_fim = m.termino_dejem or m.termino_servico
+                                if h_inicio and h_fim:
+                                    horario_formatado = f"{h_inicio.strftime('%H:%M')} > {h_fim.strftime('%H:%M')}"
+                                else:
+                                    horario_formatado = "Horário N/D"
+                            
                             membros.append({
                                 'nome': m.funcionario.nome_curto,
                                 'nome_padrao': efetivo_info.nome if efetivo_info else m.funcionario.nome_curto.upper(),
                                 'funcao': m.funcao.nome if m.funcao else 'AUX',
-                                'mergulhador': 'SIM' in str(efetivo_info.mergulho).upper() if efetivo_info else False,
-                                'ovb': efetivo_info.ovb if efetivo_info else None,
+                                'mergulho': efetivo_info.mergulho if efetivo_info else 'NÃO',
+                                'is_mergulhador': 'SIM' in str(efetivo_info.mergulho).upper() if efetivo_info else False,
+                                'ovb': efetivo_info.ovb if efetivo_info else 'NÃO',
                                 'dejem': m.dejem,
-                                'horario': f"{m.inicio_dejem.strftime('%H:%M')} > {m.termino_dejem.strftime('%H:%M')}" if m.dejem and m.inicio_dejem else ""
+                                'horario': horario_formatado,
+                                'telefone': tel_raw,
+                                'whatsapp_link': f'https://wa.me/{tel_link}' if tel_link else None,
                             })
 
                         enc_nome = 'S/ CMT'

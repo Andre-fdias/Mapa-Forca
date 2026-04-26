@@ -35,6 +35,7 @@ urlpatterns = [
     path('efetivo/', include('efetivo.urls')),
     path('tickets/', include('tickets.urls')),
     path('accounts/', include('accounts.urls')),
+    path('dictionaries/', include('dictionaries.urls')),
     
     # Auth
     path('api/auth/', include('dj_rest_auth.urls')),
