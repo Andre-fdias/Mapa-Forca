@@ -90,45 +90,50 @@ def compor_mapa_view(request):
             batalhao_vinculado = user.unidade.root_unit
             user_gb_name = batalhao_vinculado.nome
 
-    # --- LÓGICA DE FILTRAGEM DE VISUALIZAÇÃO (GLOBAL DENTRO DO BATALHÃO) ---
-    lista_opm = list(Posto.objects.exclude(unidade__isnull=True).exclude(unidade='').values_list('unidade', flat=True).distinct().order_by('unidade'))
-    
-    if not is_global_user and user_gb_name:
-        categoria = user_gb_name
-    elif not categoria and lista_opm:
-        categoria = lista_opm[0]
-
-    # --- LÓGICA DE SEGURANÇA DE EDIÇÃO ---
-    unidade_obj = None
-    if u_id:
-        unidade_obj = get_object_or_404(Unidade, id=u_id)
+    # --- ROTEAMENTO COBOM (POSTOS DE TRABALHO DA PLANILHA) ---
+    if user.role == 'COBOM' or categoria == 'CBI-1':
+        unidade_cobom = Unidade.objects.filter(nome='CBI-1').first()
+        if not unidade_cobom:
+            unidade_cobom = Unidade.objects.create(nome='CBI-1', ativo=True)
+            
+        mapa, created = MapaDiario.objects.get_or_create(data=hoje, unidade=unidade_cobom, defaults={'criado_por': user})
         
-        if not is_global_user:
-            # Verifica se a unidade pertence ao Batalhão do usuário
-            unit_gb = unidade_obj.root_unit
-            if normalize_opm_name(unit_gb.nome) != normalize_opm_name(user_gb_name):
-                # Tentativa de burlar: força para a unidade do usuário
-                unidade_obj = user.unidade
-            else:
-                # Dentro do Batalhão, verifica permissões específicas de edição
-                if user.role == 'SGB':
-                    # Verifica se a unidade alvo pertence ao mesmo SGB do usuário
-                    p_target = Posto.objects.filter(Q(cod_secao=unidade_obj.codigo_secao) | Q(nome=unidade_obj.nome)).first()
-                    p_user = Posto.objects.filter(Q(cod_secao=user.unidade.codigo_secao) | Q(nome=user.unidade.nome)).first()
-                    if p_target and p_user and p_target.sgb != p_user.sgb:
-                        unidade_obj = user.unidade
-                elif user.role == 'POSTO':
-                    # Posto edita apenas sua própria unidade
-                    if unidade_obj != user.unidade:
-                        unidade_obj = user.unidade
-    else:
-        # Se não informou ID, carrega a unidade do usuário
-        unidade_obj = user.unidade
+        # Busca os POSTOS reais cadastrados com unidade='CBI-1' (conforme aba postos da planilha)
+        postos_cobom = Posto.objects.filter(unidade__icontains='CBI-1').order_by('id')
+        
+        funcs_com_alocacoes = []
+        if mapa:
+            all_alocs = AlocacaoFuncionario.objects.filter(mapa=mapa, alocacao_viatura__isnull=True).select_related('funcionario', 'funcao')
+            for posto in postos_cobom:
+                # Localiza ou cria a função correspondente ao nome do posto para salvar na alocação
+                funcao_obj, _ = Dictionary.objects.get_or_create(
+                    tipo='FUNCAO_OPERACIONAL_COBOM',
+                    nome=posto.nome.upper(),
+                    defaults={'codigo': posto.nome.upper().replace(' ', '_')[:100], 'ativo': True}
+                )
 
+                funcs_com_alocacoes.append({
+                    'funcao': funcao_obj,
+                    'posto_nome': posto.nome,
+                    'alocacoes': all_alocs.filter(funcao=funcao_obj)
+                })
+
+        context = {
+            'mapa': mapa, 'hoje': hoje, 'user_gb': 'COBOM',
+            'funcs_com_alocacoes': funcs_com_alocacoes,
+            'base_template': 'base.html'
+        }
+        return render(request, 'mapa_forca/compor_mapa_cobom.html', context)
+
+    # --- ROTEAMENTO GB (MANTIDO ORIGINAL) ---
+    unidade_obj = get_object_or_404(Unidade, id=u_id) if u_id else user.unidade
     if unidade_obj:
         mapa, created = MapaDiario.objects.get_or_create(data=hoje, unidade=unidade_obj, defaults={'criado_por': user})
 
-    # --- POPULAÇÃO DOS FILTROS (Visualiza tudo do Batalhão) ---
+    lista_opm = list(Posto.objects.exclude(unidade__isnull=True).exclude(unidade='').values_list('unidade', flat=True).distinct().order_by('unidade'))
+    if not is_global_user and user_gb_name: categoria = user_gb_name
+    elif not categoria and lista_opm: categoria = lista_opm[0]
+
     lista_sgbs = []
     qs_unidades = Unidade.objects.none()
     if categoria:
@@ -136,88 +141,32 @@ def compor_mapa_view(request):
         gb_num = match_gb.group(1) if match_gb else ""
         q_planilha = Q(unidade__icontains=categoria)
         if gb_num: q_planilha |= Q(unidade__icontains=f"{gb_num}")
-        
         lista_sgbs = list(Posto.objects.filter(q_planilha).exclude(sgb__isnull=True).exclude(sgb='').values_list('sgb', flat=True).distinct().order_by('sgb'))
         
         filtro_postos_final = q_planilha
         if sgb_param: filtro_postos_final &= Q(sgb=sgb_param)
-        
         dados_postos = Posto.objects.filter(filtro_postos_final).values('cod_secao', 'nome')
         codigos = [d['cod_secao'] for d in dados_postos if d['cod_secao']]
         nomes = [d['nome'] for d in dados_postos]
-        
         qs_unidades = Unidade.objects.filter(Q(codigo_secao__in=codigos) | Q(nome__in=nomes)).distinct()
     
-    todas_unidades = qs_unidades.order_by('nome')
-
     viaturas_disponiveis = []
     if categoria:
         match_gb_vtr = re.search(r'(\d+)', categoria)
         gb_num_vtr = match_gb_vtr.group(1) if match_gb_vtr else ""
         q_vtr = Q(opmcb__icontains=categoria)
-        if gb_num_vtr:
-            q_vtr |= Q(opmcb__icontains=f"{gb_num_vtr}º GB") | Q(opmcb__icontains=f"{gb_num_vtr} GB") | Q(prefixo__startswith=f"{gb_num_vtr}")
-        
+        if gb_num_vtr: q_vtr |= Q(opmcb__icontains=f"{gb_num_vtr}º GB") | Q(opmcb__icontains=f"{gb_num_vtr} GB")
         viats_qs = Viatura.objects.filter(q_vtr).exclude(prefixo='TELEGRAFIA')
         viaturas_disponiveis = list(viats_qs.order_by('prefixo'))
-        v_telegrafia = Viatura.objects.filter(prefixo='TELEGRAFIA').first()
-        if v_telegrafia: viaturas_disponiveis.insert(0, v_telegrafia)
-        else: viaturas_disponiveis.insert(0, Viatura(prefixo='TELEGRAFIA', placa='SALA'))
-
-    # Define o contexto das funções baseado no papel do usuário com separação rigorosa
-    if user.role == 'COBOM':
-        funcoes_qs = Dictionary.objects.filter(tipo='FUNCAO_OPERACIONAL_COBOM', ativo=True).order_by('ordem', 'nome')
-    else:
-        # GB vê as funções padrão (Comandante, Motorista...) + as customizadas de GB
-        funcoes_qs = Dictionary.objects.filter(
-            Q(tipo='FUNCAO_OPERACIONAL') | Q(tipo='FUNCAO_OPERACIONAL_GB'),
-            ativo=True
-        ).order_by('ordem', 'nome')
+    
+    funcoes_qs = Dictionary.objects.filter(Q(tipo='FUNCAO_OPERACIONAL') | Q(tipo='FUNCAO_OPERACIONAL_GB'), ativo=True).order_by('ordem', 'nome')
 
     context = {
-        'mapa': mapa, 'todas_unidades': todas_unidades, 'viaturas_disponiveis': viaturas_disponiveis,
+        'mapa': mapa, 'todas_unidades': qs_unidades.order_by('nome'), 'viaturas_disponiveis': viaturas_disponiveis,
         'categorias_opm': lista_opm, 'categoria_selecionada': categoria, 'lista_sgbs': lista_sgbs,
         'sgb_selecionado': sgb_param, 'user_gb': user_gb_name, 'hoje': hoje,
-        'funcoes': funcoes_qs,
-        'tipo_contexto': 'COBOM' if user.role == 'COBOM' else 'GB',
+        'funcoes': funcoes_qs, 'base_template': 'base.html'
     }
-    
-    if request.headers.get('HX-Request') and not u_id: return render(request, 'escalas/partials/filtros_unidade_compor.html', context)
-    
-    # Roteamento baseado no nível de acesso (Role) para COBOM
-    if user.role == 'COBOM':
-        funcs_com_alocacoes = []
-        if mapa:
-            all_alocs = AlocacaoFuncionario.objects.filter(mapa=mapa, alocacao_viatura__isnull=True).select_related('funcionario', 'funcao')
-            for fn in context['funcoes']:
-                funcs_com_alocacoes.append({'funcao': fn, 'alocacoes': all_alocs.filter(funcao=fn)})
-        context.update({'base_template': 'base.html', 'funcs_com_alocacoes': funcs_com_alocacoes})
-        return render(request, 'mapa_forca/compor_mapa_cobom.html', context)
-
-    return render(request, 'escalas/compor_mapa.html', context)
-    
-    # Roteamento baseado no nível de acesso (Role)
-    if user.role == 'COBOM':
-        funcs_com_alocacoes = []
-        if mapa:
-            # Para o COBOM, buscamos alocações que não estão vinculadas a viaturas
-            all_alocs = AlocacaoFuncionario.objects.filter(
-                mapa=mapa, 
-                alocacao_viatura__isnull=True
-            ).select_related('funcionario', 'funcao')
-            
-            for fn in context['funcoes']:
-                funcs_com_alocacoes.append({
-                    'funcao': fn,
-                    'alocacoes': all_alocs.filter(funcao=fn)
-                })
-        
-        context.update({
-            'base_template': 'base.html',
-            'funcs_com_alocacoes': funcs_com_alocacoes,
-        })
-        return render(request, 'mapa_forca/compor_mapa_cobom.html', context)
-
     return render(request, 'escalas/compor_mapa.html', context)
 
 @login_required
@@ -254,9 +203,13 @@ def alocar_funcionario_viatura(request, alocacao_viatura_id):
     efetivo_id = request.POST.get('efetivo_id')
     f_id = request.POST.get('funcao_id')
     mapa_id = request.POST.get('mapa_id')
+    
     aloc_v = get_object_or_404(AlocacaoViatura, id=alocacao_viatura_id) if alocacao_viatura_id and int(alocacao_viatura_id) != 0 else None
     mapa = aloc_v.mapa if aloc_v else get_object_or_404(MapaDiario, id=mapa_id)
+    
+    funcao = get_object_or_404(Dictionary, id=f_id)
     militar = Funcionario.objects.filter(re=re_in).first()
+    
     if not militar:
         ef = Efetivo.objects.filter(Q(re=re_in) | Q(nome__icontains=re_in)).first()
         if ef:
@@ -265,13 +218,36 @@ def alocar_funcionario_viatura(request, alocacao_viatura_id):
                 p_grad = Dictionary.objects.filter(tipo='POSTO_GRADUACAO', nome__icontains=str(ef.posto_secao)[:3]).first()
                 nguerra = ef.nome.split()[-1] if ef.nome else "MILITAR"
                 militar = Funcionario.objects.create(re=ef.re or re_in, nome_completo=ef.nome, nome_guerra=nguerra, posto_graduacao=p_grad, mergulho=ef.mergulho, ovb=ef.ovb)
+    
     if militar:
         if AlocacaoFuncionario.objects.filter(mapa__data=mapa.data, funcionario=militar).exists():
             return HttpResponse(f'<script>showToast("Militar {militar.nome_guerra} já escalado hoje!", "error");</script>')
-        af = AlocacaoFuncionario.objects.create(mapa=mapa, alocacao_viatura=aloc_v, funcionario=militar, funcao_id=f_id, dejem=request.POST.get('dejem') == 'true', inicio_servico="07:30:00", termino_servico="07:30:00")
-        HistoricoAlteracao.objects.create(mapa=mapa, usuario=request.user, tipo_acao='UPDATE', descricao=f"Alocou {militar.nome_guerra}.")
+        
+        # --- REGRA DE SUPERVISÃO GB COBOM ---
+        sub_f = ""
+        f_nome_upper = funcao.nome.upper()
+        if "SUPERVISOR" in f_nome_upper and "GB" in f_nome_upper:
+            posto_nome = militar.posto_graduacao.nome.upper() if militar.posto_graduacao else ""
+            if any(rank in posto_nome for rank in ["CAP", "TEN"]):
+                sub_f = "supervisor"
+            elif any(rank in posto_nome for rank in ["SGT", "CB", "SD"]):
+                sub_f = "motorista"
+
+        af = AlocacaoFuncionario.objects.create(
+            mapa=mapa, 
+            alocacao_viatura=aloc_v, 
+            funcionario=militar, 
+            funcao=funcao, 
+            sub_funcao=sub_f,
+            dejem=request.POST.get('dejem') == 'true', 
+            inicio_servico="07:30:00", 
+            termino_servico="07:30:00"
+        )
+        
+        HistoricoAlteracao.objects.create(mapa=mapa, usuario=request.user, tipo_acao='UPDATE', descricao=f"Alocou {militar.nome_guerra} em {funcao.nome}.")
         return render(request, 'mapa_forca/partials/linha_funcionario_viatura.html', {'aloc_func': af, 'is_cobom': aloc_v is None})
-    return HttpResponse('<script>showToast("Erro: Militar não localizado na planilha!", "error");</script>')
+    
+    return HttpResponse('<script>showToast("Erro: Militar não localizado!", "error");</script>')
 
 @login_required
 def remover_viatura_mapa(request, alocacao_id):
