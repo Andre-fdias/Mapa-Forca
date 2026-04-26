@@ -70,13 +70,23 @@ INSTALLED_APPS = [
 ]
 
 SITE_ID = 1
+# Cache Configuration
+CACHES = {
+    'default': {
+        'BACKEND': 'django.core.cache.backends.locmem.LocMemCache',
+        'LOCATION': 'unique-snowflake',
+    }
+}
 
+# Middleware
 MIDDLEWARE = [
+    'django.middleware.gzip.GZipMiddleware', # Comprime os dados enviados ao navegador
     'corsheaders.middleware.CorsMiddleware',
     'django.middleware.security.SecurityMiddleware',
     'whitenoise.middleware.WhiteNoiseMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
+
     'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'accounts.middleware.ApprovalRequiredMiddleware', # Middleware de bloqueio
