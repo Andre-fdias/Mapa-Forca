@@ -236,6 +236,15 @@ INTERNAL_IPS = [
     "127.0.0.1",
 ]
 
+# Otimização para Produção (Render Free)
+if not DEBUG:
+    # Garante que o Django não tente rodar comandos de sistema para o Tailwind
+    TAILWIND_DEV_MODE = False
+    
+# Whitenoise - Cache de arquivos estáticos por 1 ano
+WHITENOISE_MAX_AGE = 31536000
+WHITENOISE_KEEP_ONLY_HASHED_FILES = True
+
 # Google Sheets API Settings
 GOOGLE_SHEETS_SPREADSHEET_ID = os.environ.get('GOOGLE_SHEETS_SPREADSHEET_ID', '17KRu0JzS6WfzicRfRuR17m0DCNrmAquSDj9tu86MaWE')
 # Pode ser o caminho do arquivo ou o conteúdo JSON direto
