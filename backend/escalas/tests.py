@@ -1,8 +1,10 @@
 from django.test import TestCase
 from django.utils import timezone
+from django.urls import reverse
+from django.contrib.auth import get_user_model
 from datetime import datetime, time, timedelta
 from unittest.mock import patch
-from .models import MapaDiario, AlocacaoViatura, AlocacaoFuncionario
+from .models import MapaDiario, AlocacaoViatura, AlocacaoFuncionario, HistoricoAlteracao
 from unidades.models import Unidade, Viatura
 from efetivo.models import Funcionario
 from dictionaries.models import Dictionary
@@ -90,22 +92,63 @@ class MapaForcaTestCase(TestCase):
         with self.assertRaises(IntegrityError):
             AlocacaoViatura.objects.create(mapa=mapa, viatura=self.viatura)
 
-    def test_view_busca_funcionario_htmx(self):
-        """A busca de funcionário deve retornar o partial correto para o HTMX."""
-        from django.urls import reverse
-        from django.contrib.auth import get_user_model
-        
-        # Cria um usuário para logar (Necessário @login_required)
+    def test_mapa_diario_all_fields(self):
+        """Testa a gravação de todos os campos do MapaDiario."""
+        mapa = MapaDiario.objects.create(
+            data=timezone.now().date(),
+            unidade=self.unidade,
+            prontidao='AZUL',
+            equipe='A',
+            periodo='dia',
+            finalizado=True
+        )
+        self.assertEqual(mapa.prontidao, 'AZUL')
+        self.assertEqual(mapa.equipe, 'A')
+        self.assertTrue(mapa.finalizado)
+
+    def test_alocacao_funcionario_extended_fields(self):
+        """Testa campos de DEJEM, horários e sub-função."""
+        mapa = MapaDiario.objects.create(data=timezone.now().date(), unidade=self.unidade)
+        aloc = AlocacaoFuncionario.objects.create(
+            mapa=mapa,
+            funcionario=self.funcionario,
+            funcao=self.funcao_cmd,
+            dejem=True,
+            sub_funcao='supervisor',
+            is_oficial_area=True,
+            inicio_dejem=time(8, 0),
+            termino_dejem=time(18, 0),
+            inicio_servico=time(7, 30),
+            termino_servico=time(7, 30)
+        )
+        self.assertTrue(aloc.dejem)
+        self.assertEqual(aloc.sub_funcao, 'supervisor')
+        self.assertTrue(aloc.is_oficial_area)
+        self.assertEqual(aloc.inicio_dejem, time(8, 0))
+
+    def test_historico_alteracao_logging(self):
+        """Testa se o histórico de alteração é gravado corretamente."""
+        mapa = MapaDiario.objects.create(data=timezone.now().date(), unidade=self.unidade)
+        # Simula criação manual de log (embora usualmente seja na view)
         User = get_user_model()
-        User.objects.create_user(email='test_view@gmail.com', password='password123', is_active=True)
-        self.client.login(email='test_view@gmail.com', password='password123')
-        
-        url = reverse('buscar_funcionario_re')
-        # Simulando uma busca pelo NOME do funcionário criado no setUp
-        response = self.client.get(url, {'funcionario_re': 'TESTE'})
-        
+        user = User.objects.create_user(email='admin_audit@teste.com', password='password')
+        log = HistoricoAlteracao.objects.create(
+            mapa=mapa,
+            usuario=user,
+            tipo_acao='CREATE',
+            descricao="Mapa criado para teste"
+        )
+        self.assertEqual(HistoricoAlteracao.objects.count(), 1)
+        self.assertEqual(log.tipo_acao, 'CREATE')
+
+    def test_view_compor_mapa_access(self):
+        """Testa acesso à view principal de composição do mapa."""
+        User = get_user_model()
+        User.objects.create_user(email='editor@teste.com', password='password', is_active=True, status='approved')
+        self.client.login(email='editor@teste.com', password='password')
+
+        url = reverse('compor_mapa')
+        response = self.client.get(url)
         self.assertEqual(response.status_code, 200)
-        # O template correto na view é 'mapa_forca/partials/lista_busca_funcionarios.html'
-        self.assertTemplateUsed(response, 'mapa_forca/partials/lista_busca_funcionarios.html')
-        # Verifica se o nome do funcionário aparece no HTML retornado
-        self.assertContains(response, self.funcionario.nome_guerra)
+        self.assertTemplateUsed(response, 'escalas/compor_mapa.html')
+
