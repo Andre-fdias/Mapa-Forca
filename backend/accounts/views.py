@@ -71,46 +71,9 @@ def profile_view(request):
                     mensagem=f"O militar {request.user.email} solicitou alteração de perfil. Caso queira aprovar agora click aqui ID:{request.user.id}",
                     tipo='warning'
                 )
-...
-@login_required
-@user_passes_test(lambda u: u.is_superuser or u.role == 'ADMIN')
-def approve_user_htmx(request, user_id, notif_id):
-    """Aprova o usuário e marca a notificação como lida via HTMX."""
-    user_to_approve = get_object_or_404(User, id=user_id)
-    user_to_approve.status = 'approved'
-    user_to_approve.is_active = True
-    
-    # Se for alteração de perfil pendente, aplica também
-    if user_to_approve.is_change_pending:
-        if user_to_approve.requested_role:
-            user_to_approve.role = user_to_approve.requested_role
-        if user_to_approve.requested_unidade:
-            user_to_approve.unidade = user_to_approve.requested_unidade
-        user_to_approve.requested_role = None
-        user_to_approve.requested_unidade = None
-        user_to_approve.is_change_pending = False
-        
-    user_to_approve.save()
 
-    # Marca notificação como lida
-    notification = get_object_or_404(Notification, id=notif_id, user=request.user)
-    notification.lida = True
-    notification.exibida_em_modal = True
-    notification.save()
-
-    # Cria Notificação de Aprovação para o usuário alvo
-    Notification.objects.create(
-        user=user_to_approve,
-        tipo='success',
-        mensagem=f"Sua solicitação foi APROVADA pelo administrador."
-    )
-
-    response = HttpResponse('<div class="px-6 py-4 bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 rounded-xl text-xs font-bold border border-emerald-500/30">Usuário aprovado com sucesso! Recarregando...</div>')
-    response['HX-Refresh'] = 'true'
-    return response
-                
                 messages.info(request, 'Sua solicitação de alteração de perfil foi enviada para aprovação do administrador.')
-            
+
             return redirect('profile')
 
     form = PasswordChangeForm(request.user) if not is_social else None
@@ -357,6 +320,43 @@ def get_postos_htmx(request):
     for posto in postos:
         options += f'<option value="{posto.id}">{posto.nome}</option>'
     return HttpResponse(options)
+
+@login_required
+@user_passes_test(lambda u: u.is_superuser or u.role == 'ADMIN')
+def approve_user_htmx(request, user_id, notif_id):
+    """Aprova o usuário e marca a notificação como lida via HTMX."""
+    user_to_approve = get_object_or_404(User, id=user_id)
+    user_to_approve.status = 'approved'
+    user_to_approve.is_active = True
+    
+    # Se for alteração de perfil pendente, aplica também
+    if user_to_approve.is_change_pending:
+        if user_to_approve.requested_role:
+            user_to_approve.role = user_to_approve.requested_role
+        if user_to_approve.requested_unidade:
+            user_to_approve.unidade = user_to_approve.requested_unidade
+        user_to_approve.requested_role = None
+        user_to_approve.requested_unidade = None
+        user_to_approve.is_change_pending = False
+        
+    user_to_approve.save()
+
+    # Marca notificação como lida
+    notification = get_object_or_404(Notification, id=notif_id, user=request.user)
+    notification.lida = True
+    notification.exibida_em_modal = True
+    notification.save()
+
+    # Cria Notificação de Aprovação para o usuário alvo
+    Notification.objects.create(
+        user=user_to_approve,
+        tipo='success',
+        mensagem=f"Sua solicitação foi APROVADA pelo administrador."
+    )
+
+    response = HttpResponse('<div class="px-6 py-4 bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 rounded-xl text-xs font-bold border border-emerald-500/30">Usuário aprovado com sucesso! Recarregando...</div>')
+    response['HX-Refresh'] = 'true'
+    return response
 
 @login_required
 @user_passes_test(lambda u: u.role == 'ADMIN' or u.is_superuser)
