@@ -21,6 +21,8 @@ class Funcionario(models.Model):
     # Novos campos para exibição tática na escala
     mergulho = models.CharField(max_length=100, null=True, blank=True)
     ovb = models.CharField(max_length=100, null=True, blank=True)
+    telefone = models.CharField(max_length=50, null=True, blank=True)
+    email = models.EmailField(max_length=255, null=True, blank=True)
 
     @property
     def identidade_militar(self):

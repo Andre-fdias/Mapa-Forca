@@ -6,14 +6,23 @@
         
         <!-- Informações do Militar -->
         <div class="flex flex-col">
-            <span class="text-xs font-black text-white uppercase tracking-tight leading-none mb-1 flex items-center">
+            <span class="text-xs font-black text-white uppercase tracking-tight leading-none mb-1 flex items-center flex-wrap gap-1.5">
                 {{ aloc_func.funcionario.identidade_militar }}
-                {% if aloc_func.is_comandante_prontidao %}
-                <span class="ml-1.5 flex items-center" title="Comandante de Prontidão">
+                
+                <!-- BADGE COMANDO -->
+                {% if aloc_func.is_oficial_area %}
+                <span class="flex items-center bg-red-500/20 px-1.5 py-0.5 rounded border border-red-500/30" title="Oficial de Área">
+                    <svg class="h-3 w-3 text-red-500 drop-shadow-[0_0_3px_rgba(239,68,68,0.5)]" fill="currentColor" viewBox="0 0 20 20">
+                        <path fill-rule="evenodd" d="M2.166 4.999A11.954 11.954 0 0010 1.944 11.954 11.954 0 0017.834 5c.11.65.166 1.32.166 2.001 0 5.225-3.34 9.67-8 11.317C5.34 16.67 2 12.225 2 7c0-.682.057-1.35.166-2.001zM10 5.236l.732 2.253h2.369l-1.917 1.393.732 2.252L10 9.743l-.916 1.393.732-2.252-1.917-1.393h2.369L10 5.236z" clip-rule="evenodd" />
+                    </svg>
+                    <span class="text-[7px] font-black text-red-500 uppercase tracking-tighter ml-0.5 whitespace-nowrap">OF AREA</span>
+                </span>
+                {% elif aloc_func.is_comandante_prontidao %}
+                <span class="flex items-center bg-amber-500/20 px-1.5 py-0.5 rounded border border-amber-500/30" title="Comandante de Prontidão">
                     <svg class="h-3 w-3 text-amber-400 drop-shadow-[0_0_3px_rgba(251,191,36,0.5)]" fill="currentColor" viewBox="0 0 20 20">
                         <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
                     </svg>
-                    <span class="text-[7px] font-black text-amber-400 uppercase tracking-tighter ml-0.5">Cmt Pront.</span>
+                    <span class="text-[7px] font-black text-amber-400 uppercase tracking-tighter ml-0.5 whitespace-nowrap">CMT PRONT</span>
                 </span>
                 {% endif %}
             </span>
@@ -21,19 +30,55 @@
             <div class="flex items-center space-x-2">
                 <span class="text-[8px] text-slate-400 font-black tracking-widest uppercase">{{ aloc_func.funcao.nome }}</span>
                 
+                <!-- Seletor de Comando (Flags) -->
+                <div class="relative" x-data="{ 
+                    openCmd: false,
+                    updateFlag(field, val) {
+                        let data = {
+                            csrfmiddlewaretoken: '{{ csrf_token }}',
+                            is_oficial_area: field === 'is_oficial_area' ? val : false,
+                            is_comandante_prontidao: field === 'is_comandante_prontidao' ? val : false
+                        };
+                        
+                        htmx.ajax('POST', '{% url 'atualizar_horario_alocacao' aloc_func.id %}', {
+                            target: '#aloc-func-{{ aloc_func.id }}',
+                            swap: 'outerHTML',
+                            values: data
+                        });
+                        this.openCmd = false;
+                    }
+                }">
+                    <button @click="openCmd = !openCmd" 
+                            class="text-[8px] font-black text-white bg-white/10 hover:bg-white/20 px-1.5 py-0.5 rounded border border-white/20 flex items-center transition-all duration-200">
+                        FLAG CMD
+                        <svg class="h-2 w-2 ml-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path d="M19 9l-7 7-7-7"/></svg>
+                    </button>
+                    
+                    <div x-show="openCmd" @click.away="openCmd = false" x-collapse
+                         class="absolute z-50 top-full left-0 mt-1.5 bg-slate-900 border border-slate-700 rounded-lg shadow-xl p-1.5 min-w-[140px]">
+                        <button @click="updateFlag('is_oficial_area', true)" class="w-full text-left px-2 py-1.5 text-[8px] font-black text-red-400 hover:bg-red-500/20 rounded-md uppercase flex items-center gap-1.5">
+                             <div class="h-1.5 w-1.5 rounded-full bg-red-500"></div> OFICIAL DE ÁREA
+                        </button>
+                        <button @click="updateFlag('is_comandante_prontidao', true)" class="w-full text-left px-2 py-1.5 text-[8px] font-black text-amber-400 hover:bg-amber-500/20 rounded-md uppercase flex items-center gap-1.5">
+                             <div class="h-1.5 w-1.5 rounded-full bg-amber-500"></div> CMT PRONTIDÃO
+                        </button>
+                        <hr class="my-1 border-slate-700">
+                        <button @click="updateFlag('none', false)" class="w-full text-left px-2 py-1.5 text-[8px] font-black text-slate-500 hover:bg-white/5 rounded-md uppercase">REMOVER FLAGS</button>
+                    </div>
+                </div>
+
                 <!-- Sub-função (Supervisor/Motorista) para GB -->
                 {% if "Supervisor" in aloc_func.funcao.nome and "GB" in aloc_func.funcao.nome %}
                 <div class="relative" x-data="{ 
                     openSub: false,
                     updateSubFuncao(val) {
-                        let formData = new FormData();
-                        formData.append('sub_funcao', val);
-                        formData.append('csrfmiddlewaretoken', '{{ csrf_token }}');
-                        
                         htmx.ajax('POST', '{% url 'atualizar_horario_alocacao' aloc_func.id %}', {
                             target: '#aloc-func-{{ aloc_func.id }}',
                             swap: 'outerHTML',
-                            values: { sub_funcao: val }
+                            values: { 
+                                sub_funcao: val,
+                                csrfmiddlewaretoken: '{{ csrf_token }}'
+                            }
                         });
                         this.openSub = false;
                     }
@@ -62,22 +107,18 @@
                     {% endif %}
                 </div>
                 {% else %}
-                    <!-- Horário Ordinário (Editável se for COBOM) -->
+                    <!-- Horário Ordinário -->
                     {% if is_cobom %}
                     <div class="relative" x-data="{ 
                         open: false,
                         updateHorario(inicio, termino) {
-                            let formData = new FormData();
-                            formData.append('inicio_servico', inicio);
-                            formData.append('termino_servico', termino);
-                            formData.append('csrfmiddlewaretoken', '{{ csrf_token }}');
-                            
                             htmx.ajax('POST', '{% url 'atualizar_horario_alocacao' aloc_func.id %}', {
                                 target: '#aloc-func-{{ aloc_func.id }}',
                                 swap: 'outerHTML',
                                 values: {
                                     inicio_servico: inicio,
-                                    termino_servico: termino
+                                    termino_servico: termino,
+                                    csrfmiddlewaretoken: '{{ csrf_token }}'
                                 }
                             });
                             this.open = false;

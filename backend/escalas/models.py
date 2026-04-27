@@ -107,6 +107,7 @@ class AlocacaoFuncionario(models.Model):
 
     dejem = models.BooleanField(default=False, verbose_name="DEJEM")
     is_comandante_prontidao = models.BooleanField(default=False, verbose_name="Cmt Prontidão")
+    is_oficial_area = models.BooleanField(default=False, verbose_name="Oficial de Área")
     inicio_dejem = models.TimeField(null=True, blank=True, verbose_name="Início DEJEM")
     termino_dejem = models.TimeField(null=True, blank=True, verbose_name="Término DEJEM")
     

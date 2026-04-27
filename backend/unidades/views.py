@@ -27,13 +27,13 @@ def get_data_operacional():
     return agora.date()
 
 def format_militar_display(funcionario, efetivo_info, include_re=True):
-    """Garante o formato EXATO: POSTO + ' ' + RE + '-' + DIG + ' ' + NOME_DE_GUERRA."""
+    """Garante o formato EXATO: PATENTE + ' ' + RE + ' ' + NOME (Ex: 1º TEN PM 123456-7 NOME)."""
     ranks = [
         'CEL PM', 'TEN CEL PM', 'MAJ PM', 'CAP PM', '1º TEN PM', '2º TEN PM', 'ASP PM', 
         'SUBTEN PM', '1º SGT PM', '2º SGT PM', '3º SGT PM', 'CB PM', 'SD PM'
     ]
     
-    # 1. Posto
+    # 1. Patente (Posto/Graduação)
     p_final = ""
     if efetivo_info and efetivo_info.posto_secao:
         p_txt = str(efetivo_info.posto_secao).upper()
@@ -45,8 +45,7 @@ def format_militar_display(funcionario, efetivo_info, include_re=True):
         p_final = funcionario.posto_graduacao.nome.upper()
 
     # 2. RE e DIG
-    re_val = ""
-    dig_val = ""
+    re_str = ""
     raw_re = ""
     if funcionario and funcionario.re:
         raw_re = funcionario.re
@@ -57,15 +56,17 @@ def format_militar_display(funcionario, efetivo_info, include_re=True):
         parts = str(raw_re).split('-')
         re_val = parts[0].strip()
         dig_val = parts[1].strip() if len(parts) > 1 else ""
-
-    if not dig_val and efetivo_info and efetivo_info.dig:
-        dig_val = str(efetivo_info.dig).strip()
+        if not dig_val and efetivo_info and efetivo_info.dig:
+            dig_val = str(efetivo_info.dig).strip()
+        
+        re_str = f"{re_val}-{dig_val}" if dig_val else re_val
 
     # 3. Nome de Guerra
     n_final = ""
     if efetivo_info and efetivo_info.nome_guerra:
         n_final = str(efetivo_info.nome_guerra).upper().strip()
     elif efetivo_info and efetivo_info.nome:
+        # Tenta extrair apenas o nome do campo 'nome' do efetivo
         n_txt = str(efetivo_info.nome).upper()
         n_txt = re.sub(r'\d{6}-\d{1}', '', n_txt)
         n_txt = re.sub(r'\(.*?\)', '', n_txt)
@@ -76,16 +77,13 @@ def format_militar_display(funcionario, efetivo_info, include_re=True):
     if not n_final and funcionario:
         n_final = (funcionario.nome_guerra or "").upper().strip()
 
-    # 4. Montagem Final
-    res = p_final
-    if include_re and re_val:
-        re_str = f"{re_val}-{dig_val}" if dig_val else re_val
-        res = f"{res} {re_str}".strip()
-    
-    if n_final:
-        res = f"{res} {n_final}".strip()
+    # 4. Montagem Final (Ordem: PATENTE RE NOME)
+    parts = []
+    if p_final: parts.append(p_final)
+    if include_re and re_str: parts.append(re_str)
+    if n_final: parts.append(n_final)
         
-    return res or "S/ NOME"
+    return " ".join(parts) or "S/ NOME"
 
 class UnidadeViewSet(viewsets.ModelViewSet):
     queryset = Unidade.objects.filter(ativo=True)
@@ -405,6 +403,125 @@ def dashboard_cobom(request):
     
     mapa_completo = (total_completos == total_unidades) if total_unidades > 0 else False
     
+    # --- COLETA DE OFICIAIS DE SERVIÇO (REAL-TIME) ---
+    oficiais_servico = []
+    oficial_area_1 = None
+    oficial_area_2 = None
+    
+    # Identificar Unidade (GB) do Usuário Logado para o Supervisor
+    user_gb_nome = ""
+    if user.unidade:
+        curr = user.unidade
+        while curr:
+            if curr.tipo_unidade and curr.tipo_unidade.codigo == 'BATALHAO':
+                user_gb_nome = curr.nome.upper()
+                break
+            if 'GB' in curr.nome.upper() and 'SGB' not in curr.nome.upper():
+                user_gb_nome = curr.nome.upper()
+                break
+            curr = curr.parent
+    
+    if batalhao_selecionado:
+        unidades_bt_ids = [batalhao_selecionado.id]
+        for s_sgb in batalhao_selecionado.subunidades.all():
+            unidades_bt_ids.append(s_sgb.id)
+            for s_posto in s_sgb.subunidades.all():
+                unidades_bt_ids.append(s_posto.id)
+        
+        # 1. Oficiais de Área (Prioridade: Mapa CBI-1 ou qualquer um marcado como is_oficial_area no Batalhão)
+        alocs_area = AlocacaoFuncionario.objects.filter(
+            mapa__data=hoje, 
+            mapa__unidade_id__in=unidades_bt_ids,
+            is_oficial_area=True
+        ).select_related('funcionario', 'mapa__unidade', 'alocacao_viatura__viatura').order_by('id')[:2]
+        
+        for i, aloc_area in enumerate(alocs_area):
+            # Identificar o militar no Efetivo para pegar dados táticos
+            ef_area = Efetivo.objects.filter(Q(re=aloc_area.funcionario.re) | Q(nome__icontains=aloc_area.funcionario.nome_guerra)).first()
+            
+            # Garantir que o telefone apareça no card se estiver no Efetivo mas não no Funcionario
+            tel_link = None
+            if ef_area and ef_area.telefone:
+                if not aloc_area.funcionario.telefone:
+                    aloc_area.funcionario.telefone = ef_area.telefone
+                tel_link = normalize_phone_for_whatsapp(ef_area.telefone)
+            
+            aloc_area.whatsapp_link = f'https://wa.me/{tel_link}' if tel_link else None
+
+            # Lógica de Estrelas e Destaque de Patente
+            rank = (aloc_area.funcionario.posto_graduacao.nome if aloc_area.funcionario.posto_graduacao else "").upper()
+            stars = 0
+            if 'CAP' in rank: stars = 3
+            elif '1º TEN' in rank or '1O TEN' in rank: stars = 2
+            elif '2º TEN' in rank or '2O TEN' in rank: stars = 1
+            
+            # Anexar ao objeto para o template
+            aloc_area.rank_display = rank
+            aloc_area.stars_list = range(stars)
+            
+            if i == 0: oficial_area_1 = aloc_area
+            if i == 1: oficial_area_2 = aloc_area
+
+            oficiais_servico.append({
+                'cargo': f'Oficial de Área {i+1}' if alocs_area.count() > 1 else 'Oficial de Área',
+                'nome': format_militar_display(aloc_area.funcionario, ef_area),
+                'tipo': 'DIA' if not aloc_area.dejem else 'DEJEM',
+                'telefone': ef_area.telefone if ef_area else None,
+                'whatsapp_link': aloc_area.whatsapp_link,
+                'unidade': aloc_area.mapa.unidade.nome
+            })
+
+        # 2. Supervisor do Grupamento (Baseado na unidade do usuário logado)
+        aloc_sup = None
+        if user_gb_nome:
+            # Tenta encontrar no mapa de hoje quem é o supervisor dessa unidade específica
+            aloc_sup = AlocacaoFuncionario.objects.filter(
+                mapa__data=hoje,
+                mapa__unidade_id__in=unidades_bt_ids
+            ).filter(
+                Q(funcao__nome__icontains='Supervisor') & Q(funcao__nome__icontains=user_gb_nome.replace('º', ''))
+            ).select_related('funcionario', 'mapa__unidade', 'funcao').first()
+
+            if aloc_sup:
+                ef_sup = Efetivo.objects.filter(Q(re=aloc_sup.funcionario.re) | Q(nome__icontains=aloc_sup.funcionario.nome_guerra)).first()
+                tel_link = normalize_phone_for_whatsapp(ef_sup.telefone) if ef_sup else None
+                oficiais_servico.append({
+                    'cargo': f'Supervisor {user_gb_nome}',
+                    'nome': format_militar_display(aloc_sup.funcionario, ef_sup),
+                    'tipo': 'DIA' if not aloc_sup.dejem else 'DEJEM',
+                    'telefone': ef_sup.telefone if ef_sup else None,
+                    'whatsapp_link': f'https://wa.me/{tel_link}' if tel_link else None,
+                    'unidade': aloc_sup.mapa.unidade.nome
+                })
+
+        # 3. Complemento: Outros supervisores se houver espaço (opcional, para preencher a barra)
+        exclude_ids = [a.id for a in alocs_area]
+        if aloc_sup:
+            exclude_ids.append(aloc_sup.id)
+            
+        alocs_outros = AlocacaoFuncionario.objects.filter(
+            mapa__data=hoje,
+            mapa__unidade_id__in=unidades_bt_ids
+        ).filter(
+            Q(sub_funcao='supervisor') | Q(funcao__codigo='SUPERVISOR')
+        ).exclude(id__in=exclude_ids)[:2]
+
+        for s in alocs_outros:
+            ef_s = Efetivo.objects.filter(Q(re=s.funcionario.re) | Q(nome__icontains=s.funcionario.nome_guerra)).first()
+            tel_link = normalize_phone_for_whatsapp(ef_s.telefone) if ef_s else None
+            oficiais_servico.append({
+                'cargo': f'Sup. {s.mapa.unidade.nome}',
+                'nome': format_militar_display(s.funcionario, ef_s),
+                'tipo': 'DIA' if not s.dejem else 'DEJEM',
+                'whatsapp_link': f'https://wa.me/{tel_link}' if tel_link else None
+            })
+
+    if not oficiais_servico:
+        oficiais_servico = [
+            {'cargo': 'Supervisor de Serviço', 'nome': 'NÃO IDENTIFICADO', 'tipo': 'N/D'},
+            {'cargo': 'Oficial de Área', 'nome': 'NÃO IDENTIFICADO', 'tipo': 'N/D'}
+        ]
+
     return render(request, 'dashboard/cobom.html', {
         'sgbs': sgbs_data, 
         'hoje': hoje, 
@@ -415,11 +532,9 @@ def dashboard_cobom(request):
         'batalhao_selecionado': batalhao_selecionado,
         'is_global_user': is_global_user,
         'botoes_atalho': ['Aeroportos', 'Alarmes / Cód OPM', 'VTR Reserva', 'Normas do CB', 'Links / Intranet', 'Bairros', 'Pesquisa'],
-        'oficiais': [
-            {'cargo': 'Supervisor de Serviço', 'nome': 'CAP PM RODRIGUES', 'tipo': 'DIA'}, 
-            {'cargo': 'Comando de Área', 'nome': '1º TEN PM COSTA', 'tipo': 'DIA'}, 
-            {'cargo': 'Despachador', 'nome': 'SGT PM SILVA', 'tipo': 'NOITE'}
-        ]
+        'oficiais': oficiais_servico,
+        'oficial_area_1': oficial_area_1,
+        'oficial_area_2': oficial_area_2
     })
 
 @login_required
@@ -634,14 +749,30 @@ def visao_cobom_efetivo_view(request):
     """Nova Visão Tática COBOM focada em Efetivo (Design Dark Mode)"""
     agora = timezone.localtime(timezone.now())
     hoje = get_data_operacional()
+    user = request.user
     
+    # Identificar Unidade (GB) do Usuário Logado
+    user_gb_nome = ""
+    if user.unidade:
+        curr = user.unidade
+        while curr:
+            if curr.tipo_unidade and curr.tipo_unidade.codigo == 'BATALHAO':
+                user_gb_nome = curr.nome.upper()
+                break
+            # Fallback similar ao dashboard_cobom
+            if 'GB' in curr.nome.upper() and 'SGB' not in curr.nome.upper():
+                user_gb_nome = curr.nome.upper()
+                break
+            curr = curr.parent
+
     # Try to find today's COBOM map
     mapa = MapaDiario.objects.filter(data=hoje, unidade__nome='CBI-1').first()
     if not mapa:
-        # Fallback in case ADMIN created the map under a different unit by mistake
         mapa = MapaDiario.objects.filter(data=hoje, alocacoes_funcionarios__funcao__nome__in=['Oficial de Operações DEJEM', 'Supervisor Despacho', 'Chefe de Equipe']).first()
     
     pessoas = []
+    oficial_area_data = None
+    supervisor_servico_data = None
     
     FUNCOES_FIXAS = [
         ('COBOM CBI1', 'text-blue-500', 'Oficial de Operações DEJEM'),
@@ -667,31 +798,51 @@ def visao_cobom_efetivo_view(request):
     if mapa:
         alocs_all = mapa.alocacoes_funcionarios.select_related('funcionario__posto_graduacao', 'funcao').all()
         
-        # Agrupar alocações por nome da função em MAIÚSCULO para evitar problemas de case
+        # 1. Identificar Oficial de Área (Militar com flag is_oficial_area=True no mapa CBI-1)
+        aloc_oa = alocs_all.filter(is_oficial_area=True).first()
+        if aloc_oa:
+            ef_oa = Efetivo.objects.filter(Q(re=aloc_oa.funcionario.re) | Q(nome__icontains=aloc_oa.funcionario.nome_guerra)).first()
+            tel_link = normalize_phone_for_whatsapp(ef_oa.telefone) if ef_oa else None
+            oficial_area_data = {
+                'nome': format_militar_display(aloc_oa.funcionario, ef_oa),
+                'telefone': ef_oa.telefone if ef_oa else '-',
+                'whatsapp_link': f'https://wa.me/{tel_link}' if tel_link else None,
+            }
+
+        # 2. Identificar Supervisor do Usuário (Baseado na Unidade logada)
+        if user_gb_nome:
+            # Busca por função que contenha "Supervisor" e o nome da Unidade (ex: "Supervisor 15º GB")
+            aloc_sup = alocs_all.filter(
+                Q(funcao__nome__icontains='Supervisor') & Q(funcao__nome__icontains=user_gb_nome.replace('º', ''))
+            ).first()
+            if aloc_sup:
+                ef_sup = Efetivo.objects.filter(Q(re=aloc_sup.funcionario.re) | Q(nome__icontains=aloc_sup.funcionario.nome_guerra)).first()
+                tel_link = normalize_phone_for_whatsapp(ef_sup.telefone) if ef_sup else None
+                supervisor_servico_data = {
+                    'nome': format_militar_display(aloc_sup.funcionario, ef_sup),
+                    'telefone': ef_sup.telefone if ef_sup else '-',
+                    'whatsapp_link': f'https://wa.me/{tel_link}' if tel_link else None,
+                    'unidade': user_gb_nome
+                }
+
+        # Agrupar alocações por nome da função em MAIÚSCULO
         from collections import defaultdict
         aloc_grupos = defaultdict(list)
         for a in alocs_all:
             if a.funcao:
                 aloc_grupos[a.funcao.nome.upper()].append(a)
 
-        # Usar as funções fixas como ordem de exibição, mas processar todos os alocados
         for setor_original, cor_original, fn_nome in FUNCOES_FIXAS:
-            # Busca no grupo usando o nome em maiúsculo
             alocs_da_funcao = aloc_grupos.get(fn_nome.upper(), [])
-            
-            # --- NOVA LÓGICA DE SETORES ---
             setor = setor_original
-            if '193' in fn_nome:
-                setor = '193'
+            if '193' in fn_nome: setor = '193'
             
-            # --- LÓGICA DE EXIBIÇÃO PARA SUPERVISORES DE GB ---
             esconder_detalhes = False
             fn_upper = fn_nome.upper()
             if any(gb in fn_upper for gb in ['7º GB', '15º GB', '16º GB', '19º GB']) and 'SUPERVISOR' in fn_upper:
                 esconder_detalhes = True
 
             if alocs_da_funcao:
-                # Ordenar alocações para que 'supervisor' venha primeiro se for Supervisor de GB
                 if esconder_detalhes:
                     alocs_da_funcao = sorted(alocs_da_funcao, key=lambda x: 0 if x.sub_funcao == 'supervisor' else 1)
 
@@ -712,10 +863,8 @@ def visao_cobom_efetivo_view(request):
                     tel_raw = ef_info.telefone if ef_info else '-'
                     tel_link = normalize_phone_for_whatsapp(tel_raw)
                     
-                    # --- AJUSTE DE NOMENCLATURA PARA MOTORISTA DE SUPERVISOR ---
                     fn_display = fn_nome.upper()
                     if esconder_detalhes and index > 0 and aloc.sub_funcao == 'motorista':
-                        # Extrai o número do GB (7, 15, 16 ou 19) do nome da função original
                         gb_match = re.search(r'(\d+)', fn_nome)
                         gb_num = gb_match.group(1) if gb_match else ""
                         fn_display = f"MOTORISTA SUP {gb_num}º GB"
@@ -737,7 +886,6 @@ def visao_cobom_efetivo_view(request):
                         'row_id': f"sup_{fn_nome.replace(' ', '_')}" if esconder_detalhes else None
                     })
             else:
-                # Para funções vazias, mantemos a linha única
                 pessoas.append({
                     'setor': setor,
                     'funcao': fn_nome.upper(),
@@ -772,6 +920,8 @@ def visao_cobom_efetivo_view(request):
         'aba_ativa': 'CBI-1',
         'is_editor': request.user.role in ['ADMIN', 'COBOM'] or request.user.is_superuser,
         'pessoas': pessoas,
+        'oficial_area': oficial_area_data,
+        'supervisor_servico': supervisor_servico_data,
         'prontidao': prontidao,
         'equipe': equipe,
         'periodo': periodo,

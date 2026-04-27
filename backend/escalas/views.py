@@ -54,9 +54,24 @@ def atualizar_horario_alocacao(request, aloc_func_id):
     af.inicio_servico = request.POST.get('inicio_servico', af.inicio_servico)
     af.termino_servico = request.POST.get('termino_servico', af.termino_servico)
     af.sub_funcao = request.POST.get('sub_funcao', af.sub_funcao)
+    
+    # Lógica de Flags (Oficial de Área / Cmt Prontidão)
+    if 'is_oficial_area' in request.POST:
+        is_oa = request.POST.get('is_oficial_area') == 'true'
+        if is_oa:
+            # Garante que apenas UM Oficial de Área exista por mapa
+            AlocacaoFuncionario.objects.filter(mapa=af.mapa, is_oficial_area=True).update(is_oficial_area=False)
+        af.is_oficial_area = is_oa
+        
+    if 'is_comandante_prontidao' in request.POST:
+        af.is_comandante_prontidao = request.POST.get('is_comandante_prontidao') == 'true'
+    
     af.save()
-    HistoricoAlteracao.objects.create(mapa=af.mapa, usuario=request.user, tipo_acao='UPDATE', descricao=f"Atualizou {af.funcionario.nome_guerra}.")
-    return render(request, 'mapa_forca/partials/linha_funcionario_viatura.html', {'aloc_func': af, 'is_cobom': af.alocacao_viatura is None})
+    HistoricoAlteracao.objects.create(mapa=af.mapa, usuario=request.user, tipo_acao='UPDATE', descricao=f"Atualizou status/horário de {af.funcionario.nome_guerra}.")
+    
+    # Se for Oficial de Área, precisamos dar um refresh no cabeçalho também. 
+    # Por simplicidade, retornamos a linha, mas a UI do topo será atualizada no próximo load ou via evento.
+    return render(request, 'escalas/partials/linha_funcionario_viatura.html', {'aloc_func': af, 'is_cobom': af.alocacao_viatura is None})
 
 @login_required
 def compor_mapa_view(request):
@@ -130,6 +145,13 @@ def compor_mapa_view(request):
     if unidade_obj:
         mapa, created = MapaDiario.objects.get_or_create(data=hoje, unidade=unidade_obj, defaults={'criado_por': user})
 
+    # Busca Oficiais de Comando para o Mapa Atual
+    oficial_area = None
+    comandante_prontidao = None
+    if mapa:
+        oficial_area = AlocacaoFuncionario.objects.filter(mapa=mapa, is_oficial_area=True).first()
+        comandante_prontidao = AlocacaoFuncionario.objects.filter(mapa=mapa, is_comandante_prontidao=True).first()
+
     lista_opm = list(Posto.objects.exclude(unidade__isnull=True).exclude(unidade='').values_list('unidade', flat=True).distinct().order_by('unidade'))
     if not is_global_user and user_gb_name: categoria = user_gb_name
     elif not categoria and lista_opm: categoria = lista_opm[0]
@@ -165,7 +187,9 @@ def compor_mapa_view(request):
         'mapa': mapa, 'todas_unidades': qs_unidades.order_by('nome'), 'viaturas_disponiveis': viaturas_disponiveis,
         'categorias_opm': lista_opm, 'categoria_selecionada': categoria, 'lista_sgbs': lista_sgbs,
         'sgb_selecionado': sgb_param, 'user_gb': user_gb_name, 'hoje': hoje,
-        'funcoes': funcoes_qs, 'base_template': 'base.html'
+        'funcoes': funcoes_qs, 'base_template': 'base.html',
+        'oficial_area': oficial_area,
+        'comandante_prontidao': comandante_prontidao
     }
     return render(request, 'escalas/compor_mapa.html', context)
 
@@ -195,7 +219,7 @@ def adicionar_viatura_mapa(request, mapa_id):
     status_op = Dictionary.objects.filter(tipo='STATUS_VIATURA', codigo='OPERANDO').first()
     aloc, created = AlocacaoViatura.objects.get_or_create(mapa=mapa, viatura=v, defaults={'status_no_dia': status_op})
     
-    return render(request, 'mapa_forca/partials/card_viatura_alocada.html', {'alocacao': aloc, 'funcoes': Dictionary.objects.filter(tipo='FUNCAO_OPERACIONAL')})
+    return render(request, 'escalas/partials/card_viatura_alocada.html', {'alocacao': aloc, 'funcoes': Dictionary.objects.filter(tipo='FUNCAO_OPERACIONAL')})
 
 @login_required
 def alocar_funcionario_viatura(request, alocacao_viatura_id):
@@ -217,7 +241,16 @@ def alocar_funcionario_viatura(request, alocacao_viatura_id):
             if not militar:
                 p_grad = Dictionary.objects.filter(tipo='POSTO_GRADUACAO', nome__icontains=str(ef.posto_secao)[:3]).first()
                 nguerra = ef.nome.split()[-1] if ef.nome else "MILITAR"
-                militar = Funcionario.objects.create(re=ef.re or re_in, nome_completo=ef.nome, nome_guerra=nguerra, posto_graduacao=p_grad, mergulho=ef.mergulho, ovb=ef.ovb)
+                militar = Funcionario.objects.create(
+                    re=ef.re or re_in, 
+                    nome_completo=ef.nome, 
+                    nome_guerra=nguerra, 
+                    posto_graduacao=p_grad, 
+                    mergulho=ef.mergulho, 
+                    ovb=ef.ovb,
+                    telefone=ef.telefone,
+                    email=ef.email
+                )
     
     if militar:
         if AlocacaoFuncionario.objects.filter(mapa__data=mapa.data, funcionario=militar).exists():
@@ -233,19 +266,34 @@ def alocar_funcionario_viatura(request, alocacao_viatura_id):
             elif any(rank in posto_nome for rank in ["SGT", "CB", "SD"]):
                 sub_f = "motorista"
 
+        # --- VALIDAÇÕES DE COMANDO (OFICIAL DE ÁREA) ---
+        is_oa = request.POST.get('is_oficial_area') == 'true'
+        if is_oa:
+            posto_militar = militar.posto_graduacao.nome.upper() if militar.posto_graduacao else ""
+            ranks_permitidos = ["1º TEN PM", "2º TEN PM", "ASP PM"]
+            
+            if posto_militar not in ranks_permitidos:
+                return HttpResponse(f'<script>showToast("Erro: {posto_militar} não pode ser Oficial de Área. Apenas 1º Ten, 2º Ten ou Asp.", "error");</script>')
+            
+            existing_oa = AlocacaoFuncionario.objects.filter(mapa=mapa, is_oficial_area=True).first()
+            if existing_oa:
+                return HttpResponse(f'<script>showToast("Erro: {existing_oa.funcionario.nome_guerra} já é o Oficial de Área deste mapa!", "error");</script>')
+
         af = AlocacaoFuncionario.objects.create(
             mapa=mapa, 
             alocacao_viatura=aloc_v, 
             funcionario=militar, 
             funcao=funcao, 
             sub_funcao=sub_f,
-            dejem=request.POST.get('dejem') == 'true', 
+            dejem=request.POST.get('dejem') == 'true',
+            is_oficial_area=is_oa,
+            is_comandante_prontidao=request.POST.get('is_comandante_prontidao') == 'true',
             inicio_servico="07:30:00", 
             termino_servico="07:30:00"
         )
-        
+
         HistoricoAlteracao.objects.create(mapa=mapa, usuario=request.user, tipo_acao='UPDATE', descricao=f"Alocou {militar.nome_guerra} em {funcao.nome}.")
-        return render(request, 'mapa_forca/partials/linha_funcionario_viatura.html', {'aloc_func': af, 'is_cobom': aloc_v is None})
+        return render(request, 'escalas/partials/linha_funcionario_viatura.html', {'aloc_func': af, 'is_cobom': aloc_v is None})
     
     return HttpResponse('<script>showToast("Erro: Militar não localizado!", "error");</script>')
 
@@ -280,3 +328,24 @@ def historico_view(request):
 class MapaDiarioViewSet(viewsets.ModelViewSet): queryset = MapaDiario.objects.all(); serializer_class = MapaDiarioSerializer
 class AlocacaoFuncionarioViewSet(viewsets.ModelViewSet): queryset = AlocacaoFuncionario.objects.all(); serializer_class = AlocacaoFuncionarioSerializer
 class AlocacaoViaturaViewSet(viewsets.ModelViewSet): queryset = AlocacaoViatura.objects.all(); serializer_class = AlocacaoViaturaSerializer
+
+@login_required
+def alternar_flag_alocacao(request, aloc_func_id):
+    """Alterna as flags de Oficial de Área ou Comandante de Prontidão."""
+    aloc_func = get_object_or_404(AlocacaoFuncionario, id=aloc_func_id)
+    flag = request.GET.get('flag')
+    
+    if flag == 'cmt_prontidao':
+        aloc_func.is_comandante_prontidao = not aloc_func.is_comandante_prontidao
+        # Se virou Cmt Prontidão, remove Oficial de Área (regra opcional mas sugerida pelo UI)
+        if aloc_func.is_comandante_prontidao:
+            aloc_func.is_oficial_area = False
+    elif flag == 'oficial_area':
+        aloc_func.is_oficial_area = not aloc_func.is_oficial_area
+        if aloc_func.is_oficial_area:
+            aloc_func.is_comandante_prontidao = False
+            
+    aloc_func.save()
+    
+    # Retorna a linha atualizada para o HTMX
+    return render(request, 'escalas/partials/linha_funcionario_viatura.html', {'aloc_func': aloc_func})
