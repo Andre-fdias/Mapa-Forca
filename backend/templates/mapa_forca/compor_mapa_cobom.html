@@ -4,9 +4,27 @@
 <div id="escalas-app" class="max-w-[1600px] mx-auto uppercase" x-data="{
     searchQuery: '',
     selectedCategoria: 'CBI-1',
+    selectedPeriodo: '{{ mapa.periodo|default:"dia" }}',
     filledCards: 0,
     totalCards: {{ funcs_com_alocacoes|length|default:0 }},
     canFinalize: false,
+    
+    // Função para definir horários padrão baseados no Posto e no Período do Mapa
+    getHorariosPadrao(postoNome) {
+        const nome = postoNome.toUpperCase();
+        
+        // Regra 1: Supervisores de GB são sempre 24h
+        if (nome.includes('SUPERVISOR') && nome.includes('GB')) {
+            return { inicio: '07:30', termino: '07:30', tipo: '24h' };
+        }
+        
+        // Regra 2: Baseado no período do mapa (12h)
+        if (this.selectedPeriodo === 'noite') {
+            return { inicio: '18:45', termino: '07:00', tipo: '12h-noite' };
+        }
+        return { inicio: '06:45', termino: '19:00', tipo: '12h-dia' };
+    },
+
     updateFinalizeStatus() {
         this.$nextTick(() => {
             const cards = document.querySelectorAll('.card-funcao');
@@ -80,7 +98,7 @@
                 <div class="flex flex-col">
                     <label class="text-[8px] text-slate-400 font-black tracking-widest mb-0.5 uppercase">PERÍODO</label>
                     <div class="relative">
-                        <select name="periodo" class="appearance-none bg-slate-800 border border-slate-700 text-white font-bold text-[11px] rounded-lg px-3 py-1.5 pr-8 focus:outline-none focus:border-red-500 cursor-pointer min-w-[140px]">
+                        <select name="periodo" x-model="selectedPeriodo" class="appearance-none bg-slate-800 border border-slate-700 text-white font-bold text-[11px] rounded-lg px-3 py-1.5 pr-8 focus:outline-none focus:border-red-500 cursor-pointer min-w-[140px]">
                             <option value="" class="text-slate-500">Selecione...</option>
                             <option value="dia" {% if mapa.periodo == "dia" %}selected{% endif %}>☀️ 06:45-19:00</option>
                             <option value="noite" {% if mapa.periodo == "noite" %}selected{% endif %}>🌙 18:45-07:00</option>
@@ -115,7 +133,7 @@
                         <span class="text-[8px] font-black text-slate-500 tracking-widest uppercase">POSTO COBOM</span>
                     </div>
                     <h3 class="text-sm font-black text-white tracking-tight flex items-center">
-                        {{ item.funcao.nome|upper }}
+                        {{ item.posto_nome|upper }}
                     </h3>
                 </div>
             </div>
@@ -176,20 +194,16 @@
                         <div x-data="{ 
                             isDejem: false, 
                             inicio_dejem: '', 
-                            get termino_dejem() { if(!this.inicio_dejem) return ''; let [h,m] = this.inicio_dejem.split(':'); h = (parseInt(h) + 8) % 24; return h.toString().padStart(2, '0') + ':' + m; },
-                            horario_ordinario: '24h',
-                            get h_inicio() {
-                                if(this.horario_ordinario === '24h') return '07:30';
-                                if(this.horario_ordinario === '12h-dia') return '06:45';
-                                if(this.horario_ordinario === '12h-noite') return '18:45';
-                                return '';
+                            get horariosCalculados() { return $data.getHorariosPadrao('{{ item.posto_nome }}'); },
+                            get termino_dejem() { 
+                                if (this.isDejem && this.inicio_dejem) {
+                                    let [h,m] = this.inicio_dejem.split(':'); h = (parseInt(h) + 8) % 24; return h.toString().padStart(2, '0') + ':' + m;
+                                }
+                                return this.horariosCalculados.termino;
                             },
-                            get h_fim() {
-                                if(this.horario_ordinario === '24h') return '07:30';
-                                if(this.horario_ordinario === '12h-dia') return '19:00';
-                                if(this.horario_ordinario === '12h-noite') return '07:00';
-                                return '';
-                            }
+                            horario_ordinario: 'base',
+                            get h_inicio() { return this.horariosCalculados.inicio; },
+                            get h_fim() { return this.horariosCalculados.termino; }
                         }" class="bg-black/20 p-2 rounded-lg border border-slate-800">
                             
                             <label class="flex items-center space-x-2 cursor-pointer group mb-2">
@@ -205,7 +219,7 @@
                                 <div class="flex space-x-2">
                                     <div class="flex-1">
                                         <label class="text-[7px] font-black tracking-widest text-slate-500 mb-0.5 block uppercase">INÍCIO</label>
-                                        <input type="time" name="inicio_dejem" x-model="inicio_dejem" class="w-full bg-slate-900 border border-slate-700 text-white rounded-lg px-2 py-1 text-[10px] focus:border-amber-500 focus:outline-none">
+                                        <input type="time" name="inicio_dejem" x-model="inicio_dejem" :placeholder="horariosCalculados.inicio" class="w-full bg-slate-900 border border-slate-700 text-white rounded-lg px-2 py-1 text-[10px] focus:border-amber-500 focus:outline-none">
                                     </div>
                                     <div class="flex-1 opacity-70 pointer-events-none">
                                         <label class="text-[7px] font-black tracking-widest text-emerald-500 mb-0.5 block uppercase">TÉRMINO</label>
@@ -215,19 +229,19 @@
                             </div>
 
                             <div x-show="!isDejem" x-collapse class="space-y-2">
-                                <label class="text-[7px] font-black tracking-widest text-slate-500 mb-1 block uppercase">HORÁRIO</label>
-                                <div class="grid grid-cols-3 gap-1">
-                                    <button type="button" @click="horario_ordinario = '24h'" :class="horario_ordinario === '24h' ? 'bg-blue-600 border-blue-400 text-white' : 'bg-slate-800 border-slate-700 text-slate-400'" class="py-1 text-[8px] font-black rounded-lg border transition uppercase text-center leading-tight">24h<br>07:30</button>
-                                    <button type="button" @click="horario_ordinario = '12h-dia'" :class="horario_ordinario === '12h-dia' ? 'bg-blue-600 border-blue-400 text-white' : 'bg-slate-800 border-slate-700 text-slate-400'" class="py-1 text-[8px] font-black rounded-lg border transition uppercase text-center leading-tight">12h<br>06:45</button>
-                                    <button type="button" @click="horario_ordinario = '12h-noite'" :class="horario_ordinario === '12h-noite' ? 'bg-blue-600 border-blue-400 text-white' : 'bg-slate-800 border-slate-700 text-slate-400'" class="py-1 text-[8px] font-black rounded-lg border transition uppercase text-center leading-tight">12h<br>18:45</button>
+                                <label class="text-[7px] font-black tracking-widest text-slate-500 mb-1 block uppercase text-center">Horário Sugerido ({{ item.posto_nome }})</label>
+                                
+                                <div class="bg-slate-800/50 border border-slate-700 rounded-lg p-2 text-center">
+                                    <div class="text-[10px] font-black text-blue-400 tracking-tighter">
+                                        <span x-text="h_inicio"></span> ÀS <span x-text="h_fim"></span>
+                                    </div>
+                                    <div class="text-[7px] font-bold text-slate-500 uppercase mt-1">
+                                        Escala de <span x-text="horariosCalculados.tipo"></span>
+                                    </div>
                                 </div>
                                 
                                 <input type="hidden" name="inicio_servico" :value="h_inicio">
                                 <input type="hidden" name="termino_servico" :value="h_fim">
-                                
-                                <div class="text-[7px] font-bold text-slate-500 text-center tracking-widest">
-                                    <span x-text="h_inicio"></span> ÀS <span x-text="h_fim"></span>
-                                </div>
                             </div>
                         </div>
 

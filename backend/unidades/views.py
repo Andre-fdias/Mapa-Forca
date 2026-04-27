@@ -667,35 +667,17 @@ def visao_cobom_efetivo_view(request):
     if mapa:
         alocs_all = mapa.alocacoes_funcionarios.select_related('funcionario__posto_graduacao', 'funcao').all()
         
-        # Mapeamento de cor por função
-        cor_map = {
-            'Oficial de Operações DEJEM': 'text-blue-500',
-            'Chefe de Equipe': 'text-blue-500',
-            'Supervisor Despacho': 'text-blue-500',
-            'Supervisor 193': 'text-blue-500',
-            'Atendente 193': 'text-blue-500',
-            'Supervisor 7º GB': 'text-red-500',
-            'Cabine 7º GB': 'text-red-500',
-            'Supervisor 19º GB': 'text-red-500',
-            'Cabine 19º GB': 'text-red-500',
-            'Supervisor 15º GB': 'text-red-500',
-            'Cabine 15º GB': 'text-red-500',
-            'Supervisor 16º GB': 'text-red-500',
-            'Cabine 16º GB': 'text-red-500',
-            'Enfermeiro de Triagem': 'text-emerald-500',
-            'Inclusor': 'text-purple-500',
-            'Supervisor COE Autoban': 'text-purple-500',
-        }
-
-        # Agrupar alocações por função para tratar múltiplos militares (como no 193)
+        # Agrupar alocações por nome da função em MAIÚSCULO para evitar problemas de case
         from collections import defaultdict
         aloc_grupos = defaultdict(list)
         for a in alocs_all:
-            aloc_grupos[a.funcao.nome].append(a)
+            if a.funcao:
+                aloc_grupos[a.funcao.nome.upper()].append(a)
 
         # Usar as funções fixas como ordem de exibição, mas processar todos os alocados
         for setor_original, cor_original, fn_nome in FUNCOES_FIXAS:
-            alocs_da_funcao = aloc_grupos.get(fn_nome, [])
+            # Busca no grupo usando o nome em maiúsculo
+            alocs_da_funcao = aloc_grupos.get(fn_nome.upper(), [])
             
             # --- NOVA LÓGICA DE SETORES ---
             setor = setor_original
@@ -704,7 +686,8 @@ def visao_cobom_efetivo_view(request):
             
             # --- LÓGICA DE EXIBIÇÃO PARA SUPERVISORES DE GB ---
             esconder_detalhes = False
-            if any(gb in fn_nome for gb in ['7º GB', '15º GB', '16º GB', '19º GB']) and 'Supervisor' in fn_nome:
+            fn_upper = fn_nome.upper()
+            if any(gb in fn_upper for gb in ['7º GB', '15º GB', '16º GB', '19º GB']) and 'SUPERVISOR' in fn_upper:
                 esconder_detalhes = True
 
             if alocs_da_funcao:
@@ -728,8 +711,6 @@ def visao_cobom_efetivo_view(request):
                     
                     tel_raw = ef_info.telefone if ef_info else '-'
                     tel_link = normalize_phone_for_whatsapp(tel_raw)
-                    
-                    pg_nome = aloc.funcionario.posto_graduacao.nome if aloc.funcionario.posto_graduacao else ''
                     
                     # --- AJUSTE DE NOMENCLATURA PARA MOTORISTA DE SUPERVISOR ---
                     fn_display = fn_nome.upper()
@@ -810,6 +791,7 @@ def visao_cobom_efetivo_view(request):
         'suporte_email': 'cbmqualidadeop@policiamilitar.sp.gov.br',
         'editor_email_1': 'cb1icobom@policiamilitar.sp.gov.br',
         'editor_email_2': 'cb1icobom.suporte@policiamilitar.sp.gov.br',
+        'base_template': 'base.html',
     }
     
     return render(request, 'dashboard/visao_cobom_efetivo.html', context)
