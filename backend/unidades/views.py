@@ -454,8 +454,9 @@ def dashboard_cobom(request):
                 rank = (aloc_sup_obj.funcionario.posto_graduacao.nome if aloc_sup_obj.funcionario.posto_graduacao else "").upper()
                 stars = 0
                 if 'CEL' in rank: stars = 3
-                elif 'MAJ' in rank: stars = 2
-                elif 'CAP' in rank: stars = 1
+                elif 'MAJ' in rank: stars = 1  # 1 coroa
+                elif 'CAP' in rank: stars = 3  # 3 estrelas (igual ao oficial de área)
+                elif 'TEN' in rank: stars = 2  # Fallback para tenentes se houver
                 
                 aloc_sup_obj.rank_display = rank
                 aloc_sup_obj.stars_list = range(stars)
@@ -556,6 +557,18 @@ def dashboard_cobom(request):
             {'cargo': 'Oficial de Área', 'nome': 'NÃO IDENTIFICADO', 'tipo': 'N/D'}
         ]
 
+    # --- PRONTIDÃO DO BATALHÃO ---
+    prontidao = 'VERDE'
+    if batalhao_selecionado:
+        mapa_bt = MapaDiario.objects.filter(data=hoje, unidade=batalhao_selecionado).first()
+        if mapa_bt and mapa_bt.prontidao:
+            prontidao = mapa_bt.prontidao
+    elif batalhoes:
+        # Fallback para o primeiro batalhão se nenhum estiver selecionado explicitamente
+        mapa_bt = MapaDiario.objects.filter(data=hoje, unidade=batalhoes[0]).first()
+        if mapa_bt and mapa_bt.prontidao:
+            prontidao = mapa_bt.prontidao
+
     return render(request, 'dashboard/cobom.html', {
         'sgbs': sgbs_data, 
         'hoje': hoje, 
@@ -569,7 +582,8 @@ def dashboard_cobom(request):
         'oficiais': oficiais_servico,
         'oficial_area_1': oficial_area_1,
         'oficial_area_2': oficial_area_2,
-        'supervisor_bt': supervisor_bt
+        'supervisor_bt': supervisor_bt,
+        'prontidao': prontidao
     })
 
 @login_required

@@ -1,4 +1,5 @@
 from django.shortcuts import render
+from django.contrib.auth.decorators import login_required
 from rest_framework import viewsets, filters
 from django_filters.rest_framework import DjangoFilterBackend
 from .models import Funcionario, Efetivo
@@ -38,6 +39,97 @@ def sync_efetivo_action(request):
         return HttpResponse('<div class="px-6 py-3 bg-emerald-500/20 text-emerald-400 rounded-2xl text-[10px] font-black uppercase tracking-widest animate-pulse border border-emerald-500/30">Sucesso! Recarregando...<script>setTimeout(() => location.reload(), 1500)</script></div>')
     except Exception as e:
         return HttpResponse(f'<div class="px-6 py-3 bg-red-500/20 text-red-400 rounded-2xl text-[10px] font-bold border border-red-500/30">Erro: {str(e)}</div>')
+
+from django.db.models import Count
+from escalas.models import AlocacaoFuncionario
+from django.utils import timezone
+
+@login_required
+def relatorio_efetivo_view(request):
+    if not (request.user.is_superuser or request.user.role in ['ADMIN', 'COBOM']):
+        return redirect('/')
+
+    user = request.user
+    hoje = timezone.localtime(timezone.now()).date()
+    
+    # Parâmetros de Filtro
+    unidade_sel = request.GET.get('unidade', '')
+    sgb_sel = request.GET.get('sgb', '')
+    posto_sel = request.GET.get('posto', '')
+    
+    efetivo_qs = Efetivo.objects.all()
+    aloc_qs = AlocacaoFuncionario.objects.filter(mapa__data=hoje)
+
+    # Filtro Dinâmico
+    if unidade_sel:
+        efetivo_qs = efetivo_qs.filter(unidade=unidade_sel)
+        aloc_qs = aloc_qs.filter(Q(mapa__unidade__nome=unidade_sel) | Q(mapa__unidade__parent__nome=unidade_sel))
+    if sgb_sel:
+        efetivo_qs = efetivo_qs.filter(sgb=sgb_sel)
+        # Tenta filtrar alocação pelo SGB (que geralmente é o parent da unidade do mapa)
+        aloc_qs = aloc_qs.filter(mapa__unidade__parent__nome=sgb_sel)
+    if posto_sel:
+        efetivo_qs = efetivo_qs.filter(posto_secao=posto_sel)
+        aloc_qs = aloc_qs.filter(mapa__unidade__nome=posto_sel)
+
+    # --- AGREGAÇÃO DE DADOS ---
+    total_efetivo = efetivo_qs.count()
+    total_escalados = aloc_qs.values('funcionario').distinct().count()
+    
+    # 1. Distribuição por Unidade (Top 10)
+    dist_unidade = list(efetivo_qs.values('unidade').annotate(total=Count('id')).order_by('-total')[:10])
+    
+    # 2. Especialidades
+    mergulhadores = efetivo_qs.filter(Q(mergulho__icontains='SIM') | Q(mergulho__icontains='S')).count()
+    ovb = efetivo_qs.filter(Q(ovb__icontains='SIM') | Q(ovb__icontains='S')).count()
+    
+    # 3. Postos/Graduações
+    func_qs = Funcionario.objects.filter(re__in=efetivo_qs.values_list('re', flat=True))
+    dist_postos = list(func_qs.values('posto_graduacao__nome').annotate(total=Count('re')).order_by('posto_graduacao__ordem'))
+
+    # 4. Dados de Água (Agregados)
+    from django.db.models import Sum
+    vtrs_base = aloc_qs.filter(alocacao_viatura__isnull=False)
+    
+    # Água por SGB
+    dist_agua_sgb = list(vtrs_base.values('mapa__unidade__parent__nome')
+                        .annotate(total_agua=Sum('alocacao_viatura__viatura__vol_agua'))
+                        .filter(total_agua__gt=0).order_by('-total_agua')[:10])
+    
+    # Água por Posto
+    dist_agua_posto = list(vtrs_base.values('mapa__unidade__nome')
+                          .annotate(total_agua=Sum('alocacao_viatura__viatura__vol_agua'))
+                          .filter(total_agua__gt=0).order_by('-total_agua')[:10])
+
+    total_agua = vtrs_base.aggregate(Sum('alocacao_viatura__viatura__vol_agua'))['alocacao_viatura__viatura__vol_agua__sum'] or 0
+
+    # Listas para os filtros (Opções Dinâmicas)
+    lista_unidades = Efetivo.objects.exclude(unidade__isnull=True).exclude(unidade='').values_list('unidade', flat=True).distinct().order_by('unidade')
+    lista_sgb = Efetivo.objects.filter(unidade=unidade_sel).exclude(sgb__isnull=True).exclude(sgb='').values_list('sgb', flat=True).distinct().order_by('sgb') if unidade_sel else []
+    lista_postos = Efetivo.objects.filter(sgb=sgb_sel).exclude(posto_secao__isnull=True).exclude(posto_secao='').values_list('posto_secao', flat=True).distinct().order_by('posto_secao') if sgb_sel else []
+
+    context = {
+        'total_efetivo': total_efetivo,
+        'total_escalados': total_escalados,
+        'dist_unidade': dist_unidade,
+        'mergulhadores': mergulhadores,
+        'ovb': ovb,
+        'dist_postos': dist_postos,
+        'dist_agua_sgb': dist_agua_sgb,
+        'dist_agua_posto': dist_agua_posto,
+        'total_agua': total_agua,
+        'hoje': hoje,
+        'unidades': lista_unidades,
+        'sgbs': lista_sgb,
+        'postos_list': lista_postos,
+        'unidade_sel': unidade_sel,
+        'sgb_sel': sgb_sel,
+        'posto_sel': posto_sel
+    }
+    
+    return render(request, 'efetivo/relatorios.html', context)
+
+
 
 def lista_efetivo_importado(request):
     user = request.user

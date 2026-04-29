@@ -14,4 +14,5 @@ urlpatterns = [
     path('validar-mapa/<int:mapa_id>/', views.validar_mapa_final, name='validar_mapa_final'),
     path('get-viaturas/', views.get_viaturas_por_unidade, name='get_viaturas_por_unidade'),
     path('historico/', views.historico_view, name='historico_mapa'),
+    path('seed-mapa/', views.seed_mapa_view, name='seed_mapa'),
 ]

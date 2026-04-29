@@ -1,0 +1,248 @@
+{% extends "base/base.html" %}
+{% load math_extras %}
+
+{% block title %}Relatórios de Efetivo — Mapa Força{% endblock %}
+
+{% block content %}
+<div class="flex flex-col space-y-6 animate-fade-in">
+    <!-- Header & Filtros -->
+    <div class="flex flex-col space-y-4">
+        <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
+            <div>
+                <h1 class="text-2xl font-black text-slate-900 dark:text-white uppercase tracking-tighter italic">
+                    Relatórios de <span class="text-red-600">Efetivo</span>
+                </h1>
+                <p class="text-[10px] font-bold text-slate-500 uppercase tracking-[0.2em]">Análise tática e estatística da força de trabalho</p>
+            </div>
+            <div class="flex items-center space-x-2 bg-white dark:bg-slate-900 p-2 rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm">
+                <svg class="h-4 w-4 text-red-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2-2v12a2 2 0 002 2z" />
+                </svg>
+                <span class="text-[11px] font-black text-slate-900 dark:text-white uppercase">{{ hoje|date:"d/m/Y" }}</span>
+            </div>
+        </div>
+
+        <!-- Filtros Hierárquicos -->
+        <form method="GET" id="filterForm" class="grid grid-cols-1 md:grid-cols-4 gap-3 bg-white dark:bg-slate-900 p-4 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm">
+            <div class="flex flex-col space-y-1">
+                <label class="text-[8px] font-black text-slate-500 uppercase ml-1">Unidade (GB)</label>
+                <select name="unidade" onchange="this.form.submit()" class="bg-slate-50 dark:bg-slate-800 border-none rounded-xl text-[10px] font-bold text-slate-700 dark:text-slate-200 focus:ring-2 focus:ring-red-500/20">
+                    <option value="">TODAS UNIDADES</option>
+                    {% for u in unidades %}
+                    <option value="{{ u }}" {% if u == unidade_sel %}selected{% endif %}>{{ u }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <div class="flex flex-col space-y-1">
+                <label class="text-[8px] font-black text-slate-500 uppercase ml-1">Subgrupamento (SGB)</label>
+                <select name="sgb" onchange="this.form.submit()" {% if not sgbs %}disabled{% endif %} class="bg-slate-50 dark:bg-slate-800 border-none rounded-xl text-[10px] font-bold text-slate-700 dark:text-slate-200 focus:ring-2 focus:ring-red-500/20 disabled:opacity-50">
+                    <option value="">TODOS SGBS</option>
+                    {% for s in sgbs %}
+                    <option value="{{ s }}" {% if s == sgb_sel %}selected{% endif %}>{{ s }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <div class="flex flex-col space-y-1">
+                <label class="text-[8px] font-black text-slate-500 uppercase ml-1">Posto / Seção</label>
+                <select name="posto" onchange="this.form.submit()" {% if not postos_list %}disabled{% endif %} class="bg-slate-50 dark:bg-slate-800 border-none rounded-xl text-[10px] font-bold text-slate-700 dark:text-slate-200 focus:ring-2 focus:ring-red-500/20 disabled:opacity-50">
+                    <option value="">TODOS POSTOS</option>
+                    {% for p in postos_list %}
+                    <option value="{{ p }}" {% if p == posto_sel %}selected{% endif %}>{{ p }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <div class="flex items-end pb-0.5">
+                <a href="{% url 'relatorios_efetivo' %}" class="w-full text-center px-4 py-2.5 bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 rounded-xl text-[10px] font-black uppercase hover:bg-red-50 dark:hover:bg-red-900/20 hover:text-red-600 transition-colors">
+                    Limpar Filtros
+                </a>
+            </div>
+        </form>
+    </div>
+
+    <!-- KPIs -->
+    <div class="grid grid-cols-1 md:grid-cols-5 gap-4">
+        <div class="bg-white dark:bg-slate-900 p-4 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm relative overflow-hidden group hover:border-red-500/30 transition-colors">
+            <p class="text-[8px] font-black text-slate-500 uppercase tracking-widest mb-1">Efetivo Total</p>
+            <p class="text-3xl font-black text-slate-900 dark:text-white">{{ total_efetivo }}</p>
+        </div>
+
+        <div class="bg-white dark:bg-slate-900 p-4 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm relative overflow-hidden group hover:border-emerald-500/30 transition-colors">
+            <p class="text-[8px] font-black text-slate-500 uppercase tracking-widest mb-1">Escalados Hoje</p>
+            <p class="text-3xl font-black text-emerald-600">{{ total_escalados }}</p>
+        </div>
+
+        <div class="bg-white dark:bg-slate-900 p-4 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm relative overflow-hidden group hover:border-blue-500/30 transition-colors">
+            <p class="text-[8px] font-black text-slate-500 uppercase tracking-widest mb-1">Mergulhadores</p>
+            <p class="text-3xl font-black text-blue-600">{{ mergulhadores }}</p>
+        </div>
+
+        <div class="bg-white dark:bg-slate-900 p-4 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm relative overflow-hidden group hover:border-amber-500/30 transition-colors">
+            <p class="text-[8px] font-black text-slate-500 uppercase tracking-widest mb-1">OVB</p>
+            <p class="text-3xl font-black text-amber-600">{{ ovb }}</p>
+        </div>
+
+        <div class="bg-white dark:bg-slate-900 p-4 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm relative overflow-hidden group hover:border-cyan-500/30 transition-colors">
+            <p class="text-[8px] font-black text-slate-500 uppercase tracking-widest mb-1">Água (Total)</p>
+            <p class="text-3xl font-black text-cyan-600">{{ total_agua|default:0 }} <span class="text-xs italic opacity-60">L</span></p>
+        </div>
+    </div>
+
+    <!-- Gráficos -->
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <!-- Situação Escala -->
+        <div class="bg-white dark:bg-slate-900 p-6 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm">
+            <h3 class="text-xs font-black text-slate-900 dark:text-white uppercase tracking-widest mb-6 flex items-center">
+                <span class="w-2 h-2 bg-emerald-500 rounded-full mr-2"></span> Situação da Escala
+            </h3>
+            <div class="h-64 relative"><canvas id="chartStatus"></canvas></div>
+        </div>
+
+        <!-- Especialidades -->
+        <div class="bg-white dark:bg-slate-900 p-6 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm">
+            <h3 class="text-xs font-black text-slate-900 dark:text-white uppercase tracking-widest mb-6 flex items-center">
+                <span class="w-2 h-2 bg-blue-500 rounded-full mr-2"></span> Especialidades
+            </h3>
+            <div class="h-64 relative"><canvas id="chartEspecialidades"></canvas></div>
+        </div>
+
+        <!-- Unidades -->
+        <div class="bg-white dark:bg-slate-900 p-6 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm md:col-span-2">
+            <h3 class="text-xs font-black text-slate-900 dark:text-white uppercase tracking-widest mb-6 flex items-center">
+                <span class="w-2 h-2 bg-red-500 rounded-full mr-2"></span> Distribuição por Unidade (Efetivo)
+            </h3>
+            <div class="h-80 relative"><canvas id="chartUnidades"></canvas></div>
+        </div>
+
+        <!-- Água por SGB -->
+        <div class="bg-white dark:bg-slate-900 p-6 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm">
+            <h3 class="text-xs font-black text-slate-900 dark:text-white uppercase tracking-widest mb-6 flex items-center">
+                <span class="w-2 h-2 bg-cyan-600 rounded-full mr-2"></span> Água por SGB (Litros)
+            </h3>
+            <div class="h-72 relative"><canvas id="chartAguaSgb"></canvas></div>
+        </div>
+
+        <!-- Água por Posto -->
+        <div class="bg-white dark:bg-slate-900 p-6 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm">
+            <h3 class="text-xs font-black text-slate-900 dark:text-white uppercase tracking-widest mb-6 flex items-center">
+                <span class="w-2 h-2 bg-cyan-400 rounded-full mr-2"></span> Água por Posto (Litros)
+            </h3>
+            <div class="h-72 relative"><canvas id="chartAguaPosto"></canvas></div>
+        </div>
+
+        <!-- Postos -->
+        <div class="bg-white dark:bg-slate-900 p-6 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm md:col-span-2">
+            <h3 class="text-xs font-black text-slate-900 dark:text-white uppercase tracking-widest mb-6 flex items-center">
+                <span class="w-2 h-2 bg-indigo-600 rounded-full mr-2"></span> Distribuição por Posto/Graduação
+            </h3>
+            <div class="h-80 relative"><canvas id="chartPostos"></canvas></div>
+        </div>
+    </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.0.0"></script>
+
+<script>
+    Chart.register(ChartDataLabels);
+    const getStyle = (v) => getComputedStyle(document.documentElement).getPropertyValue(v).trim();
+    const colors = {
+        text: getStyle('--text-secondary'),
+        textActive: getStyle('--text-primary'),
+        grid: getStyle('--border-subtle'),
+        red: '#ef4444', emerald: '#10b981', blue: '#3b82f6', amber: '#f59e0b', indigo: '#6366f1', cyan: '#06b6d4'
+    };
+
+    const commonOptions = {
+        responsive: true, maintainAspectRatio: false,
+        plugins: {
+            legend: { display: false },
+            datalabels: { anchor: 'end', align: 'top', color: colors.textActive, font: { weight: 'bold', size: 10 } }
+        },
+        scales: {
+            y: { beginAtZero: true, grid: { color: colors.grid }, ticks: { color: colors.text, font: { size: 9 } } },
+            x: { grid: { display: false }, ticks: { color: colors.text, font: { size: 9 } } }
+        }
+    };
+
+    // 1. Status
+    new Chart(document.getElementById('chartStatus'), {
+        type: 'doughnut',
+        data: {
+            labels: ['Escalados', 'Folga'],
+            datasets: [{
+                data: [{{ total_escalados }}, {{ total_efetivo|subtract:total_escalados }}],
+                backgroundColor: [colors.emerald, '#334155'], borderWidth: 0
+            }]
+        },
+        options: {
+            ...commonOptions,
+            cutout: '70%',
+            plugins: { ...commonOptions.plugins, legend: { display: true, position: 'bottom' } }
+        }
+    });
+
+    // 2. Especialidades
+    new Chart(document.getElementById('chartEspecialidades'), {
+        type: 'bar',
+        data: {
+            labels: ['Mergulho', 'OVB'],
+            datasets: [{ data: [{{ mergulhadores }}, {{ ovb }}], backgroundColor: [colors.blue, colors.amber], borderRadius: 8 }]
+        },
+        options: commonOptions
+    });
+
+    // 3. Unidades
+    new Chart(document.getElementById('chartUnidades'), {
+        type: 'bar',
+        data: {
+            labels: [{% for i in dist_unidade %}'{{ i.unidade|default:"N/D" }}',{% endfor %}],
+            datasets: [{ data: [{% for i in dist_unidade %}{{ i.total }},{% endfor %}], backgroundColor: colors.red, borderRadius: 4 }]
+        },
+        options: { ...commonOptions, indexAxis: 'y' }
+    });
+
+    // 4. Água SGB
+    new Chart(document.getElementById('chartAguaSgb'), {
+        type: 'bar',
+        data: {
+            labels: [{% for i in dist_agua_sgb %}'{{ i.mapa__unidade__parent__nome|default:"N/D" }}',{% endfor %}],
+            datasets: [{ data: [{% for i in dist_agua_sgb %}{{ i.total_agua }},{% endfor %}], backgroundColor: colors.cyan, borderRadius: 6 }]
+        },
+        options: {
+            ...commonOptions,
+            plugins: { ...commonOptions.plugins, datalabels: { ...commonOptions.plugins.datalabels, formatter: (v) => v + ' L' } }
+        }
+    });
+
+    // 5. Água Posto
+    new Chart(document.getElementById('chartAguaPosto'), {
+        type: 'bar',
+        data: {
+            labels: [{% for i in dist_agua_posto %}'{{ i.mapa__unidade__nome|default:"N/D" }}',{% endfor %}],
+            datasets: [{ data: [{% for i in dist_agua_posto %}{{ i.total_agua }},{% endfor %}], backgroundColor: '#22d3ee', borderRadius: 6 }]
+        },
+        options: {
+            ...commonOptions,
+            plugins: { ...commonOptions.plugins, datalabels: { ...commonOptions.plugins.datalabels, formatter: (v) => v + ' L' } }
+        }
+    });
+
+    // 6. Postos
+    new Chart(document.getElementById('chartPostos'), {
+        type: 'bar',
+        data: {
+            labels: [{% for i in dist_postos %}'{{ i.posto_graduacao__nome|default:"N/D" }}',{% endfor %}],
+            datasets: [{ data: [{% for i in dist_postos %}{{ i.total }},{% endfor %}], backgroundColor: colors.indigo, borderRadius: 4 }]
+        },
+        options: commonOptions
+    });
+</script>
+
+<style>
+    @keyframes fade-in { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+    .animate-fade-in { animation: fade-in 0.4s ease-out forwards; }
+</style>
+{% endblock %}

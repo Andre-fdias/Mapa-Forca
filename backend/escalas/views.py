@@ -325,6 +325,26 @@ def historico_view(request):
     data_selecionada = timezone.datetime.strptime(data_str, '%Y-%m-%d').date() if data_str else timezone.now().date()
     mapas = MapaDiario.objects.filter(data=data_selecionada).select_related('unidade')
     return render(request, 'escalas/historico.html', {'mapas': mapas, 'data_selecionada': data_selecionada})
+@login_required
+def seed_mapa_view(request):
+    """
+    Aciona o comando de seed para popular todos os mapas (Apenas Superuser).
+    """
+    if not request.user.is_superuser:
+        return HttpResponse("Acesso negado", status=403)
+    
+    from django.core.management import call_command
+    from django.contrib import messages
+    
+    try:
+        call_command('seed_mapa')
+        messages.success(request, "Simulação de mapas concluída com sucesso para todas as unidades!")
+    except Exception as e:
+        messages.error(request, f"Erro ao simular mapas: {str(e)}")
+        
+    return redirect(request.META.get('HTTP_REFERER', '/'))
+
+
 class MapaDiarioViewSet(viewsets.ModelViewSet): queryset = MapaDiario.objects.all(); serializer_class = MapaDiarioSerializer
 class AlocacaoFuncionarioViewSet(viewsets.ModelViewSet): queryset = AlocacaoFuncionario.objects.all(); serializer_class = AlocacaoFuncionarioSerializer
 class AlocacaoViaturaViewSet(viewsets.ModelViewSet): queryset = AlocacaoViatura.objects.all(); serializer_class = AlocacaoViaturaSerializer

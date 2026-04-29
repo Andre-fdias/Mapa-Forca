@@ -43,6 +43,26 @@
     {% block extra_head %}{% endblock %}
     
     <style>
+        :root {
+            --bg-primary: #f8fafc;
+            --bg-secondary: #ffffff;
+            --bg-tertiary: #f1f5f9;
+            --text-primary: #0f172a;
+            --text-secondary: #475569;
+            --border-subtle: rgba(0, 0, 0, 0.05);
+            --accent-red: #e11d48;
+        }
+
+        .dark {
+            --bg-primary: #020617;
+            --bg-secondary: #0f172a;
+            --bg-tertiary: #1e293b;
+            --text-primary: #f8fafc;
+            --text-secondary: #94a3b8;
+            --border-subtle: rgba(255, 255, 255, 0.1);
+            --accent-red: #f43f5e;
+        }
+
         [x-cloak] { display: none !important; }
         .glass {
             background: rgba(255, 255, 255, 0.7);
